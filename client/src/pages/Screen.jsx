@@ -76,7 +76,7 @@ export default function Screen() {
 
         const io = geckos({
             url: serverUrl,
-            port: import.meta.env.VITE_SERVER_PORT ? parseInt(import.meta.env.VITE_SERVER_PORT) : 3000,
+            port: serverUrl.includes(':') ? undefined : (import.meta.env.VITE_SERVER_PORT ? parseInt(import.meta.env.VITE_SERVER_PORT) : 10000),
             iceServers: [
                 { urls: 'stun:stun.l.google.com:19302' },
                 { urls: 'stun:stun1.l.google.com:19302' }
