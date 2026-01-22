@@ -5,7 +5,8 @@
     "main": "index.js",
     "scripts": {
         "start": "node index.js",
-        "dev": "node --watch index.js"
+        "dev": "node --watch index.js",
+        "postinstall": "npm rebuild"
     },
     "dependencies": {
         "@geckos.io/server": "^3.0.2",
