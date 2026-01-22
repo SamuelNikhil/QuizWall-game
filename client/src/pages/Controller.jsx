@@ -48,7 +48,7 @@ export default function Controller() {
             connectedRef.current = true;
             setChannel(io);
             setConnected(true);
-            io.emit('joinRoom', { roomId });
+            io.emit('joinRoom', { roomId, controllerId: `ctrl-${Math.random().toString(36).substr(2, 9)}` });
         });
 
         io.on('joinedRoom', (data) => {

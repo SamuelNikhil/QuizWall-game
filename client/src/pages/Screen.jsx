@@ -168,7 +168,7 @@ export default function Screen() {
 
     const handleShoot = useCallback((data) => {
         const { controllerId, targetXPercent, targetYPercent, power } = data;
-        const id = Date.now();
+        const id = `shot-${Math.random().toString(36).substr(2, 9)}`;
 
         // Clear targeting state when shot is fired
         setTargetedOrbId(null);
