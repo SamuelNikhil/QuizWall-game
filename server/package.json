@@ -6,7 +6,8 @@
     "scripts": {
         "start": "node index.js",
         "dev": "node --watch index.js",
-        "postinstall": "npm rebuild"
+        "build": "npm rebuild node-datachannel",
+        "postinstall": "npm rebuild node-datachannel"
     },
     "dependencies": {
         "@geckos.io/server": "^3.0.2",
