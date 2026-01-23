@@ -26,6 +26,18 @@ export default function Controller() {
     useEffect(() => {
         const { serverUrl, connectionPort } = getServerConfig();
 
+        // Set timeout to detect hanging handshakes
+        const handshakeTimeout = setTimeout(() => {
+            if (!connectedRef.current) {
+                console.error('[CONTROLLER] Handshake timeout - possible issues:');
+                console.error('  - WebRTC data channel never opened (check for "🎮 data channel open")');
+                console.error('  - ICE negotiation failed (network blocking WebRTC)');
+                console.error('  - Server not responding to joinRoom event');
+                console.error('  - CORS or mixed-content issues');
+                console.error('  - STUN/TURN servers unreachable');
+            }
+        }, 15000); // 15 second timeout
+
         const io = geckos({
             url: serverUrl,
             path: '/.wrtc',
@@ -41,13 +53,20 @@ export default function Controller() {
         io.onConnect((error) => {
             if (error) {
                 console.error('Connection error:', error);
+                clearTimeout(handshakeTimeout);
                 return;
             }
             console.log('Connected to server');
             connectedRef.current = true;
             setChannel(io);
-            setConnected(true);
-            io.emit('joinRoom', { roomId, controllerId: `ctrl-${Math.random().toString(36).substr(2, 9)}` });
+            if (roomId) {
+                io.emit('joinRoom', { roomId });
+            }
+        });
+
+        io.on('open', () => {
+            console.log('🎮 data channel open');
+            clearTimeout(handshakeTimeout);
         });
 
         io.on('joinedRoom', (data) => {
@@ -68,6 +87,7 @@ export default function Controller() {
         });
 
         return () => {
+            clearTimeout(handshakeTimeout);
             if (connectedRef.current && channelRef.current) {
                 try {
                     channelRef.current.close();

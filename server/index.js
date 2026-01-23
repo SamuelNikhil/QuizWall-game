@@ -7,6 +7,9 @@ const io = geckos({
 // Rooms: roomId -> { screenChannel, controllers: [] }
 const rooms = new Map();
 
+// Track connection timeouts
+const connectionTimeouts = new Map();
+
 function generateRoomId() {
   return Math.random().toString(36).substring(2, 8).toUpperCase();
 }
@@ -14,7 +17,30 @@ function generateRoomId() {
 io.onConnection((channel) => {
   console.log(`[Geckos] Client connected: ${channel.id}`);
 
+  // Set timeout to detect hanging handshakes
+  const timeoutId = setTimeout(() => {
+    const timeout = connectionTimeouts.get(channel.id);
+    if (timeout) {
+      console.log(`[WARNING] Client ${channel.id} handshake timeout - possible issues:`);
+      console.log(`  - WebRTC data channel never opened`);
+      console.log(`  - ICE negotiation failed (check STUN/TURN servers)`);
+      console.log(`  - Network blocking WebRTC (corporate firewall/VPN)`);
+      console.log(`  - Client-side JavaScript errors`);
+      console.log(`  - Server not receiving 'createRoom' or 'joinRoom' events`);
+      connectionTimeouts.delete(channel.id);
+    }
+  }, 15000); // 15 second timeout
+
+  connectionTimeouts.set(channel.id, timeoutId);
+
   channel.on('createRoom', () => {
+    // Clear timeout on successful room creation
+    const timeoutId = connectionTimeouts.get(channel.id);
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+      connectionTimeouts.delete(channel.id);
+    }
+
     const roomId = generateRoomId();
     rooms.set(roomId, { screenChannel: channel, controllers: [] });
     channel.userData = { role: 'screen', roomId };
@@ -23,6 +49,13 @@ io.onConnection((channel) => {
   });
 
   channel.on('joinRoom', (data) => {
+    // Clear timeout on successful room join
+    const timeoutId = connectionTimeouts.get(channel.id);
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+      connectionTimeouts.delete(channel.id);
+    }
+
     const { roomId } = data;
     const room = rooms.get(roomId);
     if (room) {
@@ -100,6 +133,13 @@ io.onConnection((channel) => {
   });
 
   channel.onDisconnect(() => {
+    // Clear timeout on disconnect
+    const timeoutId = connectionTimeouts.get(channel.id);
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+      connectionTimeouts.delete(channel.id);
+    }
+
     const { role, roomId } = channel.userData || {};
     if (role === 'screen' && roomId) {
       rooms.delete(roomId);

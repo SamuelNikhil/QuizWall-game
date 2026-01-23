@@ -83,9 +83,22 @@ export default function Screen() {
         });
         channelRef.current = io;
 
+        // Set timeout to detect hanging handshakes
+        const handshakeTimeout = setTimeout(() => {
+            if (!connectedRef.current) {
+                console.error('[SCREEN] Handshake timeout - possible issues:');
+                console.error('  - WebRTC data channel never opened (check for "🎮 data channel open")');
+                console.error('  - ICE negotiation failed (network blocking WebRTC)');
+                console.error('  - Server not responding to createRoom event');
+                console.error('  - CORS or mixed-content issues');
+                console.error('  - STUN/TURN servers unreachable');
+            }
+        }, 15000); // 15 second timeout
+
         io.onConnect((error) => {
             if (error) {
                 console.error('❌ connect error', error);
+                clearTimeout(handshakeTimeout);
                 return;
             }
             console.log('✅ connected to server');
@@ -96,6 +109,7 @@ export default function Screen() {
 
         io.on('open', () => {
             console.log('🎮 data channel open');
+            clearTimeout(handshakeTimeout);
         });
 
         io.on('roomCreated', (data) => {
@@ -118,6 +132,10 @@ export default function Screen() {
                 delete newScores[data.controllerId];
                 return newScores;
             });
+            return () => {
+                clearTimeout(handshakeTimeout);
+                io.close();
+            };
         });
 
         io.on('shoot', (data) => {
@@ -157,6 +175,7 @@ export default function Screen() {
         });
 
         return () => {
+            clearTimeout(handshakeTimeout);
             // Only close if actually connected
             if (connectedRef.current && channelRef.current) {
                 try {
