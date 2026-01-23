@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import geckos from '@geckos.io/client';
+import { getServerConfig } from '../config/network';
 
 export default function Controller() {
     const { roomId } = useParams();
@@ -23,22 +24,16 @@ export default function Controller() {
     const gyroListenerRef = useRef(null);
 
     useEffect(() => {
-        let serverUrl = import.meta.env.VITE_SERVER_URL || window.location.hostname;
-        if (!serverUrl.startsWith('http')) {
-            const protocol = serverUrl.includes('loca.lt') || serverUrl.includes('ngrok') ? 'https' : 'http';
-            serverUrl = `${protocol}://${serverUrl}`;
-        }
-
-        const urlObj = new URL(serverUrl);
-        const fallbackPort = import.meta.env.VITE_SERVER_PORT ? parseInt(import.meta.env.VITE_SERVER_PORT, 10) : 3000;
-        const connectionPort = urlObj.port ? parseInt(urlObj.port, 10) : fallbackPort;
+        const { serverUrl, connectionPort } = getServerConfig();
 
         const io = geckos({
             url: serverUrl,
             path: '/.wrtc',
             port: connectionPort,
             iceServers: [
-                { urls: 'stun:stun.l.google.com:19302' }
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' },
+                { urls: 'stun:stun2.l.google.com:19302' }
             ]
         });
         channelRef.current = io;

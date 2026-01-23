@@ -3,6 +3,12 @@
   publish = "dist"
 
 [[redirects]]
+  from = "/.wrtc/*"
+  to = "https://16.112.60.215:3000/.wrtc/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200

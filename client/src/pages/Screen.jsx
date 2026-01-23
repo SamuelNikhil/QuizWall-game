@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import geckos from '@geckos.io/client';
+import { getServerConfig } from '../config/network';
 
 const QUESTIONS = [
     {
@@ -67,36 +68,34 @@ export default function Screen() {
     const connectedRef = useRef(false);
 
     useEffect(() => {
-        let serverUrl = import.meta.env.VITE_SERVER_URL || window.location.hostname;
-        // Ensure there is a protocol (http/https)
-        if (!serverUrl.startsWith('http')) {
-            const protocol = serverUrl.includes('loca.lt') || serverUrl.includes('ngrok') ? 'https' : 'http';
-            serverUrl = `${protocol}://${serverUrl}`;
-        }
-
-        const urlObj = new URL(serverUrl);
-        const fallbackPort = import.meta.env.VITE_SERVER_PORT ? parseInt(import.meta.env.VITE_SERVER_PORT, 10) : 3000;
-        const connectionPort = urlObj.port ? parseInt(urlObj.port, 10) : fallbackPort;
+        console.log('getServerConfig()', getServerConfig());
+        const { serverUrl, connectionPort } = getServerConfig();
 
         const io = geckos({
             url: serverUrl,
             path: '/.wrtc',
             port: connectionPort,
             iceServers: [
-                { urls: 'stun:stun.l.google.com:19302' }
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' },
+                { urls: 'stun:stun2.l.google.com:19302' }
             ]
         });
         channelRef.current = io;
 
         io.onConnect((error) => {
             if (error) {
-                console.error('Connection error:', error);
+                console.error('❌ connect error', error);
                 return;
             }
-            console.log('Connected to server');
+            console.log('✅ connected to server');
             connectedRef.current = true;
             setChannel(io);
             io.emit('createRoom');
+        });
+
+        io.on('open', () => {
+            console.log('🎮 data channel open');
         });
 
         io.on('roomCreated', (data) => {
