@@ -80,10 +80,10 @@ export default function Screen() {
 
         const io = geckos({
             url: serverUrl,
+            path: '/.wrtc',
             port: connectionPort,
             iceServers: [
-                { urls: 'stun:stun.l.google.com:19302' },
-                { urls: 'stun:stun1.l.google.com:19302' }
+                { urls: 'stun:stun.l.google.com:19302' }
             ]
         });
         channelRef.current = io;
