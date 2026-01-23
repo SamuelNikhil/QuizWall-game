@@ -1,0 +1,39 @@
+# fly.toml for the Slingshot Vite client
+# Run `fly launch --no-deploy` inside this folder and set the app name below.
+
+app = "slingshot-game-client"
+primary_region = "bom"
+kill_signal = "SIGINT"
+kill_timeout = 5
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  VITE_SERVER_URL = "https://slingshot-game-server.fly.dev"
+  VITE_SERVER_PORT = "3000"
+
+[[services]]
+  protocol = "tcp"
+  internal_port = 80
+  processes = ["app"]
+
+  [[services.ports]]
+    handlers = ["tls", "http"]
+    port = 443
+
+  [[services.ports]]
+    handlers = ["http"]
+    port = 80
+
+  [services.concurrency]
+    type = "connections"
+    hard_limit = 200
+    soft_limit = 150
+
+  [[services.http_checks]]
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "30s"
+    method = "get"
+    path = "/"
