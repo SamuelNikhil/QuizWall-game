@@ -29,9 +29,13 @@ export default function Controller() {
             serverUrl = `${protocol}://${serverUrl}`;
         }
 
+        const urlObj = new URL(serverUrl);
+        const fallbackPort = import.meta.env.VITE_SERVER_PORT ? parseInt(import.meta.env.VITE_SERVER_PORT, 10) : 3000;
+        const connectionPort = urlObj.port ? parseInt(urlObj.port, 10) : fallbackPort;
+
         const io = geckos({
             url: serverUrl,
-            port: serverUrl.includes(':') ? undefined : (import.meta.env.VITE_SERVER_PORT ? parseInt(import.meta.env.VITE_SERVER_PORT) : 10000),
+            port: connectionPort,
             iceServers: [
                 { urls: 'stun:stun.l.google.com:19302' },
                 { urls: 'stun1.l.google.com:19302' }
