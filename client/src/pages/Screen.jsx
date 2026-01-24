@@ -75,7 +75,6 @@ export default function Screen() {
         const io = geckos({
             url: window.location.origin,
             path: '/.wrtc',
-            port: connectionPort,
             iceServers: [
                 { urls: 'stun:stun.metered.ca:80' },
                 {
