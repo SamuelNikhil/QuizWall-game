@@ -38,11 +38,12 @@ export default function Controller() {
             }
         }, 15000); // 15 second timeout
 
-        // Use current origin to leverage nginx proxy bypass
+        // Controller connects directly to server (force HTTP for direct connection)
+        const actualServerUrl = serverUrl.replace('https://', 'http://');
         const io = geckos({
-            url: window.location.origin,
+            url: actualServerUrl,
             path: '/.wrtc',
-            port: 443, // Force HTTPS port to prevent auto-port selection
+            port: connectionPort,
             iceServers: [
                 { urls: 'stun:stun.metered.ca:80' },
                 {
