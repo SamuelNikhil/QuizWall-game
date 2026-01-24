@@ -76,9 +76,12 @@ export default function Screen() {
             path: '/.wrtc',
             port: connectionPort,
             iceServers: [
-                { urls: 'stun:stun.l.google.com:19302' },
-                { urls: 'stun:stun1.l.google.com:19302' },
-                { urls: 'stun:stun2.l.google.com:19302' }
+                { urls: 'stun:stun.metered.ca:80' },
+                {
+                    urls: 'turn:global.relay.metered.ca:443',
+                    username: 'admin',
+                    credential: 'admin'
+                }
             ]
         });
         channelRef.current = io;
