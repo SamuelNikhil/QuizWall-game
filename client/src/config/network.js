@@ -11,15 +11,6 @@ export function getServerConfig() {
     const isProduction = import.meta.env.PROD;
     let serverUrl = import.meta.env.VITE_SERVER_URL;
     
-    // In production, use relative URL to leverage nginx proxy
-    if (isProduction) {
-        console.log('[DEBUG] Production mode: using relative URL for nginx proxy');
-        return { 
-            serverUrl: '', // Empty string means relative URL (uses current domain)
-            connectionPort: undefined // Don't specify port in production
-        };
-    }
-    
     if (!serverUrl) {
         throw new Error('Server not configured: VITE_SERVER_URL environment variable is required');
     }
@@ -33,9 +24,9 @@ export function getServerConfig() {
     }
 
     // Force HTTPS for production/WebRTC compatibility
-   // if (isProduction && serverUrl.startsWith('http://')) {
-     //   serverUrl = serverUrl.replace('http://', 'https://');
-    //}
+    if (isProduction && serverUrl.startsWith('http://')) {
+        serverUrl = serverUrl.replace('http://', 'https://');
+    }
 
     if (!serverUrl.startsWith('http')) {
         const protocol = getProtocol(serverUrl);
