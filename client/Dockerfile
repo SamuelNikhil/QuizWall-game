@@ -29,8 +29,8 @@ FROM nginx:1.27-alpine
 # Copy built application
 COPY --from=build /app/dist /usr/share/nginx/html
 
-# Copy nginx configuration with WebRTC support
-COPY nginx.conf /etc/nginx/nginx.conf
+# Copy nginx configuration from client directory
+COPY --from=build /app/nginx.conf /etc/nginx/nginx.conf
 
 # Expose HTTP and HTTPS ports
 EXPOSE 80 443
