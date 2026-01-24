@@ -39,9 +39,9 @@ export default function Controller() {
         }, 15000); // 15 second timeout
 
         const io = geckos({
-            url: serverUrl,
+            url: serverUrl || undefined, // undefined makes it use relative URL
             path: '/.wrtc',
-            port: connectionPort,
+            port: serverUrl ? connectionPort : undefined, // only use port if serverUrl is set
             iceServers: [
                 { urls: 'stun:stun.metered.ca:80' },
                 {
