@@ -7,9 +7,13 @@ function getProtocol(hostname) {
 }
 
 export function getServerConfig() {
-    // Use Netlify domain in production, fallback to env or localhost
+    // Use Netlify domain in production, fallback to env or throw error
     const isProduction = import.meta.env.PROD;
-    let serverUrl = import.meta.env.VITE_SERVER_URL || (isProduction ? window.location.origin : 'http://localhost:5173');
+    let serverUrl = import.meta.env.VITE_SERVER_URL;
+    
+    if (!serverUrl) {
+        throw new Error('Server not configured: VITE_SERVER_URL environment variable is required');
+    }
 
     // Ensure serverUrl includes port if specified in VITE_SERVER_PORT
     const serverPort = import.meta.env.VITE_SERVER_PORT;
@@ -20,9 +24,9 @@ export function getServerConfig() {
     }
 
     // Force HTTPS for production/WebRTC compatibility
-    if (isProduction && serverUrl.startsWith('http://')) {
-        serverUrl = serverUrl.replace('http://', 'https://');
-    }
+   // if (isProduction && serverUrl.startsWith('http://')) {
+     //   serverUrl = serverUrl.replace('http://', 'https://');
+    //}
 
     if (!serverUrl.startsWith('http')) {
         const protocol = getProtocol(serverUrl);
