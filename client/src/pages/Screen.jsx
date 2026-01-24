@@ -71,10 +71,13 @@ export default function Screen() {
         console.log('getServerConfig()', getServerConfig());
         const { serverUrl, connectionPort } = getServerConfig();
 
+        // Force HTTP for geckos connection to avoid mixed content issues
+        const actualServerUrl = serverUrl.replace('https://', 'http://');
+
         const io = geckos({
-            url: serverUrl || undefined, // undefined makes it use relative URL
+            url: actualServerUrl,
             path: '/.wrtc',
-            port: connectionPort, // will be undefined in production
+            port: connectionPort,
             iceServers: [
                 { urls: 'stun:stun.metered.ca:80' },
                 {
