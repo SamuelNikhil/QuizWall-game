@@ -17,8 +17,8 @@ COPY . .
 # Build-time configuration for the game server endpoint
 ARG VITE_SERVER_URL
 ARG VITE_SERVER_PORT
-ENV VITE_SERVER_URL=${VITE_SERVER_URL}
-ENV VITE_SERVER_PORT=${VITE_SERVER_PORT}
+ENV VITE_SERVER_URL=${VITE_SERVER_URL:-http://43.205.110.159}
+ENV VITE_SERVER_PORT=${VITE_SERVER_PORT:-3000}
 
 # Build the application
 RUN npm run build
