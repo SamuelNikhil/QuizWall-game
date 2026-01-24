@@ -16,7 +16,7 @@ export function getServerConfig() {
         console.log('[DEBUG] Production mode: using relative URL for nginx proxy');
         return { 
             serverUrl: '', // Empty string means relative URL (uses current domain)
-            connectionPort: DEFAULT_SERVER_PORT 
+            connectionPort: undefined // Don't specify port in production
         };
     }
     

@@ -41,7 +41,7 @@ export default function Controller() {
         const io = geckos({
             url: serverUrl || undefined, // undefined makes it use relative URL
             path: '/.wrtc',
-            port: serverUrl ? connectionPort : undefined, // only use port if serverUrl is set
+            port: connectionPort, // will be undefined in production
             iceServers: [
                 { urls: 'stun:stun.metered.ca:80' },
                 {
