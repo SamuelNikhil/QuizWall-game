@@ -42,6 +42,7 @@ export default function Controller() {
         const io = geckos({
             url: window.location.origin,
             path: '/.wrtc',
+            port: 443, // Force HTTPS port to prevent auto-port selection
             iceServers: [
                 { urls: 'stun:stun.metered.ca:80' },
                 {
