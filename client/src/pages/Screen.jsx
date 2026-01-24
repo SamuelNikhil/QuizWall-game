@@ -71,11 +71,9 @@ export default function Screen() {
         console.log('getServerConfig()', getServerConfig());
         const { serverUrl, connectionPort } = getServerConfig();
 
-        // Force HTTP for geckos connection to avoid mixed content issues
-        const actualServerUrl = serverUrl.replace('https://', 'http://');
-
+        // Use current origin to leverage nginx proxy bypass
         const io = geckos({
-            url: actualServerUrl,
+            url: window.location.origin,
             path: '/.wrtc',
             port: connectionPort,
             iceServers: [

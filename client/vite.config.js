@@ -5,7 +5,15 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   server: {
-    host: true
+    host: true,
+    proxy: {
+      '/.wrtc': {
+        target: 'http://43.205.110.159:3000',
+        changeOrigin: true,
+        secure: false,
+        ws: true
+      }
+    }
   },
   preview: {
     host: true,
