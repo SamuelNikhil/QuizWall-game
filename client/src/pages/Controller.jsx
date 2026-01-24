@@ -62,6 +62,7 @@ export default function Controller() {
             }
             console.log('Connected to server');
             connectedRef.current = true;
+            setConnected(true); // Fix: Update React state
             setChannel(io);
             if (roomId) {
                 io.emit('joinRoom', { roomId });
