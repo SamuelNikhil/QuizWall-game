@@ -1,7 +1,14 @@
 import geckos from '@geckos.io/server';
 
 const io = geckos({
-  cors: { origin: '*' }
+  iceServers: [
+    { urls: 'stun:stun.metered.ca:80' },
+    {
+      urls: 'turn:global.relay.metered.ca:443',
+      username: 'admin',
+      credential: 'admin'
+    }
+  ]
 });
 
 // Rooms: roomId -> { screenChannel, controllers: [] }

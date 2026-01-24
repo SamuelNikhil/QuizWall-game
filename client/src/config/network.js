@@ -19,6 +19,11 @@ export function getServerConfig() {
         serverUrl = `${urlWithoutPort}:${serverPort}`;
     }
 
+    // Force HTTPS for production/WebRTC compatibility
+    if (isProduction && serverUrl.startsWith('http://')) {
+        serverUrl = serverUrl.replace('http://', 'https://');
+    }
+
     if (!serverUrl.startsWith('http')) {
         const protocol = getProtocol(serverUrl);
         serverUrl = `${protocol}://${serverUrl}`;
