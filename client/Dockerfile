@@ -15,9 +15,9 @@ RUN npm ci
 COPY . .
 
 # Build-time configuration for the game server endpoint
-ARG VITE_SERVER_URL=https://13.127.217.1
-ARG VITE_SERVER_PORT=3000
-ENV VITE_SERVER_URL=${VITE_SERVER_URL}
+ARG VITE_SERVER_URL
+ARG VITE_SERVER_PORT
+ENV VITE_SERVER_URL=${VITE_SERVER_URL:-http://13.127.217.1}
 ENV VITE_SERVER_PORT=${VITE_SERVER_PORT}
 
 # Build the application
@@ -25,18 +25,6 @@ RUN npm run build
 
 # Production stage
 FROM nginx:1.27-alpine
-
-# Install OpenSSL for generating certificates
-RUN apk add --no-cache openssl
-
-# Create SSL directory
-RUN mkdir -p /etc/nginx/ssl
-
-# Generate self-signed SSL certificate
-RUN openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-    -keyout /etc/nginx/ssl/key.pem \
-    -out /etc/nginx/ssl/cert.pem \
-    -subj "/C=US/ST=State/L=City/O=Organization/CN=localhost"
 
 # Copy built application
 COPY --from=build /app/dist /usr/share/nginx/html

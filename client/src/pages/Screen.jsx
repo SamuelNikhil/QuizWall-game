@@ -71,11 +71,11 @@ export default function Screen() {
         console.log('getServerConfig()', getServerConfig());
         const { serverUrl, connectionPort } = getServerConfig();
 
-        // Use current origin for HTTPS (browser security) but WebRTC for game data
+        // Use current origin for nginx proxy
         const io = geckos({
             url: window.location.origin,
             path: '/.wrtc',
-            port: window.location.protocol === 'https:' ? 443 : 80,
+            port: 443, // Force HTTPS port to prevent auto-port selection
             iceServers: [
                 { urls: 'stun:stun.metered.ca:80' },
                 {
