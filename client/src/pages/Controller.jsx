@@ -169,8 +169,10 @@ export default function Controller() {
 
         const handleOrientation = (event) => {
             const { beta, gamma } = event;
-            const x = Math.max(0, Math.min(100, 50 + (gamma || 0) * 2.5));
-            const y = Math.max(0, Math.min(100, 40 + ((beta || 45) - 40) * 2.0));
+            // Fix inverted controls: negate gamma so tilting right moves crosshair right
+            // Invert beta calculation so tilting forward (away) moves crosshair up
+            const x = Math.max(0, Math.min(100, 50 - (gamma || 0) * 2.5));
+            const y = Math.max(0, Math.min(100, 60 - ((beta || 45) - 45) * 2.0));
             setAimPosition({ x, y });
 
             let currentOrb = null;
