@@ -148,7 +148,7 @@ export default function Controller() {
         }
     };
 
-    // Gyro handler
+    // Gyro handler with calibration and smoothing
     useEffect(() => {
         if (!isDragging || !gyroEnabled) {
             if (gyroListenerRef.current) {
@@ -167,18 +167,52 @@ export default function Controller() {
 
         let lastOrb = null;
 
+        // Calibration: capture initial orientation when aiming starts
+        let initialBeta = null;
+        let initialGamma = null;
+        let smoothX = 50;
+        let smoothY = 50;
+        const smoothingFactor = 0.3; // Lower = smoother but more lag, Higher = responsive but jittery
+
+        // Sensitivity: how many degrees of tilt = full range (0-100%)
+        const gammaRange = 30; // ±30 degrees for full horizontal range
+        const betaRange = 25;  // ±25 degrees for full vertical range
+
         const handleOrientation = (event) => {
             const { beta, gamma } = event;
-            // Fix inverted controls: negate gamma so tilting right moves crosshair right
-            // Invert beta calculation so tilting forward (away) moves crosshair up
-            const x = Math.max(0, Math.min(100, 50 - (gamma || 0) * 2.5));
-            const y = Math.max(0, Math.min(100, 60 - ((beta || 45) - 45) * 2.0));
+            if (beta === null || gamma === null) return;
+
+            // Calibrate on first reading - this becomes "center"
+            if (initialBeta === null) {
+                initialBeta = beta;
+                initialGamma = gamma;
+                return;
+            }
+
+            // Calculate relative movement from initial position
+            const deltaGamma = gamma - initialGamma;
+            const deltaBeta = beta - initialBeta;
+
+            // Map relative movement to 0-100 range
+            // Tilt right (positive gamma) = crosshair right (higher x)
+            // Tilt forward/down (higher beta) = crosshair up (lower y for screen coords)
+            const rawX = 50 + (deltaGamma / gammaRange) * 50;
+            const rawY = 50 - (deltaBeta / betaRange) * 50;
+
+            // Apply smoothing to reduce jitter
+            smoothX = smoothX + (rawX - smoothX) * smoothingFactor;
+            smoothY = smoothY + (rawY - smoothY) * smoothingFactor;
+
+            // Clamp to valid range
+            const x = Math.max(0, Math.min(100, smoothX));
+            const y = Math.max(0, Math.min(100, smoothY));
+
             setAimPosition({ x, y });
 
             let currentOrb = null;
             for (const orb of orbPositions) {
                 const dist = Math.sqrt(Math.pow(x - orb.x, 2) + Math.pow(y - orb.y, 2));
-                if (dist < 10) {
+                if (dist < 12) {
                     currentOrb = orb.id;
                     break;
                 }
