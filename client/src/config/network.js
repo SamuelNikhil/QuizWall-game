@@ -1,13 +1,11 @@
 const DEFAULT_SERVER_PORT = 3000;
 
 function getProtocol(hostname) {
-    // Use HTTPS for production to satisfy browser security
-    // WebRTC will handle the actual game data transport
-    return import.meta.env.PROD ? 'https' : 'http';
+    return hostname.includes('localhost') ? 'http' : 'https';
 }
 
 export function getServerConfig() {
-    // Use Netlify domain in production, fallback to env or throw error
+    // Use environment variable or throw error
     const isProduction = import.meta.env.PROD;
     let serverUrl = import.meta.env.VITE_SERVER_URL;
     
@@ -23,11 +21,7 @@ export function getServerConfig() {
         serverUrl = `${urlWithoutPort}:${serverPort}`;
     }
 
-    // Force HTTPS for production/WebRTC compatibility (browser requirement)
-    if (isProduction && serverUrl.startsWith('http://')) {
-        serverUrl = serverUrl.replace('http://', 'https://');
-    }
-
+    // Auto-detect protocol based on hostname
     if (!serverUrl.startsWith('http')) {
         const protocol = getProtocol(serverUrl);
         serverUrl = `${protocol}://${serverUrl}`;
@@ -39,14 +33,7 @@ export function getServerConfig() {
         ? parseInt(urlObj.port, 10)
         : DEFAULT_SERVER_PORT;
 
-    console.log('[DEBUG] getServerConfig result:', { 
-        serverUrl, 
-        connectionPort, 
-        isProduction, 
-        envUrl: import.meta.env.VITE_SERVER_URL, 
-        envPort: import.meta.env.VITE_SERVER_PORT,
-        note: 'SSL for browser security, WebRTC for game data performance'
-    });
+    console.log('[DEBUG] getServerConfig result:', { serverUrl, connectionPort, isProduction, envUrl: import.meta.env.VITE_SERVER_URL, envPort: import.meta.env.VITE_SERVER_PORT });
 
     return { serverUrl, connectionPort };
 }
