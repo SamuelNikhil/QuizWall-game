@@ -47,17 +47,8 @@ COPY --from=build /app/dist /usr/share/nginx/html
 # Copy nginx configuration from client directory
 COPY --from=build /app/nginx.conf /etc/nginx/nginx.conf
 
-# Copy nginx environment script
-COPY --from=build /app/nginx-env.conf /etc/nginx/nginx-env.conf
-
-# Copy .env file for runtime configuration
-COPY .env /etc/nginx/.env
-
-# Make nginx environment script executable
-RUN chmod +x /etc/nginx/nginx-env.conf
-
 # Expose HTTP and HTTPS ports
 EXPOSE 80 443
 
-# Start nginx with environment script
-CMD ["/etc/nginx/nginx-env.conf"]
+# Start nginx
+CMD ["nginx", "-g", "daemon off;"]
