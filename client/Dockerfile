@@ -51,7 +51,7 @@ COPY --from=build /app/nginx.conf /etc/nginx/nginx.conf
 COPY --from=build /app/nginx-env.conf /etc/nginx/nginx-env.conf
 
 # Copy .env file for runtime configuration
-COPY --from=build /app/.env /etc/nginx/.env
+COPY .env /etc/nginx/.env
 
 # Make nginx environment script executable
 RUN chmod +x /etc/nginx/nginx-env.conf
