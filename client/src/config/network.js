@@ -1,9 +1,9 @@
 const DEFAULT_SERVER_PORT = 3000;
 
-const TUNNEL_HOSTS = ['loca.lt', 'ngrok'];
-
 function getProtocol(hostname) {
-    return TUNNEL_HOSTS.some((host) => hostname.includes(host)) ? 'https' : 'http';
+    // Use HTTPS for production to satisfy browser security
+    // WebRTC will handle the actual game data transport
+    return import.meta.env.PROD ? 'https' : 'http';
 }
 
 export function getServerConfig() {
@@ -23,7 +23,7 @@ export function getServerConfig() {
         serverUrl = `${urlWithoutPort}:${serverPort}`;
     }
 
-    // Force HTTPS for production/WebRTC compatibility
+    // Force HTTPS for production/WebRTC compatibility (browser requirement)
     if (isProduction && serverUrl.startsWith('http://')) {
         serverUrl = serverUrl.replace('http://', 'https://');
     }
@@ -39,7 +39,14 @@ export function getServerConfig() {
         ? parseInt(urlObj.port, 10)
         : DEFAULT_SERVER_PORT;
 
-    console.log('[DEBUG] getServerConfig result:', { serverUrl, connectionPort, isProduction, envUrl: import.meta.env.VITE_SERVER_URL, envPort: import.meta.env.VITE_SERVER_PORT });
+    console.log('[DEBUG] getServerConfig result:', { 
+        serverUrl, 
+        connectionPort, 
+        isProduction, 
+        envUrl: import.meta.env.VITE_SERVER_URL, 
+        envPort: import.meta.env.VITE_SERVER_PORT,
+        note: 'SSL for browser security, WebRTC for game data performance'
+    });
 
     return { serverUrl, connectionPort };
 }

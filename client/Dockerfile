@@ -8,17 +8,20 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
+# Copy .env file for build-time configuration
+COPY .env ./.env
+
 # Install dependencies
 RUN npm ci
 
 # Copy source code
 COPY . .
 
-# Build-time configuration for the game server endpoint
+# Build-time configuration for the game server endpoint from .env
 ARG VITE_SERVER_URL
 ARG VITE_SERVER_PORT
-ENV VITE_SERVER_URL=${VITE_SERVER_URL:-http://13.127.217.1}
-ENV VITE_SERVER_PORT=${VITE_SERVER_PORT}
+ENV VITE_SERVER_URL=${VITE_SERVER_URL:-$(grep VITE_SERVER_URL .env | cut -d '=' -f2)}
+ENV VITE_SERVER_PORT=${VITE_SERVER_PORT:-$(grep VITE_SERVER_PORT .env | cut -d '=' -f2)}
 
 # Build the application
 RUN npm run build
@@ -26,14 +29,35 @@ RUN npm run build
 # Production stage
 FROM nginx:1.27-alpine
 
+# Install OpenSSL for generating certificates
+RUN apk add --no-cache openssl
+
+# Create SSL directory
+RUN mkdir -p /etc/nginx/ssl
+
+# Generate self-signed SSL certificate
+RUN openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+    -keyout /etc/nginx/ssl/key.pem \
+    -out /etc/nginx/ssl/cert.pem \
+    -subj "/C=US/ST=State/L=City/O=Organization/CN=localhost"
+
 # Copy built application
 COPY --from=build /app/dist /usr/share/nginx/html
 
 # Copy nginx configuration from client directory
 COPY --from=build /app/nginx.conf /etc/nginx/nginx.conf
 
+# Copy nginx environment script
+COPY --from=build /app/nginx-env.conf /etc/nginx/nginx-env.conf
+
+# Copy .env file for runtime configuration
+COPY --from=build /app/.env /etc/nginx/.env
+
+# Make nginx environment script executable
+RUN chmod +x /etc/nginx/nginx-env.conf
+
 # Expose HTTP and HTTPS ports
 EXPOSE 80 443
 
-# Start nginx
-CMD ["nginx", "-g", "daemon off;"]
+# Start nginx with environment script
+CMD ["/etc/nginx/nginx-env.conf"]
