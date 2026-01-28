@@ -1,80 +1,26 @@
-# 🚀 Slingshot Network Server Startup Guide
+# 🎯 Slingshot Multiplayer
 
-## 📋 Step-by-Step Setup
+A real-time slingshot Quiz game built with **VITE-React** and **Geckos.io** (WebRTC).
 
-### 1. Start the Network Server (Geckos.io WebSocket Server)
-```bash
-cd "d:\My Projects\Latch\slingshot demo\server"
-npm start
-```
+## 🚀 Quick Start (Local)
 
-**Expected Output:**
-```
-Slingshot Geckos.io server running on port 3000
-```
+1. **Server**: `cd server && npm install && npm run dev` (Runs on :3000)
+2. **Client**: `cd client && npm install && npm run dev` (Runs on :5173)
 
-**Alternative (Development Mode with Auto-Restart):**
-```bash
-cd "d:\My Projects\Latch\slingshot demo\server"
-npm run dev
-```
+## �️ Architecture
+- **Client**: Hosting server.
+- **Game Server**: Node.js server with UDP support.
+- **Networking**: Direct connection between client and server IP for 0-latency signaling.
 
-**Expected Output:**
-```
-Slingshot Geckos.io server running on port 3000
-[Watching for file changes...]
-```
+## ⚙️ Configuration
+Update `client/.env`:
+- `VITE_SERVER_URL`: Your server IP or url 
+- `VITE_USE_PROXY`: `false` for direct connection (fastest).
 
-### 2. Start the Client Application (React Web App)
-```bash
-cd "d:\My Projects\Latch\slingshot demo\client"
-npm run dev -- --host
-```
-
-**Expected Output:**
-```
-VITE v7.2.4  ready in XXX ms
-
-➜  Local:   http://localhost:5173/
-➜  Network: http://192.168.X.X:5173/
-➜  press h + enter to show help
-```
+## 🎮 How to Play
+1. Open the game on a computer (The Screen).
+2. Scan/Open the URL on mobile phones (The Controllers).
+3. Join the room code and tilt your phone to aim!
 
 ---
-
-## 📱 How It Works
-
-1. **Server (Port 3000)**: Handles real-time communication between game screens and mobile controllers using Geckos.io
-2. **Client (Port 5173)**: React web application that serves both the game screen and mobile controller interfaces
-
-## 🌐 Network Access
-
-- **Server**: `http://localhost:3000` (or `http://YOUR_IP:3000` for network access)
-- **Client**: `http://localhost:5173` (or `http://YOUR_IP:5173` for network access)
-
-## 📋 Prerequisites
-
-Make sure you have Node.js installed, then run:
-
-```bash
-# Install server dependencies
-cd "d:\My Projects\Latch\slingshot demo\server"
-npm install
-
-# Install client dependencies  
-cd "d:\My Projects\Latch\slingshot demo\client"
-npm install
-```
-
-## 🎮 Usage
-
-1. Start both servers as shown above
-2. Open the client URL in a web browser on your desktop/game screen
-3. Create a room to get a room code
-4. Open the same client URL on mobile phones
-5. Join the room using the room code
-6. Use mobile phones as controllers to aim and shoot in the game
-
----
-
-*Note: The ai-service folder is skipped as requested.*
+*Note: Deployment config files (`_redirects`, `.htaccess`) are auto-included in `client/public`.*
