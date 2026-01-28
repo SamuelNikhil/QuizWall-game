@@ -11,8 +11,8 @@
 # 2. Replace YOUR_GAME_SERVER_URL with your actual game server URL
 # 3. Set VITE_USE_PROXY=true in your environment
 
-# Proxy signaling to game server (uncomment if using proxy mode)
-# /.wrtc/*  https://YOUR_GAME_SERVER_URL:3000/.wrtc/:splat  200
+# Proxy signaling to game server (MUST be before SPA fallback)
+/.wrtc/*  http://13.127.217.1:3000/.wrtc/:splat  200
 
 # SPA fallback (required for React Router)
 /*  /index.html  200
