@@ -8,7 +8,7 @@ export default defineConfig({
     host: true,
     proxy: {
       '/.wrtc': {
-        target: 'ttp://13.127.217.1:3000',
+        target: 'http://13.127.217.1:3000',
         changeOrigin: true,
         secure: false,
         ws: true
@@ -17,6 +17,6 @@ export default defineConfig({
   },
   preview: {
     host: true,
-    allowedHosts: ['slingshot-game.onrender.com', 'slingshot-client.onrender.com', 'localhost']
+    allowedHosts: ['slingshot-game.onrender.com', 'localhost']
   }
 })
