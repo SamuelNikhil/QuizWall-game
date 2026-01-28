@@ -15,11 +15,11 @@ RUN npm ci
 COPY . .
 
 # Build-time configuration for the game server endpoint
-ARG VITE_SERVER_URL=http://13.127.217.1
-ARG VITE_SERVER_PORT=3000
+ARG VITE_SERVER_URL
+ARG VITE_SERVER_PORT
 ARG VITE_USE_PROXY=true
-ENV VITE_SERVER_URL=${VITE_SERVER_URL}
-ENV VITE_SERVER_PORT=${VITE_SERVER_PORT}
+ENV VITE_SERVER_URL=${VITE_SERVER_URL:-http://13.127.217.1}
+ENV VITE_SERVER_PORT=${VITE_SERVER_PORT:-3000}
 ENV VITE_USE_PROXY=${VITE_USE_PROXY}
 
 # Build the application
@@ -37,9 +37,7 @@ RUN npm install express http-proxy-middleware
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/server.js ./server.js
 
-# Runtime environment variables (can be overridden by Render dashboard)
-ARG VITE_SERVER_URL=http://13.127.217.1
-ARG VITE_SERVER_PORT=3000
+# Set environment variables for the runtime proxy
 ENV PORT=3000
 ENV VITE_SERVER_URL=${VITE_SERVER_URL}
 ENV VITE_SERVER_PORT=${VITE_SERVER_PORT}
@@ -49,4 +47,3 @@ EXPOSE 3000
 
 # Start custom proxy server
 CMD ["node", "server.js"]
-
