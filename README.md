@@ -1,4 +1,4 @@
-# 🎯 Slingshot Multiplayer
+# 🎯 Slingshot Quiz Game
 
 A real-time slingshot Quiz game built with **VITE-React** and **Geckos.io** (WebRTC).
 
@@ -24,3 +24,4 @@ Update `client/.env`:
 
 ---
 *Note: Deployment config files (`_redirects`, `.htaccess`) are auto-included in `client/public`.*
+
