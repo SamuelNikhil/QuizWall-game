@@ -24,7 +24,7 @@ export default function Controller() {
     const gyroListenerRef = useRef(null);
 
     useEffect(() => {
-        const { serverUrl, connectionPort } = getServerConfig();
+        const { geckosUrl, geckosPort, geckosPath } = getServerConfig();
 
         // Set timeout to detect hanging handshakes
         const handshakeTimeout = setTimeout(() => {
@@ -38,11 +38,11 @@ export default function Controller() {
             }
         }, 15000); // 15 second timeout
 
-        // Use current origin for nginx proxy
+        // Connect using configured mode (direct or proxy)
         const io = geckos({
-            url: window.location.origin,
-            path: '/.wrtc',
-            port: 443, // Force HTTPS port to prevent auto-port selection
+            url: geckosUrl,
+            port: geckosPort,
+            ...(geckosPath && { path: geckosPath }),
             iceServers: [
                 { urls: 'stun:stun.metered.ca:80' },
                 {

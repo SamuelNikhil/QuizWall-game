@@ -68,14 +68,13 @@ export default function Screen() {
     const connectedRef = useRef(false);
 
     useEffect(() => {
-        console.log('getServerConfig()', getServerConfig());
-        const { serverUrl, connectionPort } = getServerConfig();
+        const { geckosUrl, geckosPort, geckosPath } = getServerConfig();
 
-        // Use current origin for nginx proxy
+        // Connect using configured mode (direct or proxy)
         const io = geckos({
-            url: window.location.origin,
-            path: '/.wrtc',
-            port: 443, // Force HTTPS port to prevent auto-port selection
+            url: geckosUrl,
+            port: geckosPort,
+            ...(geckosPath && { path: geckosPath }),
             iceServers: [
                 { urls: 'stun:stun.metered.ca:80' },
                 {
