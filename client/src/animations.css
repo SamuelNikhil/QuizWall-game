@@ -1,0 +1,77 @@
+/* Enhanced Answer Feedback Animations */
+
+/* Correct Answer Animation */
+@keyframes correctPulse {
+    0% {
+        transform: scale(1);
+        box-shadow: 0 0 30px rgba(255, 255, 255, 0.3);
+    }
+    50% {
+        transform: scale(1.1);
+        box-shadow: 0 0 50px rgba(16, 185, 129, 0.8), 0 0 80px rgba(16, 185, 129, 0.6);
+        filter: brightness(1.4);
+    }
+    100% {
+        transform: scale(1);
+        box-shadow: 0 0 30px rgba(255, 255, 255, 0.3);
+    }
+}
+
+@keyframes wrongShake {
+    0%, 100% {
+        transform: translateX(0) scale(1);
+    }
+    20%, 60% {
+        transform: translateX(-10px) scale(0.95);
+    }
+    40%, 80% {
+        transform: translateX(10px) scale(0.95);
+    }
+}
+
+@keyframes revealCorrect {
+    0% {
+        opacity: 0;
+        transform: scale(0.5);
+    }
+    70% {
+        opacity: 1;
+        transform: scale(1.1);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes dimForWrong {
+    0% {
+        opacity: 1;
+        filter: brightness(1);
+    }
+    50% {
+        opacity: 0.4;
+        filter: brightness(0.7);
+    }
+    100% {
+        opacity: 1;
+        filter: brightness(1);
+    }
+}
+
+/* Apply to all orbs when feedback is shown */
+.orb.correct-answer {
+    animation: revealCorrect 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+.orb.wrong-answer {
+    animation: dimForWrong 0.8s ease-out forwards;
+}
+
+.orb.hit-orb.correct-answer {
+    animation: correctPulse 1.2s ease-out;
+}
+
+.orb.hit-orb.wrong-answer {
+    animation: wrongShake 0.8s ease-out;
+}

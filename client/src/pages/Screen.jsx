@@ -2,7 +2,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import geckos from '@geckos.io/client';
 import { getServerConfig } from '../config/network';
-import './css/Screen.css';
+import '../animations.css';
 
 const QUESTIONS = [
     {
@@ -240,17 +240,27 @@ export default function Screen() {
             if (hitOrb) {
                 const isCorrect = hitOrb === question.correct;
 
-                // Add visual animation to the hit orb
-                const hitOrbElement = document.querySelector(`.orb-${hitOrb.toLowerCase()}`);
-                if (hitOrbElement) {
-                    // Add animation class
-                    hitOrbElement.classList.add(isCorrect ? 'correct' : 'wrong');
+                // Add visual animation to ALL orbs
+                const orbElements = document.querySelectorAll('.orb');
+                orbElements.forEach(orb => {
+                    const isHitOrb = orb.dataset.option === hitOrb;
+                    const orbClass = isCorrect ? 'correct-answer' : 'wrong-answer';
+                    
+                    // Add animation class to all orbs
+                    orb.classList.add(orbClass);
+                    
+                    // For the hit orb, we'll make the animation more prominent
+                    if (isHitOrb) {
+                        orb.classList.add('hit-orb');
+                    }
+                });
 
-                    // Remove animation class after it completes
-                    setTimeout(() => {
-                        hitOrbElement.classList.remove('correct', 'wrong');
-                    }, 1000);
-                }
+                // Remove animation classes after completion
+                setTimeout(() => {
+                    orbElements.forEach(orb => {
+                        orb.classList.remove('correct-answer', 'wrong-answer', 'hit-orb');
+                    });
+                }, 1200);
 
                 // Add hit effect
                 setHitEffects((prev) => [
@@ -260,7 +270,7 @@ export default function Screen() {
 
                 setTimeout(() => {
                     setHitEffects((prev) => prev.filter((e) => e.id !== id));
-                }, 1000);
+                }, 500);
 
                 // Update score
                 if (isCorrect) {
