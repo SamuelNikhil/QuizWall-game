@@ -61,6 +61,7 @@ export default function Screen() {
     const [scores, setScores] = useState({});
     const [crosshair, setCrosshair] = useState(null); // { x: %, y: %, controllerId }
     const [targetedOrbId, setTargetedOrbId] = useState(null); // Current orb being hovered/targeted
+    const [gyroEnabled, setGyroEnabled] = useState(false); // Track if gyro is enabled
     const arenaRef = useRef(null);
     const containerRef = useRef(null);
     const targetTimeoutRef = useRef(null);
@@ -225,9 +226,13 @@ export default function Screen() {
         // Crosshair events for gyro aiming
         io.on('crosshair', (data) => {
             setCrosshair({ x: data.x, y: data.y, controllerId: data.controllerId });
+            setGyroEnabled(true); // Mark gyro as enabled when we receive crosshair data
         });
 
         io.on('startAiming', (data) => {
+            // Track gyro state
+            setGyroEnabled(data.gyroEnabled || false);
+            
             // Only show crosshair if gyro is enabled on the controller
             if (data.gyroEnabled) {
                 setCrosshair({ x: 50, y: 50, controllerId: data.controllerId });
@@ -239,18 +244,22 @@ export default function Screen() {
         io.on('cancelAiming', () => {
             setCrosshair(null);
             setTargetedOrbId(null);
+            setGyroEnabled(false); // Reset gyro state
         });
 
         io.on('targeting', (data) => {
-            setTargetedOrbId(data.orbId);
+            // Only show targeted highlight if gyro is NOT enabled
+            if (!gyroEnabled) {
+                setTargetedOrbId(data.orbId);
 
-            // Clear existing timeout
-            if (targetTimeoutRef.current) clearTimeout(targetTimeoutRef.current);
+                // Clear existing timeout
+                if (targetTimeoutRef.current) clearTimeout(targetTimeoutRef.current);
 
-            // Auto-clear targeted state after 500ms of no updates
-            targetTimeoutRef.current = setTimeout(() => {
-                setTargetedOrbId(null);
-            }, 500);
+                // Auto-clear targeted state after 500ms of no updates
+                targetTimeoutRef.current = setTimeout(() => {
+                    setTargetedOrbId(null);
+                }, 500);
+            }
         });
 
         return () => {
@@ -265,7 +274,7 @@ export default function Screen() {
             }
             connectedRef.current = false;
         };
-    }, []);
+    }, [gyroEnabled]);
 
     const handleShoot = useCallback((data) => {
         const { controllerId, targetXPercent, targetYPercent, power } = data;
@@ -477,11 +486,11 @@ export default function Screen() {
                     <pre className="code-block">{question.code}</pre>
                 </div>
 
-                {/* Answer Orbs */}
+                {/* Answer Orbs - Only show targeted highlight for non-gyro controls */}
                 {question.options.map((opt, i) => (
                     <div
                         key={opt.id}
-                        className={`orb orb-${opt.id.toLowerCase()} ${targetedOrbId === opt.id ? 'targeted' : ''}`}
+                        className={`orb orb-${opt.id.toLowerCase()} ${!gyroEnabled && targetedOrbId === opt.id ? 'targeted' : ''}`}
                         style={{
                             left: ORB_POSITIONS[i].left,
                             top: ORB_POSITIONS[i].top,
