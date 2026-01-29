@@ -4,10 +4,10 @@
 
 A real-time slingshot Quiz game built with **VITE-React** and **Geckos.io** (WebRTC).
 
-## 🚀 Quick Start (Local)
+## 🚀 Quick Start 
 
 1. **Server**: `cd server && npm install && npm run dev` (Runs on :3000)
-2. **Client**: `cd client && npm install && npm run dev` (Runs on :5173)
+2. **Client**: `cd client && npm install && npm run dev / npx vite preview --port $PORT --host`
 
 ## �️ Architecture
 - **Client**: Hosting server.

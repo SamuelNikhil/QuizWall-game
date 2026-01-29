@@ -1,0 +1,192 @@
+/* Enhanced Answer Feedback Animations */
+
+/* Correct Answer Animation - Instant green glow */
+@keyframes correctPulse {
+    0% {
+        transform: scale(1);
+        box-shadow: 0 0 30px rgba(255, 255, 255, 0.3);
+    }
+    20% {
+        transform: scale(1.15);
+        box-shadow: 0 0 60px rgba(16, 185, 129, 1), 0 0 100px rgba(16, 185, 129, 0.8), 0 0 140px rgba(16, 185, 129, 0.6);
+        filter: brightness(1.5);
+    }
+    50% {
+        transform: scale(1.1);
+        box-shadow: 0 0 50px rgba(16, 185, 129, 0.9), 0 0 80px rgba(16, 185, 129, 0.7);
+        filter: brightness(1.4);
+    }
+    100% {
+        transform: scale(1);
+        box-shadow: 0 0 30px rgba(255, 255, 255, 0.3);
+    }
+}
+
+/* Wrong Answer Animation - Red glow + Shake */
+@keyframes wrongPulse {
+    0% {
+        transform: scale(1);
+        box-shadow: 0 0 30px rgba(255, 255, 255, 0.3);
+    }
+    20% {
+        transform: scale(1.15);
+        box-shadow: 0 0 60px rgba(239, 68, 68, 1), 0 0 100px rgba(239, 68, 68, 0.8), 0 0 140px rgba(239, 68, 68, 0.6);
+        filter: brightness(1.5);
+    }
+    50% {
+        transform: scale(1.05);
+        box-shadow: 0 0 50px rgba(239, 68, 68, 0.9), 0 0 80px rgba(239, 68, 68, 0.7);
+        filter: brightness(1.3);
+    }
+    100% {
+        transform: scale(1);
+        box-shadow: 0 0 30px rgba(255, 255, 255, 0.3);
+    }
+}
+
+/* Wrong Answer Shake Animation */
+@keyframes wrongShake {
+    0%, 100% {
+        transform: translateX(0) scale(1);
+    }
+    10% {
+        transform: translateX(-15px) scale(0.95) rotate(-3deg);
+    }
+    20% {
+        transform: translateX(15px) scale(0.95) rotate(3deg);
+    }
+    30% {
+        transform: translateX(-12px) scale(0.92) rotate(-2deg);
+    }
+    40% {
+        transform: translateX(12px) scale(0.92) rotate(2deg);
+    }
+    50% {
+        transform: translateX(-8px) scale(0.9) rotate(-1deg);
+    }
+    60% {
+        transform: translateX(8px) scale(0.9) rotate(1deg);
+    }
+    70% {
+        transform: translateX(-4px) scale(0.95);
+    }
+    80% {
+        transform: translateX(4px) scale(0.95);
+    }
+    90% {
+        transform: translateX(-2px) scale(0.98);
+    }
+}
+
+/* Apply to all orbs when feedback is shown - CORRECT ANSWER */
+.orb.correct-answer {
+    animation: correctPulse 1s ease-out !important;
+}
+
+.orb.hit-orb.correct-answer {
+    animation: correctPulse 1s ease-out !important;
+}
+
+/* Apply to all orbs when feedback is shown - WRONG ANSWER */
+.orb.wrong-answer {
+    animation: wrongPulse 0.8s ease-out, wrongShake 0.8s ease-in-out !important;
+}
+
+/* --- Particle Effects --- */
+.particle {
+    position: absolute;
+    border-radius: 50%;
+    pointer-events: none;
+    animation-timing-function: ease-out;
+}
+
+@keyframes particleExplode {
+    0% {
+        transform: translate(0, 0) scale(1);
+        opacity: 1;
+    }
+    100% {
+        transform: translate(var(--tx), var(--ty)) scale(0);
+        opacity: 0;
+    }
+}
+
+.particle-explode {
+    animation: particleExplode 1s ease-out forwards;
+}
+
+/* --- Score Popup Animations --- */
+.score-popup {
+    position: absolute;
+    font-size: 4rem;
+    font-weight: 900;
+    animation: scoreFloatUp 1.5s ease-out forwards;
+    pointer-events: none;
+    z-index: 1000;
+    text-shadow: 0 0 20px currentColor;
+}
+
+@keyframes scoreFloatUp {
+    0% {
+        transform: translateY(0) scale(0.5);
+        opacity: 0;
+    }
+    15% {
+        transform: translateY(-20px) scale(1.3);
+        opacity: 1;
+    }
+    30% {
+        transform: translateY(-30px) scale(1);
+        opacity: 1;
+    }
+    100% {
+        transform: translateY(-100px) scale(0.8);
+        opacity: 0;
+    }
+}
+
+.score-popup.correct {
+    color: #10b981;
+}
+
+.score-popup.wrong {
+    color: #ef4444;
+}
+
+/* --- Ripple Effect --- */
+.ripple {
+    position: absolute;
+    border-radius: 50%;
+    pointer-events: none;
+    animation: rippleExpand 1s ease-out forwards;
+}
+
+@keyframes rippleExpand {
+    0% {
+        transform: scale(0);
+        opacity: 1;
+    }
+    100% {
+        transform: scale(4);
+        opacity: 0;
+    }
+}
+
+/* --- Confetti Particles for Correct Answers --- */
+.confetti {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    pointer-events: none;
+    animation: confettiFall 1.5s ease-out forwards;
+}
+
+@keyframes confettiFall {
+    0% {
+        opacity: 1;
+    }
+    100% {
+        opacity: 0;
+        transform: translate(var(--dx), var(--dy)) rotate(var(--rot));
+    }
+}
