@@ -60,8 +60,8 @@ export default function Screen() {
     const [hitEffects, setHitEffects] = useState([]);
     const [scores, setScores] = useState({});
     const [crosshair, setCrosshair] = useState(null); // { x: %, y: %, controllerId }
-    const [targetedOrbId, setTargetedOrbId] = useState(null); // Current orb being hovered/targeted
-    const [gyroEnabled, setGyroEnabled] = useState(false); // Track if gyro is enabled
+    const [targetedOrbId, setTargetedOrbId] = useState(null); // Current orb being hovered/targeted (non-gyro only)
+    const [isGyroMode, setIsGyroMode] = useState(false); // Track if controller is using gyro
     const arenaRef = useRef(null);
     const containerRef = useRef(null);
     const targetTimeoutRef = useRef(null);
@@ -226,17 +226,15 @@ export default function Screen() {
         // Crosshair events for gyro aiming
         io.on('crosshair', (data) => {
             setCrosshair({ x: data.x, y: data.y, controllerId: data.controllerId });
-            setGyroEnabled(true); // Mark gyro as enabled when we receive crosshair data
         });
 
         io.on('startAiming', (data) => {
-            // Track gyro state
-            setGyroEnabled(data.gyroEnabled || false);
-            
             // Only show crosshair if gyro is enabled on the controller
             if (data.gyroEnabled) {
+                setIsGyroMode(true);
                 setCrosshair({ x: 50, y: 50, controllerId: data.controllerId });
             } else {
+                setIsGyroMode(false);
                 setCrosshair(null);
             }
         });
@@ -244,12 +242,11 @@ export default function Screen() {
         io.on('cancelAiming', () => {
             setCrosshair(null);
             setTargetedOrbId(null);
-            setGyroEnabled(false); // Reset gyro state
         });
 
         io.on('targeting', (data) => {
-            // Only show targeted highlight if gyro is NOT enabled
-            if (!gyroEnabled) {
+            // Only highlight orb if NOT in gyro mode
+            if (!isGyroMode) {
                 setTargetedOrbId(data.orbId);
 
                 // Clear existing timeout
@@ -274,7 +271,7 @@ export default function Screen() {
             }
             connectedRef.current = false;
         };
-    }, [gyroEnabled]);
+    }, [isGyroMode]);
 
     const handleShoot = useCallback((data) => {
         const { controllerId, targetXPercent, targetYPercent, power } = data;
@@ -486,11 +483,11 @@ export default function Screen() {
                     <pre className="code-block">{question.code}</pre>
                 </div>
 
-                {/* Answer Orbs - Only show targeted highlight for non-gyro controls */}
+                {/* Answer Orbs */}
                 {question.options.map((opt, i) => (
                     <div
                         key={opt.id}
-                        className={`orb orb-${opt.id.toLowerCase()} ${!gyroEnabled && targetedOrbId === opt.id ? 'targeted' : ''}`}
+                        className={`orb orb-${opt.id.toLowerCase()} ${!isGyroMode && targetedOrbId === opt.id ? 'targeted' : ''}`}
                         style={{
                             left: ORB_POSITIONS[i].left,
                             top: ORB_POSITIONS[i].top,
