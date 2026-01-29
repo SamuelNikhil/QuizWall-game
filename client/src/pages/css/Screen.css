@@ -1,0 +1,278 @@
+:root {
+    --primary-dark: #0a0a0f;
+    --secondary-dark: #1e1e2e;
+    --accent-primary: #6366f1;
+    --accent-secondary: #ec4899;
+    --accent-success: #10b981;
+    --accent-error: #ef4444;
+    --glass-bg: rgba(255, 255, 255, 0.05);
+    --glass-border: rgba(255, 255, 255, 0.1);
+    --text-primary: #f8fafc;
+    --text-secondary: #94a3b8;
+}
+
+.screen-container {
+    width: 100vw;
+    height: 100vh;
+    background: radial-gradient(circle at center, var(--secondary-dark) 0%, var(--primary-dark) 100%);
+    color: var(--text-primary);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+}
+
+.screen-header {
+    padding: 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: relative;
+    z-index: 100;
+}
+
+.player-count-badge {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 0.75rem 1.5rem;
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    backdrop-filter: blur(5px);
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.game-arena {
+    position: relative;
+    flex: 1;
+    width: 100%;
+}
+
+.question-display {
+    position: absolute;
+    top: 8%;
+    left: 50%;
+    transform: translateX(-50%);
+    max-width: 800px;
+    width: 85%;
+    padding: 2rem;
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 20px;
+    backdrop-filter: blur(20px);
+    text-align: center;
+    z-index: 10;
+}
+
+.question-text {
+    font-size: 1.75rem;
+    margin-bottom: 2rem;
+    font-weight: 600;
+    line-height: 1.4;
+}
+
+.code-block {
+    background: var(--secondary-dark);
+    padding: 1.5rem;
+    border-radius: 12px;
+    font-family: 'Courier New', monospace;
+    text-align: left;
+    overflow-x: auto;
+    margin-bottom: 2rem;
+    border: 1px solid var(--glass-border);
+    font-size: 1.1rem;
+}
+
+/* Orbs */
+.orb {
+    position: absolute;
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 1.5rem;
+    box-shadow: 0 0 30px rgba(255, 255, 255, 0.3);
+    transition: all 0.3s ease;
+    cursor: pointer;
+    animation: float 3s ease-in-out infinite;
+    z-index: 20;
+}
+
+.orb:hover {
+    transform: scale(1.1);
+    box-shadow: 0 0 50px rgba(255, 255, 255, 0.5);
+}
+
+.orb-a {
+    background: linear-gradient(135deg, var(--accent-primary), #818cf8);
+    bottom: 12%;
+    left: 12%;
+    animation-delay: 0s;
+}
+
+.orb-b {
+    background: linear-gradient(135deg, var(--accent-secondary), #f472b6);
+    bottom: 12%;
+    left: 34%;
+    animation-delay: 0.5s;
+}
+
+.orb-c {
+    background: linear-gradient(135deg, #f59e0b, #fbbf24);
+    bottom: 12%;
+    left: 56%;
+    animation-delay: 1s;
+}
+
+.orb-d {
+    background: linear-gradient(135deg, #06b6d4, #22d3ee);
+    bottom: 12%;
+    left: 78%;
+    animation-delay: 1.5s;
+}
+
+/* Enhanced Feedback Animations */
+.orb.correct {
+    animation: correctAnswer 1s ease-out;
+    box-shadow: 0 0 50px var(--accent-success);
+}
+
+.orb.wrong {
+    animation: wrongAnswer 0.8s ease-out;
+    box-shadow: 0 0 50px var(--accent-error);
+}
+
+.projectile {
+    position: absolute;
+    width: 24px;
+    height: 24px;
+    background: radial-gradient(circle, #fff, var(--accent-primary));
+    border-radius: 50%;
+    box-shadow: 0 0 15px white, 0 0 30px var(--accent-primary);
+    pointer-events: none;
+    z-index: 50;
+}
+
+.hit-effect {
+    position: absolute;
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 40;
+    animation-duration: 1s;
+    animation-fill-mode: forwards;
+}
+
+.hit-correct {
+    background: radial-gradient(circle, rgba(16, 185, 129, 0.8), transparent 70%);
+    animation: hit-pulse-correct 1s ease-out;
+}
+
+.hit-wrong {
+    background: radial-gradient(circle, rgba(239, 68, 68, 0.8), transparent 70%);
+    animation: hit-pulse-wrong 1s ease-out;
+}
+
+/* Animations */
+@keyframes float {
+
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-15px);
+    }
+}
+
+@keyframes correctAnswer {
+
+    0% {
+        transform: scale(1);
+        filter: brightness(1);
+        box-shadow: 0 0 30px rgba(255, 255, 255, 0.3);
+    }
+
+    30% {
+        transform: scale(1.2);
+        filter: brightness(1.5);
+        box-shadow: 0 0 60px var(--accent-success);
+    }
+
+    60% {
+        transform: scale(0.95);
+        filter: brightness(1.2);
+    }
+
+    100% {
+        transform: scale(1);
+        filter: brightness(1);
+        box-shadow: 0 0 30px rgba(255, 255, 255, 0.3);
+    }
+}
+
+@keyframes wrongAnswer {
+
+    0% {
+        transform: translateX(0) rotate(0deg);
+        box-shadow: 0 0 30px rgba(255, 255, 255, 0.3);
+    }
+
+    25% {
+        transform: translateX(-15px) rotate(-5deg);
+        box-shadow: 0 0 50px var(--accent-error);
+    }
+
+    50% {
+        transform: translateX(15px) rotate(5deg);
+    }
+
+    75% {
+        transform: translateX(-10px) rotate(-3deg);
+    }
+
+    100% {
+        transform: translateX(0) rotate(0deg);
+        box-shadow: 0 0 30px rgba(255, 255, 255, 0.3);
+    }
+}
+
+@keyframes hit-pulse-correct {
+    0% {
+        transform: scale(0.5);
+        opacity: 0.8;
+    }
+
+    70% {
+        transform: scale(1.2);
+        opacity: 0.4;
+    }
+
+    100% {
+        transform: scale(1.5);
+        opacity: 0;
+    }
+}
+
+@keyframes hit-pulse-wrong {
+    0% {
+        transform: scale(0.5);
+        opacity: 0.8;
+    }
+
+    70% {
+        transform: scale(1.2);
+        opacity: 0.4;
+    }
+
+    100% {
+        transform: scale(1.5);
+        opacity: 0;
+    }
+}

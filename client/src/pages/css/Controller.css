@@ -1,0 +1,251 @@
+:root {
+    --primary-dark: #0f0f1a;
+    --secondary-dark: #1a1a2e;
+    --accent-primary: #6366f1;
+    --accent-secondary: #ec4899;
+    --accent-success: #10b981;
+    --accent-error: #ef4444;
+    --glass-bg: rgba(255, 255, 255, 0.05);
+    --glass-border: rgba(255, 255, 255, 0.1);
+    --text-primary: #f8fafc;
+    --text-secondary: #94a3b8;
+}
+
+.controller-container {
+    width: 100vw;
+    height: 100vh;
+    background: linear-gradient(135deg, var(--primary-dark) 0%, var(--secondary-dark) 100%);
+    color: white;
+    display: flex;
+    flex-direction: column;
+    touch-action: none;
+    overflow: hidden;
+    position: relative;
+}
+
+.controller-header {
+    width: 100%;
+    padding: 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--glass-bg);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--glass-border);
+    z-index: 100;
+}
+
+.controller-status {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.controller-status.connected {
+    color: var(--accent-success);
+}
+
+.slingshot-area {
+    flex: 1;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+.slingshot-base {
+    width: 250px;
+    height: 250px;
+    border: 3px dashed rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.slingshot-ball {
+    width: 70px;
+    height: 70px;
+    background: radial-gradient(circle at 30% 30%, #fff, var(--accent-primary));
+    border-radius: 50%;
+    box-shadow: 0 0 30px var(--accent-primary);
+    cursor: grab;
+    touch-action: none;
+    transition: transform 0.1s ease;
+    z-index: 10;
+}
+
+.slingshot-ball:active {
+    cursor: grabbing;
+}
+
+.aim-line {
+    position: absolute;
+    height: 4px;
+    background: linear-gradient(90deg, var(--accent-primary), transparent);
+    transform-origin: left center;
+    pointer-events: none;
+    border-radius: 2px;
+    z-index: 5;
+}
+
+.power-indicator {
+    position: absolute;
+    bottom: 3rem;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 80%;
+    max-width: 300px;
+    height: 12px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    z-index: 10;
+}
+
+.power-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent-success), var(--accent-primary), var(--accent-error));
+    transition: width 0.1s ease;
+    border-radius: 6px;
+}
+
+.feedback-message {
+    position: absolute;
+    top: 20%;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 1rem 2rem;
+    border-radius: 12px;
+    font-weight: bold;
+    font-size: 1.5rem;
+    z-index: 20;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    text-align: center;
+    width: 80%;
+    max-width: 400px;
+}
+
+.feedback-message.show {
+    opacity: 1;
+}
+
+.feedback-correct {
+    background: rgba(16, 185, 129, 0.2);
+    border: 2px solid var(--accent-success);
+    color: var(--accent-success);
+    box-shadow: 0 0 20px var(--accent-success);
+}
+
+.feedback-wrong {
+    background: rgba(239, 68, 68, 0.2);
+    border: 2px solid var(--accent-error);
+    color: var(--accent-error);
+    box-shadow: 0 0 20px var(--accent-error);
+}
+
+.crosshair {
+    position: absolute;
+    width: 40px;
+    height: 40px;
+    border: 2px solid white;
+    border-radius: 50%;
+    pointer-events: none;
+    transform: translate(-50%, -50%);
+    z-index: 15;
+}
+
+.crosshair::before,
+.crosshair::after {
+    content: '';
+    position: absolute;
+    background: white;
+}
+
+.crosshair::before {
+    width: 2px;
+    height: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.crosshair::after {
+    width: 100%;
+    height: 2px;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+.crosshair-center {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    background: var(--accent-error);
+    border-radius: 50%;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    box-shadow: 0 0 5px var(--accent-error);
+}
+
+.targeting-indicator {
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--accent-success);
+    border-radius: 50%;
+    pointer-events: none;
+    transform: translate(-50%, -50%);
+    z-index: 15;
+    animation: targeting-pulse 1s infinite;
+}
+
+@keyframes targeting-pulse {
+    0% {
+        transform: translate(-50%, -50%) scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: translate(-50%, -50%) scale(1.5);
+        opacity: 0.5;
+    }
+    100% {
+        transform: translate(-50%, -50%) scale(1);
+        opacity: 1;
+    }
+}
+
+/* Gyro Toggle Button */
+.gyro-toggle {
+    position: absolute;
+    bottom: 5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 0.75rem 1.5rem;
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 24px;
+    color: var(--text-primary);
+    font-weight: 600;
+    cursor: pointer;
+    backdrop-filter: blur(5px);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    z-index: 10;
+}
+
+.gyro-toggle.active {
+    color: var(--accent-success);
+    border-color: var(--accent-success);
+    box-shadow: 0 0 10px var(--accent-success);
+}
+
+.gyro-toggle:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}

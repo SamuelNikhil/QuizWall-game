@@ -2,6 +2,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import geckos from '@geckos.io/client';
 import { getServerConfig } from '../config/network';
+import './css/Screen.css';
 
 const QUESTIONS = [
     {
@@ -248,7 +249,7 @@ export default function Screen() {
                     // Remove animation class after it completes
                     setTimeout(() => {
                         hitOrbElement.classList.remove('correct', 'wrong');
-                    }, 600);
+                    }, 1000);
                 }
 
                 // Add hit effect
@@ -259,7 +260,7 @@ export default function Screen() {
 
                 setTimeout(() => {
                     setHitEffects((prev) => prev.filter((e) => e.id !== id));
-                }, 500);
+                }, 1000);
 
                 // Update score
                 if (isCorrect) {
