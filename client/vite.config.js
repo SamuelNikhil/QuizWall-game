@@ -17,6 +17,6 @@ export default defineConfig({
   },
   preview: {
     host: true,
-    allowedHosts: ['slingshot-game.onrender.com', 'localhost']
+    allowedHosts: ['slingshot-game.onrender.com', 'localhost', 'slingshot-game-test.onrender.com']
   }
 })
