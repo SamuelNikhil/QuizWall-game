@@ -60,8 +60,7 @@ export default function Screen() {
     const [hitEffects, setHitEffects] = useState([]);
     const [scores, setScores] = useState({});
     const [crosshair, setCrosshair] = useState(null); // { x: %, y: %, controllerId }
-    const [targetedOrbId, setTargetedOrbId] = useState(null); // Current orb being hovered/targeted (non-gyro only)
-    const [isGyroMode, setIsGyroMode] = useState(false); // Track if controller is using gyro
+    const [targetedOrbId, setTargetedOrbId] = useState(null); // Current orb being hovered/targeted
     const arenaRef = useRef(null);
     const containerRef = useRef(null);
     const targetTimeoutRef = useRef(null);
@@ -231,10 +230,8 @@ export default function Screen() {
         io.on('startAiming', (data) => {
             // Only show crosshair if gyro is enabled on the controller
             if (data.gyroEnabled) {
-                setIsGyroMode(true);
                 setCrosshair({ x: 50, y: 50, controllerId: data.controllerId });
             } else {
-                setIsGyroMode(false);
                 setCrosshair(null);
             }
         });
@@ -245,18 +242,15 @@ export default function Screen() {
         });
 
         io.on('targeting', (data) => {
-            // Only highlight orb if NOT in gyro mode
-            if (!isGyroMode) {
-                setTargetedOrbId(data.orbId);
+            setTargetedOrbId(data.orbId);
 
-                // Clear existing timeout
-                if (targetTimeoutRef.current) clearTimeout(targetTimeoutRef.current);
+            // Clear existing timeout
+            if (targetTimeoutRef.current) clearTimeout(targetTimeoutRef.current);
 
-                // Auto-clear targeted state after 500ms of no updates
-                targetTimeoutRef.current = setTimeout(() => {
-                    setTargetedOrbId(null);
-                }, 500);
-            }
+            // Auto-clear targeted state after 500ms of no updates
+            targetTimeoutRef.current = setTimeout(() => {
+                setTargetedOrbId(null);
+            }, 500);
         });
 
         return () => {
@@ -271,7 +265,7 @@ export default function Screen() {
             }
             connectedRef.current = false;
         };
-    }, [isGyroMode]);
+    }, []);
 
     const handleShoot = useCallback((data) => {
         const { controllerId, targetXPercent, targetYPercent, power } = data;
@@ -487,7 +481,7 @@ export default function Screen() {
                 {question.options.map((opt, i) => (
                     <div
                         key={opt.id}
-                        className={`orb orb-${opt.id.toLowerCase()} ${!isGyroMode && targetedOrbId === opt.id ? 'targeted' : ''}`}
+                        className={`orb orb-${opt.id.toLowerCase()} ${targetedOrbId === opt.id ? 'targeted' : ''}`}
                         style={{
                             left: ORB_POSITIONS[i].left,
                             top: ORB_POSITIONS[i].top,
