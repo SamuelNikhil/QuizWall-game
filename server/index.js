@@ -1,5 +1,7 @@
 import geckos from '@geckos.io/server';
 
+import { randomBytes } from 'crypto';
+
 const io = geckos({
   iceServers: [
     { urls: 'stun:stun.metered.ca:80' },
@@ -11,8 +13,12 @@ const io = geckos({
   ]
 });
 
-// Rooms: roomId -> { screenChannel, controllers: [] }
+// Rooms: roomId -> { screenChannel, controllers: [], joinToken }
 const rooms = new Map();
+
+function generateToken() {
+  return randomBytes(16).toString('hex');
+}
 
 // Track connection timeouts
 const connectionTimeouts = new Map();
@@ -49,10 +55,11 @@ io.onConnection((channel) => {
     }
 
     const roomId = generateRoomId();
-    rooms.set(roomId, { screenChannel: channel, controllers: [] });
+    const joinToken = generateToken();
+    rooms.set(roomId, { screenChannel: channel, controllers: [], joinToken });
     channel.userData = { role: 'screen', roomId };
-    channel.emit('roomCreated', { roomId });
-    console.log(`[Room] Created: ${roomId}`);
+    channel.emit('roomCreated', { roomId, joinToken });
+    console.log(`[Room] Created: ${roomId} with token: ${joinToken}`);
   });
 
   channel.on('joinRoom', (data) => {
@@ -63,17 +70,31 @@ io.onConnection((channel) => {
       connectionTimeouts.delete(channel.id);
     }
 
-    const { roomId } = data;
+    const { roomId, token } = data;
     const room = rooms.get(roomId);
-    if (room) {
-      room.controllers.push(channel);
-      channel.userData = { role: 'controller', roomId };
-      channel.emit('joinedRoom', { roomId, success: true });
-      room.screenChannel.emit('controllerJoined', { controllerId: channel.id });
-      console.log(`[Room] Controller ${channel.id} joined ${roomId}`);
-    } else {
+
+    if (!room) {
       channel.emit('joinedRoom', { roomId, success: false, error: 'Room not found' });
+      return;
     }
+
+    if (room.joinToken !== token) {
+      channel.emit('joinedRoom', { roomId, success: false, error: 'Invalid token' });
+      console.log(`[Room] Controller ${channel.id} rejected from ${roomId}: Invalid token`);
+      return;
+    }
+
+    if (room.controllers.length >= 1) {
+      channel.emit('joinedRoom', { roomId, success: false, error: 'Room is full' });
+      console.log(`[Room] Controller ${channel.id} rejected from ${roomId}: Room full`);
+      return;
+    }
+
+    room.controllers.push(channel);
+    channel.userData = { role: 'controller', roomId };
+    channel.emit('joinedRoom', { roomId, success: true });
+    room.screenChannel.emit('controllerJoined', { controllerId: channel.id });
+    console.log(`[Room] Controller ${channel.id} joined ${roomId}`);
   });
 
   // Controller sends aim updates (high frequency, UDP-like)
