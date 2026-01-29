@@ -219,10 +219,12 @@ export default function Screen() {
         io.on('shoot', handleShootInternal);
 
         io.on('startAiming', data => {
-            isGyroModeRef.current = !!data.gyroEnabled;
-            setIsGyroMode(!!data.gyroEnabled);
+            const isGyro = !!data.gyroEnabled;
+            isGyroModeRef.current = isGyro;
+            setIsGyroMode(isGyro);
             setIsAiming(true);
-            if (data.gyroEnabled) setCrosshair({ x: 50, y: 50, controllerId: data.controllerId });
+            if (isGyro) setCrosshair({ x: 50, y: 50, controllerId: data.controllerId });
+            else setTargetedOrbId(null);
         });
 
         io.on('cancelAiming', () => {
@@ -233,20 +235,15 @@ export default function Screen() {
         });
 
         io.on('crosshair', data => {
-            // Only update crosshair in gyro mode
             if (isGyroModeRef.current) {
                 setCrosshair({ x: data.x, y: data.y, controllerId: data.controllerId });
             }
         });
 
         io.on('targeting', data => {
-            // For non-gyro: highlight the targeted orb
-            // For gyro: the crosshair shows targeting, no orb highlight needed
-            if (!isGyroModeRef.current) {
+            if (!isGyroModeRef.current && data.orbId) {
                 setTargetedOrbId(data.orbId);
             }
-            // Note: In gyro mode, targeting events still happen but we don't highlight orbs
-            // The crosshair provides the visual feedback instead
         });
 
         return () => { if (channelRef.current) channelRef.current.close(); };
@@ -254,13 +251,18 @@ export default function Screen() {
 
     if (!roomId) return <div className="screen-container"><div className="waiting-screen"><div className="pulse-ring" /><h2>Connecting...</h2></div></div>;
 
+    // QR VIEW - Hidden on mobile via CSS
     if (controllers.length === 0) return (
         <div className="qr-fullscreen">
-            <h1>Code Quiz Wall</h1>
+            <h1 className="qr-title">Code Quiz Wall</h1>
             <div className="qr-content-wrapper">
-                <div className="qr-box-large"><QRCodeSVG value={`${window.location.origin}/controller/${roomId}/${joinToken}`} size={280} level="H" /></div>
-                <div className="qr-leaderboard">
+                <div className="qr-box-large mobile-hide">
+                    <QRCodeSVG value={`${window.location.origin}/controller/${roomId}/${joinToken}`} size={280} level="H" />
+                </div>
+                <div className="qr-leaderboard mobile-full-width">
                     <h3>Leaderboard</h3>
+                    <p className="room-code">Room: {roomId}</p>
+                    <p className="join-url mobile-show">{window.location.origin}/controller/{roomId}/{joinToken}</p>
                     {Object.entries(scores).length === 0 ? <p>Waiting for players...</p> : 
                         Object.entries(scores).map(([id, score]) => <div key={id} className="qr-leaderboard-item"><span>Player</span><span>{score} pts</span></div>)
                     }

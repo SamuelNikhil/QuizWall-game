@@ -104,18 +104,80 @@ body {
     font-weight: 600;
 }
 
-@media (max-width: 900px) {
+.qr-title {
+    font-size: 3.5rem;
+    margin-bottom: 1rem;
+    color: #fff;
+    font-weight: 800;
+    text-shadow: 0 0 40px rgba(99, 102, 241, 0.6);
+    text-align: center;
+    letter-spacing: -2px;
+    line-height: 1.2;
+}
+
+.room-code {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--accent-primary);
+    text-align: center;
+    margin-bottom: 0.5rem;
+}
+
+.join-url {
+    font-size: 0.9rem;
+    word-break: break-all;
+    color: var(--text-secondary);
+    text-align: center;
+    margin-bottom: 1rem;
+    padding: 0.75rem;
+    background: rgba(255,255,255,0.05);
+    border-radius: 8px;
+    border: 1px solid var(--glass-border);
+}
+
+/* Mobile Responsive - Hide QR and show URL on mobile */
+@media (max-width: 768px) {
+    .mobile-hide {
+        display: none !important;
+    }
+    
+    .mobile-show {
+        display: block !important;
+    }
+    
+    .mobile-full-width {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: unset !important;
+    }
+    
     .qr-content-wrapper {
         flex-direction: column;
-        gap: 3rem;
+        gap: 1rem;
+        padding: 1rem;
     }
-
-    .qr-left-column {
-        display: none;
+    
+    .qr-title {
+        font-size: 1.8rem !important;
+        letter-spacing: -1px;
+    }
+    
+    .qr-leaderboard {
+        width: 100%;
+    }
+    
+    .qr-leaderboard h3 {
+        font-size: 1.2rem;
     }
 }
 
-/* --- Game Screen Styles --- */
+@media (min-width: 769px) {
+    .mobile-show {
+        display: none !important;
+    }
+}
+
+/* Game Screen Styles */
 .screen-container {
     width: 100vw;
     height: 100vh;
@@ -152,44 +214,6 @@ body {
 .score-divider {
     opacity: 0.3;
     margin: 0 5px;
-}
-
-.gyro-crosshair {
-    position: absolute;
-    transform: translate(-50%, -50%);
-    width: 60px;
-    height: 60px;
-    border: 3px solid #fff;
-    border-radius: 50%;
-    pointer-events: none;
-    box-shadow: 0 0 20px rgba(255,255,255,0.5), inset 0 0 20px rgba(255,255,255,0.2);
-    z-index: 1000;
-}
-
-.gyro-crosshair::before, .gyro-crosshair::after {
-    content: '';
-    position: absolute;
-    background: rgba(255,255,255,0.7);
-}
-
-.gyro-crosshair::before {
-    left: 50%; top: 0; width: 2px; height: 100%; transform: translateX(-50%);
-}
-
-.gyro-crosshair::after {
-    top: 50%; left: 0; height: 2px; width: 100%; transform: translateY(-50%);
-}
-
-.crosshair-dot {
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
-    width: 8px;
-    height: 8px;
-    background: #ef4444;
-    border-radius: 50%;
-    box-shadow: 0 0 10px #ef4444;
 }
 
 .question-display {
@@ -242,6 +266,8 @@ body {
     transition: all 0.3s ease;
     cursor: pointer;
     animation: float 3s ease-in-out infinite;
+    text-align: center;
+    padding: 0.5rem;
 }
 
 .orb:hover {
@@ -251,30 +277,64 @@ body {
 
 .orb-a {
     background: linear-gradient(135deg, #6366f1, #818cf8);
-    bottom: 12%;
-    left: 12%;
     animation-delay: 0s;
 }
 
 .orb-b {
     background: linear-gradient(135deg, #ec4899, #f472b6);
-    bottom: 12%;
-    left: 34%;
     animation-delay: 0.5s;
 }
 
 .orb-c {
     background: linear-gradient(135deg, #f59e0b, #fbbf24);
-    bottom: 12%;
-    left: 56%;
     animation-delay: 1s;
 }
 
 .orb-d {
     background: linear-gradient(135deg, #06b6d4, #22d3ee);
-    bottom: 12%;
-    left: 78%;
     animation-delay: 1.5s;
+}
+
+/* Targeted Orb Highlight for Non-Gyro Mode */
+.orb.targeted {
+    transform: scale(1.15) !important;
+    box-shadow: 0 0 60px rgba(99, 102, 241, 0.9), 0 0 100px rgba(99, 102, 241, 0.6) !important;
+    border: 4px solid white !important;
+    z-index: 50;
+    animation: none !important;
+}
+
+.orb.targeted::after {
+    content: '';
+    position: absolute;
+    top: -15px;
+    left: -15px;
+    right: -15px;
+    bottom: -15px;
+    border: 3px dashed var(--accent-primary);
+    border-radius: 50%;
+    animation: spin 2s linear infinite;
+    pointer-events: none;
+}
+
+.orb.targeted::before {
+    content: 'TARGET';
+    position: absolute;
+    top: -35px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.75rem;
+    font-weight: 800;
+    color: var(--accent-primary);
+    background: rgba(0,0,0,0.8);
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    white-space: nowrap;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
 }
 
 .projectile {
@@ -288,7 +348,54 @@ body {
     z-index: 50;
 }
 
-/* --- Controller Styles --- */
+/* Gyro Crosshair */
+.gyro-crosshair {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    width: 60px;
+    height: 60px;
+    border: 3px solid #fff;
+    border-radius: 50%;
+    pointer-events: none;
+    box-shadow: 0 0 20px rgba(255,255,255,0.5), inset 0 0 20px rgba(255,255,255,0.2);
+    z-index: 1000;
+}
+
+.gyro-crosshair::before, .gyro-crosshair::after {
+    content: '';
+    position: absolute;
+    background: rgba(255,255,255,0.7);
+}
+
+.gyro-crosshair::before {
+    left: 50%; 
+    top: 0; 
+    width: 2px; 
+    height: 100%; 
+    transform: translateX(-50%);
+}
+
+.gyro-crosshair::after {
+    top: 50%; 
+    left: 0; 
+    height: 2px; 
+    width: 100%; 
+    transform: translateY(-50%);
+}
+
+.crosshair-dot {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 8px;
+    height: 8px;
+    background: #ef4444;
+    border-radius: 50%;
+    box-shadow: 0 0 10px #ef4444;
+}
+
+/* Controller Styles */
 .controller-container {
     width: 100vw;
     height: 100vh;
@@ -303,7 +410,7 @@ body {
 
 .controller-header {
     width: 100%;
-    padding: 1.5rem;
+    padding: 1rem 1.5rem;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -388,6 +495,46 @@ body {
     border-radius: 6px;
 }
 
+/* Controller Orb Selection Highlight */
+.selected-orb-indicator {
+    width: 110px;
+    height: 110px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: pulseGlow 1s ease-in-out infinite;
+    box-shadow: 0 0 40px currentColor;
+    border: 4px solid white;
+}
+
+@keyframes pulseGlow {
+    0%, 100% {
+        transform: scale(1);
+        box-shadow: 0 0 40px currentColor;
+    }
+    50% {
+        transform: scale(1.1);
+        box-shadow: 0 0 60px currentColor, 0 0 100px currentColor;
+    }
+}
+
+.orb-a-highlight {
+    background: linear-gradient(135deg, #6366f1, #818cf8);
+}
+
+.orb-b-highlight {
+    background: linear-gradient(135deg, #ec4899, #f472b6);
+}
+
+.orb-c-highlight {
+    background: linear-gradient(135deg, #f59e0b, #fbbf24);
+}
+
+.orb-d-highlight {
+    background: linear-gradient(135deg, #06b6d4, #22d3ee);
+}
+
 /* Waiting Screen */
 .waiting-screen {
     display: flex;
@@ -409,14 +556,11 @@ body {
     background-clip: text;
 }
 
-/* --- Animations --- */
+/* Animations */
 @keyframes float {
-
-    0%,
-    100% {
+    0%, 100% {
         transform: translateY(0);
     }
-
     50% {
         transform: translateY(-15px);
     }
@@ -435,7 +579,6 @@ body {
         transform: scale(0.8);
         opacity: 1;
     }
-
     100% {
         transform: scale(1.5);
         opacity: 0;
