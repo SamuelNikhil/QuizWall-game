@@ -62,12 +62,85 @@ export default function Screen() {
     const [crosshair, setCrosshair] = useState(null); // { x: %, y: %, controllerId }
     const [targetedOrbId, setTargetedOrbId] = useState(null); // Current orb being hovered/targeted
     const arenaRef = useRef(null);
+    const containerRef = useRef(null);
     const targetTimeoutRef = useRef(null);
+    const [particles, setParticles] = useState([]); // Particle effects
+    const [scorePopups, setScorePopups] = useState([]); // Score popup animations
+    const [ripples, setRipples] = useState([]); // Ripple effects
+    const [confetti, setConfetti] = useState([]); // Confetti particles for correct answers
 
     const question = QUESTIONS[currentQuestion % QUESTIONS.length];
 
     const channelRef = useRef(null);
     const connectedRef = useRef(false);
+
+    // Create particles function
+    const createParticles = useCallback((x, y, count, color) => {
+        const newParticles = [];
+        for (let i = 0; i < count; i++) {
+            const angle = (Math.PI * 2 * i) / count;
+            const distance = 100 + Math.random() * 100;
+            const tx = Math.cos(angle) * distance;
+            const ty = Math.sin(angle) * distance;
+            newParticles.push({
+                id: `particle-${Date.now()}-${i}`,
+                x: x,
+                y: y,
+                size: Math.random() * 8 + 4,
+                color: color,
+                '--tx': `${tx}px`,
+                '--ty': `${ty}px`,
+            });
+        }
+        setParticles((prev) => [...prev, ...newParticles]);
+        setTimeout(() => {
+            setParticles((prev) => prev.filter((p) => !newParticles.some((np) => np.id === p.id)));
+        }, 1000);
+    }, []);
+
+    // Create score popup function
+    const createScorePopup = useCallback((x, y, text, type) => {
+        const popupId = `popup-${Date.now()}`;
+        setScorePopups((prev) => [...prev, { id: popupId, x, y, text, type }]);
+        setTimeout(() => {
+            setScorePopups((prev) => prev.filter((p) => p.id !== popupId));
+        }, 1500);
+    }, []);
+
+    // Create ripple effect function
+    const createRipple = useCallback((x, y, color) => {
+        const rippleId = `ripple-${Date.now()}`;
+        setRipples((prev) => [...prev, { id: rippleId, x, y, color, size: 60 }]);
+        setTimeout(() => {
+            setRipples((prev) => prev.filter((r) => r.id !== rippleId));
+        }, 1000);
+    }, []);
+
+    // Create confetti function
+    const createConfetti = useCallback((x, y) => {
+        const newConfetti = [];
+        const colors = ['#10b981', '#34d399', '#6ee7b7', '#ffffff', '#fbbf24'];
+        for (let i = 0; i < 30; i++) {
+            const dx = (Math.random() - 0.5) * 400;
+            const dy = -Math.random() * 300 - 100;
+            const rot = Math.random() * 720 - 360;
+            newConfetti.push({
+                id: `confetti-${Date.now()}-${i}`,
+                x: x + (Math.random() - 0.5) * 50,
+                y: y + (Math.random() - 0.5) * 50,
+                color: colors[Math.floor(Math.random() * colors.length)],
+                '--dx': `${dx}px`,
+                '--dy': `${dy}px`,
+                '--rot': `${rot}deg`,
+                width: Math.random() * 10 + 5,
+                height: Math.random() * 10 + 5,
+            });
+        }
+        setConfetti((prev) => [...prev, ...newConfetti]);
+        setTimeout(() => {
+            setConfetti((prev) => prev.filter((c) => !newConfetti.some((nc) => nc.id === c.id)));
+        }, 1500);
+    }, []);
 
     useEffect(() => {
         const { geckosUrl, geckosPort, geckosPath } = getServerConfig();
@@ -272,8 +345,18 @@ export default function Screen() {
                     setHitEffects((prev) => prev.filter((e) => e.id !== id));
                 }, 500);
 
-                // Update score
+                // Enhanced feedback with particles and popups
                 if (isCorrect) {
+                    // Green particles for correct answer
+                    createParticles(targetX, targetY, 20, '#10b981');
+                    // Score popup
+                    createScorePopup(targetX, targetY, '+100', 'correct');
+                    // Ripple effect
+                    createRipple(targetX, targetY, '#10b981');
+                    // Confetti explosion
+                    createConfetti(targetX, targetY);
+                    
+                    // Update score
                     setScores((prev) => ({
                         ...prev,
                         [controllerId]: (prev[controllerId] || 0) + 100,
@@ -289,13 +372,20 @@ export default function Screen() {
                         setCurrentQuestion((prev) => prev + 1);
                     }, 1500);
                 } else {
+                    // Red particles for wrong answer
+                    createParticles(targetX, targetY, 15, '#ef4444');
+                    // Score popup
+                    createScorePopup(targetX, targetY, '✗', 'wrong');
+                    // Ripple effect
+                    createRipple(targetX, targetY, '#ef4444');
+                    
                     if (channel) {
                         channel.emit('hitResult', { controllerId, correct: false, points: 0 });
                     }
                 }
             }
         }, 300);
-    }, [channel, question]);
+    }, [channel, question, createParticles, createScorePopup, createRipple, createConfetti]);
 
     const controllerUrl = roomId && joinToken
         ? `${window.location.origin}/controller/${roomId}/${joinToken}`
@@ -359,7 +449,7 @@ export default function Screen() {
     }
 
     return (
-        <div className="screen-container">
+        <div className="screen-container" ref={containerRef}>
             <header className="screen-header" style={{ justifyContent: 'flex-end', padding: '2rem' }}>
 
                 <div className="player-count-badge">
@@ -475,6 +565,70 @@ export default function Screen() {
                         style={{
                             left: e.x - 75,
                             top: e.y - 75,
+                        }}
+                    />
+                ))}
+
+                {/* Particle Effects */}
+                {particles.map((p) => (
+                    <div
+                        key={p.id}
+                        className="particle particle-explode"
+                        style={{
+                            left: p.x,
+                            top: p.y,
+                            width: p.size,
+                            height: p.size,
+                            backgroundColor: p.color,
+                            '--tx': p['--tx'],
+                            '--ty': p['--ty'],
+                        }}
+                    />
+                ))}
+
+                {/* Score Popups */}
+                {scorePopups.map((s) => (
+                    <div
+                        key={s.id}
+                        className={`score-popup ${s.type}`}
+                        style={{
+                            left: s.x,
+                            top: s.y - 50,
+                        }}
+                    >
+                        {s.text}
+                    </div>
+                ))}
+
+                {/* Ripple Effects */}
+                {ripples.map((r) => (
+                    <div
+                        key={r.id}
+                        className="ripple"
+                        style={{
+                            left: r.x - r.size / 2,
+                            top: r.y - r.size / 2,
+                            width: r.size,
+                            height: r.size,
+                            border: `3px solid ${r.color}`,
+                        }}
+                    />
+                ))}
+
+                {/* Confetti Particles */}
+                {confetti.map((c) => (
+                    <div
+                        key={c.id}
+                        className="confetti"
+                        style={{
+                            left: c.x,
+                            top: c.y,
+                            width: c.width,
+                            height: c.height,
+                            backgroundColor: c.color,
+                            '--dx': c['--dx'],
+                            '--dy': c['--dy'],
+                            '--rot': c['--rot'],
                         }}
                     />
                 ))}
