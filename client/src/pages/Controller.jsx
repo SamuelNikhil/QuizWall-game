@@ -4,7 +4,8 @@ import geckos from '@geckos.io/client';
 import { getServerConfig } from '../config/network';
 
 export default function Controller() {
-    const { roomId } = useParams();
+    const { roomId, token } = useParams();
+    const [joinError, setJoinError] = useState(null);
     const [channel, setChannel] = useState(null);
     const [connected, setConnected] = useState(false);
     const [joined, setJoined] = useState(false);
@@ -64,8 +65,8 @@ export default function Controller() {
             connectedRef.current = true;
             setConnected(true); // Fix: Update React state
             setChannel(io);
-            if (roomId) {
-                io.emit('joinRoom', { roomId });
+            if (roomId && token) {
+                io.emit('joinRoom', { roomId, token });
             }
         });
 
@@ -77,9 +78,11 @@ export default function Controller() {
         io.on('joinedRoom', (data) => {
             if (data.success) {
                 setJoined(true);
+                setJoinError(null);
                 console.log('Joined room:', data.roomId);
             } else {
                 console.error('Failed to join room:', data.error);
+                setJoinError(data.error);
             }
         });
 
@@ -376,6 +379,24 @@ export default function Controller() {
 
     if (!connected) {
         return <div className="controller-container"><div className="waiting-screen"><div className="pulse-ring" /><h2 className="waiting-title">Connecting...</h2></div></div>;
+    }
+
+    if (joinError) {
+        return (
+            <div className="controller-container">
+                <div className="waiting-screen">
+                    <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>⚠️</div>
+                    <h2 className="waiting-title" style={{ color: '#f87171' }}>Access Denied</h2>
+                    <p style={{ color: 'var(--text-secondary)', marginTop: '0.5rem' }}>{joinError}</p>
+                    <button
+                        onClick={() => window.location.reload()}
+                        style={{ marginTop: '2rem', padding: '0.75rem 1.5rem', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '8px', color: 'white', cursor: 'pointer' }}
+                    >
+                        Try Again
+                    </button>
+                </div>
+            </div>
+        );
     }
 
     if (!joined) {

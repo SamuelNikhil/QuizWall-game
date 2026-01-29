@@ -51,6 +51,7 @@ const ORB_POSITIONS = [
 
 export default function Screen() {
     const [roomId, setRoomId] = useState(null);
+    const [joinToken, setJoinToken] = useState(null);
     const [channel, setChannel] = useState(null);
     const [controllers, setControllers] = useState([]);
     const [currentQuestion, setCurrentQuestion] = useState(0);
@@ -116,8 +117,9 @@ export default function Screen() {
         });
 
         io.on('roomCreated', (data) => {
-            console.log('Room created:', data.roomId);
+            console.log('Room created:', data.roomId, 'with token:', data.joinToken);
             setRoomId(data.roomId);
+            setJoinToken(data.joinToken);
         });
 
         io.on('controllerJoined', (data) => {
@@ -284,8 +286,8 @@ export default function Screen() {
         }, 300);
     }, [channel, question]);
 
-    const controllerUrl = roomId
-        ? `${window.location.origin}/controller/${roomId}`
+    const controllerUrl = roomId && joinToken
+        ? `${window.location.origin}/controller/${roomId}/${joinToken}`
         : '';
 
     if (!roomId) {

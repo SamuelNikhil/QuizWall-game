@@ -9,7 +9,7 @@ function App() {
       <Routes>
         <Route path="/" element={<Screen />} />
         <Route path="/screen" element={<Screen />} />
-        <Route path="/controller/:roomId" element={<Controller />} />
+        <Route path="/controller/:roomId/:token" element={<Controller />} />
       </Routes>
     </BrowserRouter>
   );
