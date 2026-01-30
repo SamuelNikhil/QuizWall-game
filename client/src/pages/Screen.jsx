@@ -1,8 +1,9 @@
-import { useEffect, useState, useRef, useCallback } from "react";
-import { QRCodeSVG } from "qrcode.react";
-import geckos from "@geckos.io/client";
-import { getServerConfig } from "../config/network";
-import "../animations.css";
+import { useEffect, useState, useRef, useCallback } from 'react';
+import { QRCodeSVG } from 'qrcode.react';
+import geckos from '@geckos.io/client';
+import { getServerConfig } from '../config/network';
+import SoundManager from '../utils/sound';
+import '../animations.css';
 
 const QUESTIONS = [
   {
@@ -62,18 +63,16 @@ export default function Screen() {
   const [targetedOrbId, setTargetedOrbId] = useState(null);
   const [isGyroMode, setIsGyroMode] = useState(false);
   const [isAiming, setIsAiming] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(15); // 15 seconds per question
+  const [movingOrbs, setMovingOrbs] = useState({}); // For dynamic orb movement
+  const [soundEnabled, setSoundEnabled] = useState(true); // Sound toggle
 
   // Visual effects state
   const [particles, setParticles] = useState([]);
   const [scorePopups, setScorePopups] = useState([]);
   const [ripples, setRipples] = useState([]);
   const [confetti, setConfetti] = useState([]);
-  const [timeLeft, setTimeLeft] = useState(15);
   const [isShaking, setIsShaking] = useState(false);
-
-  // Sound effects
-  const audioContextRef = useRef(null);
-  const soundsRef = useRef({});
 
   const arenaRef = useRef(null);
   const containerRef = useRef(null);
@@ -85,9 +84,72 @@ export default function Screen() {
 
   const question = QUESTIONS[currentQuestion % QUESTIONS.length];
 
+  // Timer effect
   useEffect(() => {
-    currentCorrectAnswerRef.current = question.correct;
+      const timer = setInterval(() => {
+          setTimeLeft(prev => {
+              if (prev <= 1) {
+                  clearInterval(timer);
+                  // Move to next question when time runs out
+                  setCurrentQuestion(prevQuestion => prevQuestion + 1);
+                  // Play time's up sound
+                  if (soundEnabled) SoundManager.playHit(false);
+                  return 15; // Reset timer for next question
+              }
+              return prev - 1;
+          });
+      }, 1000);
+
+      return () => clearInterval(timer);
+  }, [currentQuestion, soundEnabled]);
+
+  useEffect(() => {
+      currentCorrectAnswerRef.current = question.correct;
+      setTimeLeft(15); // Reset timer on new question
+
+      // Initialize moving orbs for this question
+      const initialMovingOrbs = {};
+      question.options.forEach((opt, i) => {
+          initialMovingOrbs[opt.id] = {
+              x: ORB_POSITIONS[i].left,
+              y: ORB_POSITIONS[i].top,
+              vx: (Math.random() - 0.5) * 0.2, // Random velocity
+              vy: (Math.random() - 0.5) * 0.2
+          };
+      });
+      setMovingOrbs(initialMovingOrbs);
+
   }, [question]);
+
+  // Orb movement animation
+  useEffect(() => {
+      const interval = setInterval(() => {
+          setMovingOrbs(prev => {
+              const updated = {...prev};
+              Object.keys(updated).forEach(key => {
+                  // Update position
+                  let newX = parseFloat(updated[key].x) + updated[key].vx;
+                  let newY = parseFloat(updated[key].y) + updated[key].vy;
+
+                  // Bounce off edges
+                  if (newX <= 5 || newX >= 90) {
+                      updated[key].vx *= -1;
+                      newX = Math.max(5, Math.min(90, newX));
+                  }
+                  if (newY <= 20 || newY >= 80) {
+                      updated[key].vy *= -1;
+                      newY = Math.max(20, Math.min(80, newY));
+                  }
+
+                  updated[key].x = `${newX}%`;
+                  updated[key].y = `${newY}%`;
+              });
+              return updated;
+          });
+      }, 50);
+
+      return () => clearInterval(interval);
+  }, []);
 
   const createParticles = useCallback((x, y, count, color) => {
     const newParticles = [];
@@ -201,8 +263,8 @@ export default function Screen() {
 
           // Trigger screen shake and sound
           setIsShaking(true);
-          if (soundsRef.current) {
-            soundsRef.current[correct ? "hit" : "miss"]();
+          if (soundEnabled) {
+            SoundManager.playHit(correct);
           }
 
           orbEls.forEach((orb) => {
@@ -227,7 +289,7 @@ export default function Screen() {
           );
 
           if (correct) {
-            soundsRef.current?.correct();
+            // Sound already played above
             createParticles(targetX, targetY, 20, "#10b981");
             createScorePopup(targetX, targetY, "+100", "correct");
             createRipple(targetX, targetY, "#10b981");
@@ -257,7 +319,7 @@ export default function Screen() {
         }
       }, 300);
     },
-    [createParticles, createScorePopup, createRipple, createConfetti],
+    }, [createParticles, createScorePopup, createRipple, createConfetti, soundEnabled]);
   );
 
   useEffect(() => {
@@ -288,41 +350,60 @@ export default function Screen() {
       }));
     });
 
-    io.on("shoot", handleShootInternal);
+   io.on('shoot', handleShootInternal);
 
-    io.on("startAiming", (data) => {
-      const isGyro = !!data.gyroEnabled;
-      isGyroModeRef.current = isGyro;
-      setIsGyroMode(isGyro);
-      setIsAiming(true);
-      if (isGyro)
-        setCrosshair({ x: 50, y: 50, controllerId: data.controllerId });
-      else setTargetedOrbId(null);
+   // Cleanup on unmount
+   return () => {
+     if (channelRef.current) channelRef.current.close();
+   };
+ }, [handleShootInternal, soundEnabled]);
+
+ // Add shaking effect class to container when needed
+ useEffect(() => {
+   if (!containerRef.current) return;
+
+   if (isShaking) {
+     containerRef.current.classList.add('shake');
+     const timer = setTimeout(() => {
+       if (containerRef.current) {
+         containerRef.current.classList.remove('shake');
+         setIsShaking(false);
+       }
+     }, 500);
+     return () => clearTimeout(timer);
+   }
+ }, [isShaking]);
+
+    io.on('startAiming', data => {
+        const isGyro = !!data.gyroEnabled;
+        isGyroModeRef.current = isGyro;
+        setIsGyroMode(isGyro);
+        setIsAiming(true);
+        if (isGyro) setCrosshair({ x: 50, y: 50, controllerId: data.controllerId });
+        else setTargetedOrbId(null);
+
+        // Play aiming sound
+        if (soundEnabled) SoundManager.playAim();
     });
 
-    io.on("cancelAiming", () => {
-      setIsAiming(false);
-      setTargetedOrbId(null);
-      setCrosshair(null);
-      isGyroModeRef.current = false;
+    io.on('cancelAiming', () => {
+        setIsAiming(false);
+        setTargetedOrbId(null);
+        setCrosshair(null);
+        isGyroModeRef.current = false;
     });
 
-    io.on("crosshair", (data) => {
-      if (isGyroModeRef.current) {
-        setCrosshair({ x: data.x, y: data.y, controllerId: data.controllerId });
-      }
+    io.on('crosshair', data => {
+        if (isGyroModeRef.current) {
+            setCrosshair({ x: data.x, y: data.y, controllerId: data.controllerId });
+        }
     });
 
-    io.on("targeting", (data) => {
-      if (!isGyroModeRef.current && data.orbId) {
-        setTargetedOrbId(data.orbId);
-      }
+    io.on('targeting', data => {
+        if (!isGyroModeRef.current && data.orbId) {
+            setTargetedOrbId(data.orbId);
+        }
     });
-
-    return () => {
-      if (channelRef.current) channelRef.current.close();
-    };
-  }, [handleShootInternal]);
 
   if (!roomId)
     return (
@@ -371,26 +452,36 @@ export default function Screen() {
   return (
     <div className="screen-container" ref={containerRef}>
       <header className="screen-header">
-        <div className="timer-container">
-          <svg className="timer-svg" width="80" height="80" viewBox="0 0 40 40">
-            <circle className="timer-circle-bg" cx="20" cy="20" r="18"></circle>
-            <circle
-              className={`timer-circle-progress ${timeLeft <= 5 ? "timer-warning" : ""}`}
-              cx="20"
-              cy="20"
-              r="18"
-              strokeDasharray={2 * Math.PI * 18}
-              strokeDashoffset={2 * Math.PI * 18 * (1 - timeLeft / 15)}
-            ></circle>
-          </svg>
-          <span className="timer-text">{timeLeft}</span>
+        <div className="screen-header-content">
+          <div className="timer-container">
+            <svg className="timer-svg" width="80" height="80" viewBox="0 0 40 40">
+              <circle className="timer-circle-bg" cx="20" cy="20" r="18"></circle>
+              <circle
+                className={`timer-circle-progress ${timeLeft <= 5 ? "timer-warning" : ""}`}
+                cx="20"
+                cy="20"
+                r="18"
+                strokeDasharray={2 * Math.PI * 18}
+                strokeDashoffset={2 * Math.PI * 18 * (1 - timeLeft / 15)}
+              ></circle>
+            </svg>
+            <span className="timer-text">{timeLeft}</span>
+          </div>
+          <div className="player-count-badge">
+            <span>👥 {controllers.length}</span>
+            <span className="score-divider">|</span>
+            <span>Score: {Math.max(0, ...Object.values(scores))}</span>
+            <span className="score-divider">|</span>
+            <span>⏰ {timeLeft}s</span>
+          </div>
+          <button
+            className="sound-toggle"
+            onClick={() => setSoundEnabled(!soundEnabled)}
+            aria-label={soundEnabled ? "Mute sound" : "Unmute sound"}
+          >
+            {soundEnabled ? '🔊' : '🔇'}
+          </button>
         </div>
-        <div className="player-count-badge">
-          <span>👥 {controllers.length}</span>
-          <span className="score-divider">|</span>
-          <span>Score: {Math.max(0, ...Object.values(scores))}</span>
-        </div>
-      </header>
 
       <div className="game-arena" ref={arenaRef}>
         <div className="question-display">
