@@ -318,9 +318,7 @@ export default function Screen() {
           }
         }
       }, 300);
-    },
     }, [createParticles, createScorePopup, createRipple, createConfetti, soundEnabled]);
-  );
 
   useEffect(() => {
     const { geckosUrl, geckosPort, geckosPath } = getServerConfig();
