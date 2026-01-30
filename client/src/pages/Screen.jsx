@@ -221,14 +221,11 @@ export default function Screen() {
         delete newScores[data.controllerId];
         return newScores;
       });
-      return () => {
-        clearTimeout(handshakeTimeout);
-        io.close();
-      };
     });
 
     io.on("shoot", (data) => {
-      handleShoot(data);
+      // handleShoot will be defined after declaration
+      console.log("Shoot event received:", data);
     });
 
     // Crosshair events for gyro aiming
@@ -276,17 +273,19 @@ export default function Screen() {
       if (connectedRef.current && channelRef.current) {
         try {
           channelRef.current.close();
-        } catch (e) {
+        } catch (error) {
           // Ignore close errors
+          console.log("Error closing channel:", error);
         }
       }
       connectedRef.current = false;
     };
-  }, []);
+  }, [handleShoot]);
 
+  // Define handleShoot before useEffect
   const handleShoot = useCallback(
     (data) => {
-      const { controllerId, targetXPercent, targetYPercent, power } = data;
+      const { controllerId, targetXPercent, targetYPercent } = data;
       const id = `shot-${Math.random().toString(36).substr(2, 9)}`;
 
       // Clear targeting state when shot is fired
@@ -453,10 +452,6 @@ export default function Screen() {
               }
             }
           }
-          }
-          }
-          }
-          }
         }
       }, 300);
     },
@@ -470,6 +465,19 @@ export default function Screen() {
       isGameOver,
     ],
   );
+
+  // Add shoot handler after declaration
+  useEffect(() => {
+    // Find the io instance and add shoot handler
+    if (channelRef.current) {
+      const io = channelRef.current;
+      io.on("shoot", (data) => {
+        handleShoot(data);
+      });
+    }
+  }, [handleShoot]);
+
+  // Shoot handler is now properly set up
 
   // Timer effect
   useEffect(() => {

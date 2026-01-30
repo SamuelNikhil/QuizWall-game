@@ -14,7 +14,9 @@ export default function Controller() {
   const [power, setPower] = useState(0);
   const [lastResult, setLastResult] = useState(null);
   const [gyroEnabled, setGyroEnabled] = useState(false);
-  const [needsGyroPermission, setNeedsGyroPermission] = useState(false);
+  const [needsGyroPermission, setNeedsGyroPermission] = useState(
+    typeof DeviceOrientationEvent !== "undefined",
+  );
   const [aimPosition, setAimPosition] = useState({ x: 50, y: 50 });
   const [targetedOrb, setTargetedOrb] = useState(null); // 'A', 'B', 'C', or 'D'
   const [isGameOver, setIsGameOver] = useState(false);
@@ -67,12 +69,13 @@ export default function Controller() {
       }
       console.log("Connected to server");
       connectedRef.current = true;
-      setConnected(true); // Fix: Update React state
+      setConnected(true);
       setChannel(io);
-      if (roomId && token) {
-        io.emit("joinRoom", { roomId, token });
-      }
     });
+
+    if (roomId && token) {
+      io.emit("joinRoom", { roomId, token });
+    }
 
     io.on("open", () => {
       console.log("🎮 data channel open");
@@ -114,17 +117,13 @@ export default function Controller() {
       if (connectedRef.current && channelRef.current) {
         try {
           channelRef.current.close();
-        } catch (e) {}
+        } catch {
+          // Ignore close errors
+        }
       }
       connectedRef.current = false;
     };
-  }, [roomId]);
-
-  useEffect(() => {
-    if (typeof DeviceOrientationEvent !== "undefined") {
-      setNeedsGyroPermission(true);
-    }
-  }, []);
+  }, [roomId, token]);
 
   const requestGyroPermission = async () => {
     if (typeof DeviceOrientationEvent.requestPermission === "function") {
