@@ -408,7 +408,17 @@ export default function Screen() {
 
     io.on("controllerLeft", (data) => {
       console.log("Controller left:", data.controllerId);
-      setControllers((prev) => prev.filter((id) => id !== data.controllerId));
+      setControllers((prev) => {
+        const newControllers = prev.filter((id) => id !== data.controllerId);
+        // Reset game state if last controller leaves
+        if (newControllers.length === 0) {
+          setIsGameOver(false);
+          setScores({});
+          setCurrentQuestion(0);
+          setTimeLeft(30);
+        }
+        return newControllers;
+      });
       setScores((prev) => {
         const newScores = { ...prev };
         delete newScores[data.controllerId];
@@ -516,7 +526,7 @@ export default function Screen() {
     );
   }
 
-  if (isGameOver) {
+  if (isGameOver && controllers.length > 0) {
     return (
       <div className="screen-container">
         <div
@@ -530,15 +540,16 @@ export default function Screen() {
             textAlign: "center",
             animation: "bounceIn 0.8s cubic-bezier(0.34, 1.56, 0.64, 1)",
             position: "relative",
+            scale: "0.8",
           }}
         >
           <h1
             style={{
-              fontSize: "7rem",
+              fontSize: "5rem",
               fontWeight: "900",
               color: "#ff4444",
-              textShadow: "0 0 50px rgba(255, 0, 0, 0.5)",
-              marginBottom: "1rem",
+              textShadow: "0 0 40px rgba(255, 0, 0, 0.5)",
+              marginBottom: "0.5rem",
             }}
           >
             TIME'S UP!
@@ -546,18 +557,18 @@ export default function Screen() {
           <div
             style={{
               background: "rgba(255, 255, 255, 0.05)",
-              padding: "4rem",
+              padding: "2.5rem",
               borderRadius: "30px",
               border: "1px solid rgba(255, 255, 255, 0.1)",
               backdropFilter: "blur(20px)",
-              minWidth: "450px",
-              marginBottom: "2rem",
+              minWidth: "350px",
+              marginBottom: "1.5rem",
             }}
           >
             <h2
               style={{
-                fontSize: "2rem",
-                marginBottom: "1rem",
+                fontSize: "1.5rem",
+                marginBottom: "0.5rem",
                 color: "rgba(255, 255, 255, 0.8)",
                 fontWeight: "600",
               }}
@@ -566,7 +577,7 @@ export default function Screen() {
             </h2>
             <p
               style={{
-                fontSize: "6rem",
+                fontSize: "4.5rem",
                 fontWeight: "900",
                 color: "#90e0ef",
                 margin: 0,
@@ -578,11 +589,11 @@ export default function Screen() {
 
           <div
             style={{
-              marginTop: "2rem",
-              padding: "1.5rem 4rem",
+              marginTop: "1rem",
+              padding: "1rem 3rem",
               background: "#6750a4",
               borderRadius: "20px",
-              boxShadow: "0 0 40px rgba(103, 80, 164, 0.6)",
+              boxShadow: "0 0 30px rgba(103, 80, 164, 0.6)",
               border: "2px solid rgba(255, 255, 255, 0.1)",
               animation: "pulse 2s ease-in-out infinite",
             }}
@@ -591,9 +602,9 @@ export default function Screen() {
               style={{
                 color: "#fff",
                 margin: 0,
-                fontSize: "2.5rem",
+                fontSize: "1.8rem",
                 fontWeight: "900",
-                letterSpacing: "2px",
+                letterSpacing: "1.5px",
               }}
             >
               SHOOT TO RESTART
@@ -691,8 +702,8 @@ export default function Screen() {
       <div className="qr-fullscreen">
         <h1
           style={{
-            fontSize: "4.5rem",
-            marginBottom: "1.5rem",
+            fontSize: "3rem",
+            marginBottom: "1rem",
             color: "#fff",
             fontWeight: "900",
             textShadow: "0 0 50px rgba(103, 80, 164, 0.6)",
@@ -710,7 +721,7 @@ export default function Screen() {
             <div className="qr-box-large">
               <QRCodeSVG
                 value={controllerUrl}
-                size={300}
+                size={240}
                 level="H"
                 fgColor="#1C1B1F"
               />
@@ -734,11 +745,11 @@ export default function Screen() {
             {Object.keys(scores).length === 0 ? (
               <div
                 style={{
-                  padding: "3rem",
+                  padding: "2rem",
                   textAlign: "center",
                   opacity: 0.6,
                   fontStyle: "italic",
-                  fontSize: "1.2rem",
+                  fontSize: "1rem",
                 }}
               >
                 Waiting for challengers...
@@ -761,14 +772,14 @@ export default function Screen() {
                         i === 0 ? "rgba(103, 80, 164, 0.2)" : "var(--glass-bg)",
                     }}
                   >
-                    <span style={{ fontSize: "1.1rem" }}>
+                    <span style={{ fontSize: "0.9rem" }}>
                       {i === 0 ? "👑" : `#${i + 1}`} Player
                     </span>
                     <span
                       style={{
                         color: "var(--accent-secondary)",
                         fontWeight: "800",
-                        fontSize: "1.2rem",
+                        fontSize: "1rem",
                       }}
                     >
                       {score} pts
@@ -786,12 +797,12 @@ export default function Screen() {
     <div className="screen-container" ref={containerRef}>
       <header
         className="screen-header"
-        style={{ justifyContent: "flex-end", padding: "3rem" }}
+        style={{ justifyContent: "flex-end", padding: "2rem" }}
       >
         <div className="player-count-badge">
           <span
             style={{
-              fontSize: "1.5rem",
+              fontSize: "1.2rem",
               filter: "drop-shadow(0 0 10px rgba(103, 80, 164, 0.5))",
             }}
           >
@@ -823,7 +834,7 @@ export default function Screen() {
                   style={{
                     color: "var(--accent-secondary)",
                     fontWeight: "800",
-                    fontSize: "1.3rem",
+                    fontSize: "1.1rem",
                   }}
                 >
                   High Score: {Math.max(...Object.values(scores))}
@@ -860,9 +871,9 @@ export default function Screen() {
         <div
           style={{
             position: "absolute",
-            top: "4rem",
-            left: "3rem",
-            fontSize: "2.5rem",
+            top: "3rem",
+            left: "2rem",
+            fontSize: "1.8rem",
             fontWeight: "900",
             color:
               timeLeft <= 10 ? "var(--accent-error)" : "var(--text-primary)",
