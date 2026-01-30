@@ -279,141 +279,72 @@ export default function Screen() {
             );
           }, 1200);
 
-          setHitEffects((prev) => [
-            ...prev,
-            { id, x: targetX, y: targetY, correct },
-          ]);
-          setTimeout(
-            () => setHitEffects((prev) => prev.filter((e) => e.id !== id)),
-            500,
-          );
+                // Add hit effect
+                setHitEffects((prev) => [
+                    ...prev,
+                    { id, x: targetX, y: targetY, correct: isCorrect },
+                ]);
 
-          if (correct) {
-            // Sound already played above
-            createParticles(targetX, targetY, 20, "#10b981");
-            createScorePopup(targetX, targetY, "+100", "correct");
-            createRipple(targetX, targetY, "#10b981");
-            createConfetti(targetX, targetY);
-            setScores((prev) => ({
-              ...prev,
-              [controllerId]: (prev[controllerId] || 0) + 100,
-            }));
-            if (channelRef.current)
-              channelRef.current.emit("hitResult", {
-                controllerId,
-                correct: true,
-                points: 100,
-              });
-            setTimeout(() => setCurrentQuestion((prev) => prev + 1), 1500);
-          } else {
-            createParticles(targetX, targetY, 15, "#ef4444");
-            createScorePopup(targetX, targetY, "✗", "wrong");
-            createRipple(targetX, targetY, "#ef4444");
-            if (channelRef.current)
-              channelRef.current.emit("hitResult", {
-                controllerId,
-                correct: false,
-                points: 0,
-              });
-          }
-        }
-      }, 300);
-    },
-    }, [createParticles, createScorePopup, createRipple, createConfetti, soundEnabled]);
-  );
+                setTimeout(() => {
+                    setHitEffects((prev) => prev.filter((e) => e.id !== id));
+                }, 500);
 
-  useEffect(() => {
-    const { geckosUrl, geckosPort, geckosPath } = getServerConfig();
-    const io = geckos({
-      url: geckosUrl,
-      port: geckosPort,
-      ...(geckosPath && { path: geckosPath }),
-      iceServers: [{ urls: "stun:stun.metered.ca:80" }],
-    });
-    channelRef.current = io;
+                // Enhanced feedback with particles and popups
+                if (isCorrect) {
+                    // Green particles for correct answer
+                    createParticles(targetX, targetY, 20, '#10b981');
+                    // Score popup
+                    createScorePopup(targetX, targetY, '+100', 'correct');
+                    // Ripple effect
+                    createRipple(targetX, targetY, '#10b981');
+                    // Confetti explosion
+                    createConfetti(targetX, targetY);
+                    
+                    // Update score
+                    setScores((prev) => ({
+                        ...prev,
+                        [controllerId]: (prev[controllerId] || 0) + 100,
+                    }));
 
-    io.onConnect((error) => {
-      if (error) return;
-      io.emit("createRoom");
-    });
+                    // Send result back
+                    if (channel) {
+                        channel.emit('hitResult', { controllerId, correct: true, points: 100 });
+                    }
 
-    io.on("roomCreated", (data) => {
-      setRoomId(data.roomId);
-      setJoinToken(data.joinToken);
-    });
+                    // Next question after delay
+                    setTimeout(() => {
+                        setCurrentQuestion((prev) => prev + 1);
+                    }, 1500);
+                } else {
+                    // Red particles for wrong answer
+                    createParticles(targetX, targetY, 15, '#ef4444');
+                    // Score popup
+                    createScorePopup(targetX, targetY, '✗', 'wrong');
+                    // Ripple effect
+                    createRipple(targetX, targetY, '#ef4444');
+                    
+                    if (channel) {
+                        channel.emit('hitResult', { controllerId, correct: false, points: 0 });
+                    }
+                }
+            }
+        }, 300);
+    }, [channel, question, createParticles, createScorePopup, createRipple, createConfetti]);
 
-    io.on("controllerJoined", (data) => {
-      setControllers([data.controllerId]);
-      setScores((prev) => ({
-        ...prev,
-        [data.controllerId]: prev[data.controllerId] || 0,
-      }));
-    });
+    const controllerUrl = roomId && joinToken
+        ? `${window.location.origin}/controller/${roomId}/${joinToken}`
+        : '';
 
-   io.on('shoot', handleShootInternal);
-
-   // Cleanup on unmount
-   return () => {
-     if (channelRef.current) channelRef.current.close();
-   };
- }, [handleShootInternal, soundEnabled]);
-
- // Add shaking effect class to container when needed
- useEffect(() => {
-   if (!containerRef.current) return;
-
-   if (isShaking) {
-     containerRef.current.classList.add('shake');
-     const timer = setTimeout(() => {
-       if (containerRef.current) {
-         containerRef.current.classList.remove('shake');
-         setIsShaking(false);
-       }
-     }, 500);
-     return () => clearTimeout(timer);
-   }
- }, [isShaking]);
-
-    io.on('startAiming', data => {
-        const isGyro = !!data.gyroEnabled;
-        isGyroModeRef.current = isGyro;
-        setIsGyroMode(isGyro);
-        setIsAiming(true);
-        if (isGyro) setCrosshair({ x: 50, y: 50, controllerId: data.controllerId });
-        else setTargetedOrbId(null);
-
-        // Play aiming sound
-        if (soundEnabled) SoundManager.playAim();
-    });
-
-    io.on('cancelAiming', () => {
-        setIsAiming(false);
-        setTargetedOrbId(null);
-        setCrosshair(null);
-        isGyroModeRef.current = false;
-    });
-
-    io.on('crosshair', data => {
-        if (isGyroModeRef.current) {
-            setCrosshair({ x: data.x, y: data.y, controllerId: data.controllerId });
-        }
-    });
-
-    io.on('targeting', data => {
-        if (!isGyroModeRef.current && data.orbId) {
-            setTargetedOrbId(data.orbId);
-        }
-    });
-
-  if (!roomId)
-    return (
-      <div className="screen-container">
-        <div className="waiting-screen">
-          <div className="pulse-ring" />
-          <h2>Connecting...</h2>
-        </div>
-      </div>
-    );
+    if (!roomId) {
+        return (
+            <div className="screen-container">
+                <div className="waiting-screen">
+                    <div className="pulse-ring" />
+                    <h2 className="waiting-title">Connecting to Server...</h2>
+                </div>
+            </div>
+        );
+    }
 
   // QR VIEW - Hidden on mobile via CSS
   if (controllers.length === 0)
