@@ -130,11 +130,18 @@ body {
 @media (max-width: 900px) {
     .qr-content-wrapper {
         flex-direction: column;
-        gap: 3rem;
+        gap: 1.5rem;
+        padding: 1rem;
     }
 
     .qr-left-column {
         display: none;
+    }
+
+    .qr-leaderboard {
+        min-width: 280px;
+        width: 100%;
+        max-width: 400px;
     }
 }
 

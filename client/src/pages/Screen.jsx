@@ -717,7 +717,7 @@ export default function Screen() {
         </h1>
 
         <div className="qr-content-wrapper">
-          <div className="qr-left-column" style={{ display: "flex" }}>
+          <div className="qr-left-column">
             <div className="qr-box-large">
               <QRCodeSVG
                 value={controllerUrl}
