@@ -318,7 +318,11 @@ export default function Screen() {
           }
         }
       }, 300);
+<<<<<<< HEAD
     }, [createParticles, createScorePopup, createRipple, createConfetti, soundEnabled]);
+=======
+    },[createParticles, createScorePopup, createRipple, createConfetti, soundEnabled]);
+>>>>>>> 86c93d6474e7f76b0ed86352d5566f3993268976
 
   useEffect(() => {
     const { geckosUrl, geckosPort, geckosPath } = getServerConfig();
