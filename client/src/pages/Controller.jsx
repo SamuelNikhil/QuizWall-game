@@ -206,9 +206,9 @@ export default function Controller() {
             )}
 
             <div className="slingshot-area" ref={slingshotRef}>
-                <div className="answer-thrower-base">
+                <div className="slingshot-base">
                     {isDragging && power > 5 && <div className="aim-line" style={{ width: power * 2.5, transform: `rotate(${Math.atan2(pullBack.y, pullBack.x) * (180 / Math.PI) + 180}deg)`, left: '50%', top: '50%' }} />}
-                    <div className="answer-thrower-ball" style={{ transform: `translate(${pullBack.x}px, ${pullBack.y}px)`, boxShadow: isDragging ? '0 0 50px var(--quiz-wall-primary)' : 'none' }} onMouseDown={handleStart} onTouchStart={handleStart} />
+                    <div className="slingshot-ball" style={{ transform: `translate(${pullBack.x}px, ${pullBack.y}px)`, boxShadow: isDragging ? '0 0 50px var(--accent-primary)' : 'none' }} onMouseDown={handleStart} onTouchStart={handleStart} />
                 </div>
             </div>
 

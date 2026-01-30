@@ -1,639 +1,675 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
-import { QRCodeSVG } from 'qrcode.react';
-import geckos from '@geckos.io/client';
-import { getServerConfig } from '../config/network';
-import '../animations.css';
+import { useEffect, useState, useRef, useCallback } from "react";
+import { QRCodeSVG } from "qrcode.react";
+import geckos from "@geckos.io/client";
+import { getServerConfig } from "../config/network";
+import "../animations.css";
 
 const QUESTIONS = [
-    {
-        id: 1,
-        text: 'What is the output of the following code?',
-        code: `console.log(typeof null);`,
-        options: [
-            { id: 'A', text: 'null' },
-            { id: 'B', text: 'object' },
-            { id: 'C', text: 'undefined' },
-            { id: 'D', text: 'string' },
-        ],
-        correct: 'B',
-    },
-    {
-        id: 2,
-        text: 'Which method removes the last element from an array?',
-        code: `const arr = [1, 2, 3];\narr.???();`,
-        options: [
-            { id: 'A', text: 'shift()' },
-            { id: 'B', text: 'pop()' },
-            { id: 'C', text: 'slice()' },
-            { id: 'D', text: 'splice()' },
-        ],
-        correct: 'B',
-    },
-    {
-        id: 3,
-        text: 'What does "===" check in JavaScript?',
-        code: `1 === '1'`,
-        options: [
-            { id: 'A', text: 'Value only' },
-            { id: 'B', text: 'Type only' },
-            { id: 'C', text: 'Value and Type' },
-            { id: 'D', text: 'Reference' },
-        ],
-        correct: 'C',
-    },
+  {
+    id: 1,
+    text: "What is the output of the following code?",
+    code: `console.log(typeof null);`,
+    options: [
+      { id: "A", text: "null" },
+      { id: "B", text: "object" },
+      { id: "C", text: "undefined" },
+      { id: "D", text: "string" },
+    ],
+    correct: "B",
+  },
+  {
+    id: 2,
+    text: "Which method removes the last element from an array?",
+    code: `const arr = [1, 2, 3];\narr.???();`,
+    options: [
+      { id: "A", text: "shift()" },
+      { id: "B", text: "pop()" },
+      { id: "C", text: "slice()" },
+      { id: "D", text: "splice()" },
+    ],
+    correct: "B",
+  },
+  {
+    id: 3,
+    text: 'What does "===" check in JavaScript?',
+    code: `1 === '1'`,
+    options: [
+      { id: "A", text: "Value only" },
+      { id: "B", text: "Type only" },
+      { id: "C", text: "Value and Type" },
+      { id: "D", text: "Reference" },
+    ],
+    correct: "C",
+  },
 ];
 
 const ORB_POSITIONS = [
-    { left: '15%', top: '55%' },
-    { left: '40%', top: '70%' },
-    { left: '60%', top: '55%' },
-    { left: '80%', top: '70%' },
+  { left: "15%", top: "55%" },
+  { left: "40%", top: "70%" },
+  { left: "60%", top: "55%" },
+  { left: "80%", top: "70%" },
 ];
 
+const ORB_COLORS = {
+  A: "from-violet-500 to-purple-600",
+  B: "from-pink-500 to-rose-600",
+  C: "from-amber-400 to-orange-500",
+  D: "from-cyan-400 to-blue-500",
+};
+
+const ORB_GLOW_COLORS = {
+  A: "rgba(139, 92, 246, 0.6)",
+  B: "rgba(236, 72, 153, 0.6)",
+  C: "rgba(251, 191, 36, 0.6)",
+  D: "rgba(6, 182, 212, 0.6)",
+};
+
 export default function Screen() {
-    const [roomId, setRoomId] = useState(null);
-    const [joinToken, setJoinToken] = useState(null);
-    const [channel, setChannel] = useState(null);
-    const [controllers, setControllers] = useState([]);
-    const [currentQuestion, setCurrentQuestion] = useState(0);
-    const [projectiles, setProjectiles] = useState([]);
-    const [hitEffects, setHitEffects] = useState([]);
-    const [scores, setScores] = useState({});
-    const [crosshair, setCrosshair] = useState(null); // { x: %, y: %, controllerId }
-    const [targetedOrbId, setTargetedOrbId] = useState(null); // Current orb being hovered/targeted
-    const arenaRef = useRef(null);
-    const containerRef = useRef(null);
-    const targetTimeoutRef = useRef(null);
-    const [particles, setParticles] = useState([]); // Particle effects
-    const [scorePopups, setScorePopups] = useState([]); // Score popup animations
-    const [ripples, setRipples] = useState([]); // Ripple effects
-    const [confetti, setConfetti] = useState([]); // Confetti particles for correct answers
+  const [roomId, setRoomId] = useState(null);
+  const [joinToken, setJoinToken] = useState(null);
+  const [channel, setChannel] = useState(null);
+  const [controllers, setControllers] = useState([]);
+  const [currentQuestion, setCurrentQuestion] = useState(0);
+  const [projectiles, setProjectiles] = useState([]);
+  const [hitEffects, setHitEffects] = useState([]);
+  const [scores, setScores] = useState({});
+  const [crosshair, setCrosshair] = useState(null);
+  const [targetedOrbId, setTargetedOrbId] = useState(null);
+  const arenaRef = useRef(null);
+  const containerRef = useRef(null);
+  const targetTimeoutRef = useRef(null);
+  const [particles, setParticles] = useState([]);
+  const [scorePopups, setScorePopups] = useState([]);
+  const [ripples, setRipples] = useState([]);
+  const [confetti, setConfetti] = useState([]);
 
-    const question = QUESTIONS[currentQuestion % QUESTIONS.length];
+  // Timer states
+  const [timeLeft, setTimeLeft] = useState(30);
+  const [isGameOver, setIsGameOver] = useState(false);
+  const [finalScore, setFinalScore] = useState(0);
+  const timerRef = useRef(null);
 
-    const channelRef = useRef(null);
-    const connectedRef = useRef(false);
+  const question = QUESTIONS[currentQuestion % QUESTIONS.length];
+  const channelRef = useRef(null);
+  const connectedRef = useRef(false);
 
-    // Create particles function
-    const createParticles = useCallback((x, y, count, color) => {
-        const newParticles = [];
-        for (let i = 0; i < count; i++) {
-            const angle = (Math.PI * 2 * i) / count;
-            const distance = 100 + Math.random() * 100;
-            const tx = Math.cos(angle) * distance;
-            const ty = Math.sin(angle) * distance;
-            newParticles.push({
-                id: `particle-${Date.now()}-${i}`,
-                x: x,
-                y: y,
-                size: Math.random() * 8 + 4,
-                color: color,
-                '--tx': `${tx}px`,
-                '--ty': `${ty}px`,
-            });
+  // Timer effect - starts when question loads
+  useEffect(() => {
+    if (!roomId || controllers.length === 0 || isGameOver) return;
+
+    // Reset timer when question changes
+    setTimeLeft(30);
+
+    // Clear any existing timer
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+    }
+
+    // Start countdown
+    timerRef.current = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(timerRef.current);
+          // Game over - time's up
+          const maxScore = Math.max(...Object.values(scores), 0);
+          setFinalScore(maxScore);
+          setIsGameOver(true);
+          return 0;
         }
-        setParticles((prev) => [...prev, ...newParticles]);
-        setTimeout(() => {
-            setParticles((prev) => prev.filter((p) => !newParticles.some((np) => np.id === p.id)));
-        }, 1000);
-    }, []);
+        return prev - 1;
+      });
+    }, 1000);
 
-    // Create score popup function
-    const createScorePopup = useCallback((x, y, text, type) => {
-        const popupId = `popup-${Date.now()}`;
-        setScorePopups((prev) => [...prev, { id: popupId, x, y, text, type }]);
-        setTimeout(() => {
-            setScorePopups((prev) => prev.filter((p) => p.id !== popupId));
-        }, 1500);
-    }, []);
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    };
+  }, [currentQuestion, roomId, controllers.length, scores, isGameOver]);
 
-    // Create ripple effect function
-    const createRipple = useCallback((x, y, color) => {
-        const rippleId = `ripple-${Date.now()}`;
-        setRipples((prev) => [...prev, { id: rippleId, x, y, color, size: 60 }]);
-        setTimeout(() => {
-            setRipples((prev) => prev.filter((r) => r.id !== rippleId));
-        }, 1000);
-    }, []);
+  const createParticles = useCallback((x, y, count, color) => {
+    const newParticles = [];
+    for (let i = 0; i < count; i++) {
+      const angle = (Math.PI * 2 * i) / count;
+      const distance = 100 + Math.random() * 100;
+      const tx = Math.cos(angle) * distance;
+      const ty = Math.sin(angle) * distance;
+      newParticles.push({
+        id: `particle-${Date.now()}-${i}`,
+        x: x,
+        y: y,
+        size: Math.random() * 8 + 4,
+        color: color,
+        "--tx": `${tx}px`,
+        "--ty": `${ty}px`,
+      });
+    }
+    setParticles((prev) => [...prev, ...newParticles]);
+    setTimeout(() => {
+      setParticles((prev) =>
+        prev.filter((p) => !newParticles.some((np) => np.id === p.id)),
+      );
+    }, 1000);
+  }, []);
 
-    // Create confetti function
-    const createConfetti = useCallback((x, y) => {
-        const newConfetti = [];
-        const colors = ['#10b981', '#34d399', '#6ee7b7', '#ffffff', '#fbbf24'];
-        for (let i = 0; i < 30; i++) {
-            const dx = (Math.random() - 0.5) * 400;
-            const dy = -Math.random() * 300 - 100;
-            const rot = Math.random() * 720 - 360;
-            newConfetti.push({
-                id: `confetti-${Date.now()}-${i}`,
-                x: x + (Math.random() - 0.5) * 50,
-                y: y + (Math.random() - 0.5) * 50,
-                color: colors[Math.floor(Math.random() * colors.length)],
-                '--dx': `${dx}px`,
-                '--dy': `${dy}px`,
-                '--rot': `${rot}deg`,
-                width: Math.random() * 10 + 5,
-                height: Math.random() * 10 + 5,
-            });
-        }
-        setConfetti((prev) => [...prev, ...newConfetti]);
-        setTimeout(() => {
-            setConfetti((prev) => prev.filter((c) => !newConfetti.some((nc) => nc.id === c.id)));
-        }, 1500);
-    }, []);
+  const createScorePopup = useCallback((x, y, text, type) => {
+    const popupId = `popup-${Date.now()}-${Math.random()}`;
+    setScorePopups((prev) => [...prev, { id: popupId, x, y, text, type }]);
+    setTimeout(() => {
+      setScorePopups((prev) => prev.filter((p) => p.id !== popupId));
+    }, 1500);
+  }, []);
 
-    useEffect(() => {
-        const { geckosUrl, geckosPort, geckosPath } = getServerConfig();
+  const createRipple = useCallback((x, y, color) => {
+    const rippleId = `ripple-${Date.now()}-${Math.random()}`;
+    setRipples((prev) => [...prev, { id: rippleId, x, y, size: 50, color }]);
+    setTimeout(() => {
+      setRipples((prev) => prev.filter((r) => r.id !== rippleId));
+    }, 1000);
+  }, []);
 
-        // Connect using configured mode (direct or proxy)
-        const io = geckos({
-            url: geckosUrl,
-            port: geckosPort,
-            ...(geckosPath && { path: geckosPath }),
-            iceServers: [
-                { urls: 'stun:stun.metered.ca:80' },
-                {
-                    urls: 'turn:global.relay.metered.ca:443',
-                    username: 'admin',
-                    credential: 'admin'
-                }
-            ]
-        });
-        channelRef.current = io;
+  const createConfetti = useCallback((x, y) => {
+    const newConfetti = [];
+    const colors = ["#6366f1", "#ec4899", "#10b981", "#f59e0b", "#06b6d4"];
+    for (let i = 0; i < 50; i++) {
+      const dx = (Math.random() - 0.5) * 200;
+      const dy = (Math.random() - 0.5) * 200 - 100;
+      const rot = Math.random() * 720;
+      newConfetti.push({
+        id: `confetti-${Date.now()}-${i}`,
+        x: x,
+        y: y,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        "--dx": `${dx}px`,
+        "--dy": `${dy}px`,
+        "--rot": `${rot}deg`,
+        width: Math.random() * 10 + 5,
+        height: Math.random() * 10 + 5,
+      });
+    }
+    setConfetti((prev) => [...prev, ...newConfetti]);
+    setTimeout(() => {
+      setConfetti((prev) =>
+        prev.filter((c) => !newConfetti.some((nc) => nc.id === c.id)),
+      );
+    }, 1500);
+  }, []);
 
-        // Set timeout to detect hanging handshakes
-        const handshakeTimeout = setTimeout(() => {
-            if (!connectedRef.current) {
-                console.error('[SCREEN] Handshake timeout - possible issues:');
-                console.error('  - WebRTC data channel never opened (check for "🎮 data channel open")');
-                console.error('  - ICE negotiation failed (network blocking WebRTC)');
-                console.error('  - Server not responding to createRoom event');
-                console.error('  - CORS or mixed-content issues');
-                console.error('  - STUN/TURN servers unreachable');
-            }
-        }, 15000); // 15 second timeout
+  useEffect(() => {
+    const { geckosUrl, geckosPort, geckosPath } = getServerConfig();
 
-        io.onConnect((error) => {
-            if (error) {
-                console.error('❌ connect error', error);
-                clearTimeout(handshakeTimeout);
-                return;
-            }
-            console.log('✅ connected to server');
-            connectedRef.current = true;
-            setChannel(io);
-            io.emit('createRoom');
-        });
+    const io = geckos({
+      url: geckosUrl,
+      port: geckosPort,
+      ...(geckosPath && { path: geckosPath }),
+      iceServers: [
+        { urls: "stun:stun.metered.ca:80" },
+        {
+          urls: "turn:global.relay.metered.ca:443",
+          username: "admin",
+          credential: "admin",
+        },
+      ],
+    });
+    channelRef.current = io;
 
-        io.on('open', () => {
-            console.log('🎮 data channel open');
-            clearTimeout(handshakeTimeout);
-        });
+    const handshakeTimeout = setTimeout(() => {
+      if (!connectedRef.current) {
+        console.error("[SCREEN] Handshake timeout");
+      }
+    }, 15000);
 
-        io.on('roomCreated', (data) => {
-            console.log('Room created:', data.roomId, 'with token:', data.joinToken);
-            setRoomId(data.roomId);
-            setJoinToken(data.joinToken);
-        });
+    io.onConnect((error) => {
+      if (error) {
+        console.error("❌ connect error", error);
+        clearTimeout(handshakeTimeout);
+        return;
+      }
+      console.log("✅ connected to server");
+      connectedRef.current = true;
+      setChannel(io);
+      io.emit("createRoom");
+    });
 
-        io.on('controllerJoined', (data) => {
-            console.log('Controller joined (Single Player Mode):', data.controllerId);
-            // Replace existing controller to ensure only 1 player (handles refreshes/ghosts)
-            setControllers([data.controllerId]);
-            setScores({ [data.controllerId]: 0 });
-        });
+    io.on("open", () => {
+      console.log("🎮 data channel open");
+      clearTimeout(handshakeTimeout);
+    });
 
-        io.on('controllerLeft', (data) => {
-            console.log('Controller left:', data.controllerId);
-            setControllers((prev) => prev.filter((id) => id !== data.controllerId));
-            setScores((prev) => {
-                const newScores = { ...prev };
-                delete newScores[data.controllerId];
-                return newScores;
-            });
-            return () => {
-                clearTimeout(handshakeTimeout);
-                io.close();
-            };
-        });
+    io.on("roomCreated", (data) => {
+      console.log("Room created:", data.roomId);
+      setRoomId(data.roomId);
+      setJoinToken(data.joinToken);
+    });
 
-        io.on('shoot', (data) => {
-            setCrosshair(null); // Hide crosshair when shooting
-            handleShoot(data);
-        });
+    io.on("controllerJoined", (data) => {
+      console.log("Controller joined:", data.controllerId);
+      setControllers([data.controllerId]);
+      setScores({ [data.controllerId]: 0 });
+      // Reset timer when controller joins
+      if (!isGameOver) {
+        setTimeLeft(30);
+      }
+    });
 
-        // Crosshair events for gyro aiming
-        io.on('crosshair', (data) => {
-            setCrosshair({ x: data.x, y: data.y, controllerId: data.controllerId });
-        });
+    io.on("controllerLeft", (data) => {
+      console.log("Controller left:", data.controllerId);
+      setControllers((prev) => prev.filter((id) => id !== data.controllerId));
+      setScores((prev) => {
+        const newScores = { ...prev };
+        delete newScores[data.controllerId];
+        return newScores;
+      });
+    });
 
-        io.on('startAiming', (data) => {
-            // Only show crosshair if gyro is enabled on the controller
-            if (data.gyroEnabled) {
-                setCrosshair({ x: 50, y: 50, controllerId: data.controllerId });
-            } else {
-                setCrosshair(null);
-            }
-        });
+    io.on("shoot", (data) => {
+      setCrosshair(null);
+      handleShoot(data);
+    });
 
-        io.on('cancelAiming', () => {
-            setCrosshair(null);
-            setTargetedOrbId(null);
-        });
+    io.on("crosshair", (data) => {
+      setCrosshair({ x: data.x, y: data.y, controllerId: data.controllerId });
+    });
 
-        io.on('targeting', (data) => {
-            setTargetedOrbId(data.orbId);
+    io.on("startAiming", (data) => {
+      if (data.gyroEnabled) {
+        setCrosshair({ x: 50, y: 50, controllerId: data.controllerId });
+      } else {
+        setCrosshair(null);
+      }
+    });
 
-            // Clear existing timeout
-            if (targetTimeoutRef.current) clearTimeout(targetTimeoutRef.current);
+    io.on("cancelAiming", () => {
+      setCrosshair(null);
+      setTargetedOrbId(null);
+    });
 
-            // Auto-clear targeted state after 500ms of no updates
-            targetTimeoutRef.current = setTimeout(() => {
-                setTargetedOrbId(null);
-            }, 500);
-        });
-
-        return () => {
-            clearTimeout(handshakeTimeout);
-            // Only close if actually connected
-            if (connectedRef.current && channelRef.current) {
-                try {
-                    channelRef.current.close();
-                } catch (e) {
-                    // Ignore close errors
-                }
-            }
-            connectedRef.current = false;
-        };
-    }, []);
-
-    const handleShoot = useCallback((data) => {
-        const { controllerId, targetXPercent, targetYPercent, power } = data;
-        const id = `shot-${Math.random().toString(36).substr(2, 9)}`;
-
-        // Clear targeting state when shot is fired
+    io.on("targeting", (data) => {
+      setTargetedOrbId(data.orbId);
+      if (targetTimeoutRef.current) clearTimeout(targetTimeoutRef.current);
+      targetTimeoutRef.current = setTimeout(() => {
         setTargetedOrbId(null);
+      }, 500);
+    });
 
-        // Convert percentages to actual pixel positions based on window size
-        let targetX = (targetXPercent / 100) * window.innerWidth;
-        let targetY = (targetYPercent / 100) * window.innerHeight;
-
-        // Add 50px offset to center the hit on the orb (100x100) for touch-targeted shots
-        if (data.isTargetedShot) {
-            targetX += 50;
-            targetY += 50;
+    return () => {
+      clearTimeout(handshakeTimeout);
+      if (connectedRef.current && channelRef.current) {
+        try {
+          channelRef.current.close();
+        } catch (e) {
+          // Ignore
         }
+      }
+      connectedRef.current = false;
+    };
+  }, [handleShoot, isGameOver]);
 
-        // Add projectile
-        setProjectiles((prev) => [
-            ...prev,
-            { id, x: window.innerWidth / 2, y: window.innerHeight, targetX, targetY },
-        ]);
+  const handleShoot = useCallback(
+    (data) => {
+      const { controllerId, targetXPercent, targetYPercent, power } = data;
+      const id = `shot-${Math.random().toString(36).substr(2, 9)}`;
 
-        // Animate projectile to target
-        setTimeout(() => {
-            setProjectiles((prev) => prev.filter((p) => p.id !== id));
+      setTargetedOrbId(null);
 
-            // Check collision with orbs
-            const orbElements = document.querySelectorAll('.orb');
-            let hitOrb = null;
+      let targetX = (targetXPercent / 100) * window.innerWidth;
+      let targetY = (targetYPercent / 100) * window.innerHeight;
 
-            orbElements.forEach((orb) => {
-                const rect = orb.getBoundingClientRect();
-                const orbCenterX = rect.left + rect.width / 2;
-                const orbCenterY = rect.top + rect.height / 2;
-                const distance = Math.sqrt(
-                    Math.pow(targetX - orbCenterX, 2) + Math.pow(targetY - orbCenterY, 2)
-                );
-                if (distance < 60) {
-                    hitOrb = orb.dataset.option;
-                }
-            });
+      if (data.isTargetedShot) {
+        targetX += 50;
+        targetY += 50;
+      }
 
-            if (hitOrb) {
-                const isCorrect = hitOrb === question.correct;
+      setProjectiles((prev) => [
+        ...prev,
+        {
+          id,
+          x: window.innerWidth / 2,
+          y: window.innerHeight,
+          targetX,
+          targetY,
+        },
+      ]);
 
-                // Add visual animation to ALL orbs
-                const orbElements = document.querySelectorAll('.orb');
-                orbElements.forEach(orb => {
-                    const isHitOrb = orb.dataset.option === hitOrb;
-                    const orbClass = isCorrect ? 'correct-answer' : 'wrong-answer';
-                    
-                    // Add animation class to all orbs
-                    orb.classList.add(orbClass);
-                    
-                    // For the hit orb, we'll make the animation more prominent
-                    if (isHitOrb) {
-                        orb.classList.add('hit-orb');
-                    }
-                });
+      setTimeout(() => {
+        setProjectiles((prev) => prev.filter((p) => p.id !== id));
 
-                // Remove animation classes after completion
-                setTimeout(() => {
-                    orbElements.forEach(orb => {
-                        orb.classList.remove('correct-answer', 'wrong-answer', 'hit-orb');
-                    });
-                }, 1200);
+        const orbElements = document.querySelectorAll(".orb");
+        let hitOrb = null;
 
-                // Add hit effect
-                setHitEffects((prev) => [
-                    ...prev,
-                    { id, x: targetX, y: targetY, correct: isCorrect },
-                ]);
+        orbElements.forEach((orb) => {
+          const rect = orb.getBoundingClientRect();
+          const orbCenterX = rect.left + rect.width / 2;
+          const orbCenterY = rect.top + rect.height / 2;
+          const distance = Math.sqrt(
+            Math.pow(targetX - orbCenterX, 2) +
+              Math.pow(targetY - orbCenterY, 2),
+          );
 
-                setTimeout(() => {
-                    setHitEffects((prev) => prev.filter((e) => e.id !== id));
-                }, 500);
+          if (distance < 60) {
+            hitOrb = orb.dataset.option;
+          }
+        });
 
-                // Enhanced feedback with particles and popups
-                if (isCorrect) {
-                    // Green particles for correct answer
-                    createParticles(targetX, targetY, 20, '#10b981');
-                    // Score popup
-                    createScorePopup(targetX, targetY, '+100', 'correct');
-                    // Ripple effect
-                    createRipple(targetX, targetY, '#10b981');
-                    // Confetti explosion
-                    createConfetti(targetX, targetY);
-                    
-                    // Update score
-                    setScores((prev) => ({
-                        ...prev,
-                        [controllerId]: (prev[controllerId] || 0) + 100,
-                    }));
+        if (hitOrb) {
+          const isCorrect = hitOrb === question.correct;
+          const orbElements = document.querySelectorAll(".orb");
+          const isHitOrb = document.querySelector(
+            `.orb[data-option="${hitOrb}"]`,
+          );
+          const orbClass = isCorrect ? "correct-answer" : "wrong-answer";
+          const orbRect = isHitOrb.getBoundingClientRect();
+          const orbCenterX = orbRect.left + orbRect.width / 2;
+          const orbCenterY = orbRect.top + orbRect.height / 2;
 
-                    // Send result back
-                    if (channel) {
-                        channel.emit('hitResult', { controllerId, correct: true, points: 100 });
-                    }
+          orbElements.forEach((orb) => orb.classList.add(orbClass));
+          setTimeout(() => {
+            orbElements.forEach((orb) => orb.classList.remove(orbClass));
+          }, 1000);
 
-                    // Next question after delay
-                    setTimeout(() => {
-                        setCurrentQuestion((prev) => prev + 1);
-                    }, 1500);
-                } else {
-                    // Red particles for wrong answer
-                    createParticles(targetX, targetY, 15, '#ef4444');
-                    // Score popup
-                    createScorePopup(targetX, targetY, '✗', 'wrong');
-                    // Ripple effect
-                    createRipple(targetX, targetY, '#ef4444');
-                    
-                    if (channel) {
-                        channel.emit('hitResult', { controllerId, correct: false, points: 0 });
-                    }
-                }
+          const color = isCorrect ? "#10b981" : "#ef4444";
+          createParticles(orbCenterX, orbCenterY, 20, color);
+          createRipple(orbCenterX, orbCenterY, color);
+
+          if (isCorrect) {
+            createConfetti(orbCenterX, orbCenterY);
+            const points = Math.floor(100 * (1 + timeLeft / 30));
+            setScores((prev) => ({
+              ...prev,
+              [controllerId]: (prev[controllerId] || 0) + points,
+            }));
+            createScorePopup(orbCenterX, orbCenterY, `+${points}`, "correct");
+
+            if (channelRef.current) {
+              channelRef.current.emit("hitResult", {
+                controllerId,
+                correct: true,
+                points,
+              });
             }
-        }, 300);
-    }, [channel, question, createParticles, createScorePopup, createRipple, createConfetti]);
 
-    const controllerUrl = roomId && joinToken
-        ? `${window.location.origin}/controller/${roomId}/${joinToken}`
-        : '';
+            // Move to next question after delay
+            setTimeout(() => {
+              setCurrentQuestion((prev) => prev + 1);
+              setTimeLeft(30);
+            }, 2000);
+          } else {
+            createScorePopup(orbCenterX, orbCenterY, "Wrong!", "wrong");
 
-    if (!roomId) {
-        return (
-            <div className="screen-container">
-                <div className="waiting-screen">
-                    <div className="pulse-ring" />
-                    <h2 className="waiting-title">Connecting to Server...</h2>
-                </div>
-            </div>
-        );
-    }
+            if (channelRef.current) {
+              channelRef.current.emit("hitResult", {
+                controllerId,
+                correct: false,
+                points: 0,
+              });
+            }
+          }
+        }
+      }, 300);
+    },
+    [
+      question,
+      timeLeft,
+      createParticles,
+      createScorePopup,
+      createRipple,
+      createConfetti,
+    ],
+  );
 
-    if (controllers.length === 0) {
-        return (
-            <div className="qr-fullscreen">
-                <h1 style={{
-                    fontSize: '3.5rem',
-                    marginBottom: '1rem',
-                    color: '#fff',
-                    fontWeight: '800',
-                    textShadow: '0 0 40px rgba(99, 102, 241, 0.6)',
-                    textAlign: 'center',
-                    letterSpacing: '-2px',
-                    lineHeight: '1.2'
-                }}>
-                    Code Quiz Wall
-                </h1>
+  const handleRestart = () => {
+    setIsGameOver(false);
+    setFinalScore(0);
+    setCurrentQuestion(0);
+    setScores({});
+    setTimeLeft(30);
+  };
 
-                <div className="qr-content-wrapper">
-                    <div className="qr-left-column">
-                        <div className="qr-box-large">
-                            <QRCodeSVG value={controllerUrl} size={280} level="H" />
-                        </div>
-                    </div>
+  const handleExit = () => {
+    setIsGameOver(false);
+    setFinalScore(0);
+    setCurrentQuestion(0);
+    setScores({});
+    setControllers([]);
+    setRoomId(null);
+    setJoinToken(null);
+  };
 
-                    <div className="qr-leaderboard">
-                        <h3>Leaderboard</h3>
-                        {Object.keys(scores).length === 0 ? (
-                            <div style={{ padding: '2rem', textAlign: 'center', opacity: 0.6, fontStyle: 'italic', fontSize: '1.1rem' }}>
-                                Waiting for players...
-                            </div>
-                        ) : (
-                            Object.entries(scores)
-                                .sort(([, a], [, b]) => b - a)
-                                .slice(0, 5)
-                                .map(([id, score], i) => (
-                                    <div key={id} className="qr-leaderboard-item">
-                                        <span>#{i + 1} Player</span>
-                                        <span style={{ color: 'var(--accent-primary)' }}>{score} pts</span>
-                                    </div>
-                                ))
-                        )}
-                    </div>
-                </div>
-            </div>
-        );
-    }
+  const controllerUrl =
+    roomId && joinToken
+      ? `${window.location.origin}/controller/${roomId}/${joinToken}`
+      : "";
 
+  if (!roomId) {
     return (
-        <div className="screen-container" ref={containerRef}>
-            <header className="screen-header" style={{ justifyContent: 'flex-end', padding: '2rem' }}>
-
-                <div className="player-count-badge">
-                    <span style={{ fontSize: '1.2rem' }}>👥</span>
-                    <span style={{ fontWeight: 'bold', marginRight: '10px' }}>{controllers.length}</span>
-
-                    <div style={{ display: 'flex', gap: '15px', borderLeft: '1px solid rgba(255,255,255,0.3)', paddingLeft: '15px' }}>
-                        {Object.keys(scores).length === 0 ? (
-                            <span style={{ opacity: 0.5, fontSize: '0.9rem' }}>Waiting for shots...</span>
-                        ) : (
-                            <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <span style={{ opacity: 0.7, fontSize: '1rem' }}>Score:</span>
-                                <span style={{ color: '#fff', fontWeight: 'bold', fontSize: '1.2rem' }}>
-                                    {Math.max(...Object.values(scores))}
-                                </span>
-                            </span>
-                        )}
-                    </div>
-                </div>
-            </header>
-
-            <div className="game-arena" ref={arenaRef}>
-                <div className="question-display">
-                    <p className="question-text">{question.text}</p>
-                    <pre className="code-block">{question.code}</pre>
-                </div>
-
-                {/* Answer Orbs */}
-                {question.options.map((opt, i) => (
-                    <div
-                        key={opt.id}
-                        className={`orb orb-${opt.id.toLowerCase()} ${targetedOrbId === opt.id ? 'targeted' : ''}`}
-                        style={{
-                            left: ORB_POSITIONS[i].left,
-                            top: ORB_POSITIONS[i].top,
-                            animationDelay: `${i * 0.5}s`,
-                        }}
-                        data-option={opt.id}
-                    >
-                        {opt.id}: {opt.text}
-                    </div>
-                ))}
-
-                {/* Projectiles */}
-                {projectiles.map((p) => (
-                    <div
-                        key={p.id}
-                        className="projectile"
-                        style={{
-                            left: p.targetX - 10,
-                            top: p.targetY - 10,
-                            transition: 'all 0.3s ease-out',
-                        }}
-                    />
-                ))}
-
-                {/* Crosshair for gyro aiming */}
-                {crosshair && (
-                    <div
-                        style={{
-                            position: 'absolute',
-                            left: `${crosshair.x}%`,
-                            top: `${crosshair.y}%`,
-                            transform: 'translate(-50%, -50%)',
-                            width: '60px',
-                            height: '60px',
-                            border: '3px solid #fff',
-                            borderRadius: '50%',
-                            pointerEvents: 'none',
-                            boxShadow: '0 0 20px rgba(255,255,255,0.5), inset 0 0 20px rgba(255,255,255,0.2)',
-                            zIndex: 1000,
-                        }}
-                    >
-                        {/* Crosshair lines */}
-                        <div style={{
-                            position: 'absolute',
-                            left: '50%',
-                            top: '0',
-                            width: '2px',
-                            height: '100%',
-                            background: 'rgba(255,255,255,0.7)',
-                            transform: 'translateX(-50%)',
-                        }} />
-                        <div style={{
-                            position: 'absolute',
-                            top: '50%',
-                            left: '0',
-                            height: '2px',
-                            width: '100%',
-                            background: 'rgba(255,255,255,0.7)',
-                            transform: 'translateY(-50%)',
-                        }} />
-                        {/* Center dot */}
-                        <div style={{
-                            position: 'absolute',
-                            left: '50%',
-                            top: '50%',
-                            transform: 'translate(-50%, -50%)',
-                            width: '8px',
-                            height: '8px',
-                            background: '#ef4444',
-                            borderRadius: '50%',
-                            boxShadow: '0 0 10px #ef4444',
-                        }} />
-                    </div>
-                )}
-
-                {/* Hit Effects */}
-                {hitEffects.map((e) => (
-                    <div
-                        key={e.id}
-                        className={`hit-effect ${e.correct ? 'hit-correct' : 'hit-wrong'}`}
-                        style={{
-                            left: e.x - 75,
-                            top: e.y - 75,
-                        }}
-                    />
-                ))}
-
-                {/* Particle Effects */}
-                {particles.map((p) => (
-                    <div
-                        key={p.id}
-                        className="particle particle-explode"
-                        style={{
-                            left: p.x,
-                            top: p.y,
-                            width: p.size,
-                            height: p.size,
-                            backgroundColor: p.color,
-                            '--tx': p['--tx'],
-                            '--ty': p['--ty'],
-                        }}
-                    />
-                ))}
-
-                {/* Score Popups */}
-                {scorePopups.map((s) => (
-                    <div
-                        key={s.id}
-                        className={`score-popup ${s.type}`}
-                        style={{
-                            left: s.x,
-                            top: s.y - 50,
-                        }}
-                    >
-                        {s.text}
-                    </div>
-                ))}
-
-                {/* Ripple Effects */}
-                {ripples.map((r) => (
-                    <div
-                        key={r.id}
-                        className="ripple"
-                        style={{
-                            left: r.x - r.size / 2,
-                            top: r.y - r.size / 2,
-                            width: r.size,
-                            height: r.size,
-                            border: `3px solid ${r.color}`,
-                        }}
-                    />
-                ))}
-
-                {/* Confetti Particles */}
-                {confetti.map((c) => (
-                    <div
-                        key={c.id}
-                        className="confetti"
-                        style={{
-                            left: c.x,
-                            top: c.y,
-                            width: c.width,
-                            height: c.height,
-                            backgroundColor: c.color,
-                            '--dx': c['--dx'],
-                            '--dy': c['--dy'],
-                            '--rot': c['--rot'],
-                        }}
-                    />
-                ))}
-
-            </div>
+      <div className="screen-container">
+        <div className="waiting-screen">
+          <div className="pulse-ring" />
+          <h2 className="waiting-title">Connecting to Server...</h2>
         </div>
+      </div>
     );
+  }
+
+  if (isGameOver) {
+    return (
+      <div className="screen-container game-over-container">
+        <div className="game-over-content">
+          <h1 className="game-over-title">⏰ Time's Up!</h1>
+          <div className="game-over-score">
+            <p className="score-label">Final Score</p>
+            <p className="score-value">{finalScore}</p>
+          </div>
+          <div className="game-over-buttons">
+            <button onClick={handleRestart} className="btn btn-restart">
+              🔄 Restart Match
+            </button>
+            <button onClick={handleExit} className="btn btn-exit">
+              🚪 Exit
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (controllers.length === 0) {
+    return (
+      <div className="qr-fullscreen">
+        <h1 className="game-title">Code Quiz Wall</h1>
+
+        <div className="qr-content-wrapper">
+          <div className="qr-left-column">
+            <div className="qr-box-large">
+              <QRCodeSVG value={controllerUrl} size={280} level="H" />
+              <p className="qr-instruction">Scan to join!</p>
+            </div>
+          </div>
+
+          <div className="qr-leaderboard">
+            <h3>Leaderboard</h3>
+            {Object.keys(scores).length === 0 ? (
+              <div className="waiting-players">Waiting for players...</div>
+            ) : (
+              Object.entries(scores)
+                .sort(([, a], [, b]) => b - a)
+                .slice(0, 5)
+                .map(([id, score], i) => (
+                  <div key={id} className="qr-leaderboard-item">
+                    <span>#{i + 1} Player</span>
+                    <span className="score">{score} pts</span>
+                  </div>
+                ))
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="screen-container" ref={containerRef}>
+      <header className="screen-header">
+        <div className="timer-display">
+          <div className="timer-circle">
+            <svg viewBox="0 0 36 36" className="timer-svg">
+              <path
+                className="timer-bg"
+                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+              />
+              <path
+                className="timer-progress"
+                style={{
+                  strokeDasharray: `${(timeLeft / 30) * 100}, 100`,
+                  stroke: timeLeft <= 10 ? "#ef4444" : "#6366f1",
+                }}
+                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+              />
+            </svg>
+            <div className="timer-text">
+              <span className="time-value">{timeLeft}</span>
+              <span className="time-label">sec</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="player-count-badge">
+          <span className="player-icon">👥</span>
+          <span className="player-count">{controllers.length}</span>
+          <div className="score-display">
+            <span className="score-label">Score:</span>
+            <span className="score-value">
+              {Math.max(...Object.values(scores), 0)}
+            </span>
+          </div>
+        </div>
+      </header>
+
+      <div className="game-arena" ref={arenaRef}>
+        <div className="question-display">
+          <div className="question-number">
+            Question {currentQuestion + 1} / {QUESTIONS.length}
+          </div>
+          <p className="question-text">{question.text}</p>
+          <pre className="code-block">{question.code}</pre>
+        </div>
+
+        {question.options.map((opt, i) => (
+          <div
+            key={opt.id}
+            className={`orb orb-${opt.id.toLowerCase()} ${targetedOrbId === opt.id ? "targeted" : ""}`}
+            style={{
+              left: ORB_POSITIONS[i].left,
+              top: ORB_POSITIONS[i].top,
+              animationDelay: `${i * 0.5}s`,
+              "--orb-gradient": `linear-gradient(135deg, ${ORB_COLORS[opt.id].split(" ")[0].replace("from-", "")}, ${ORB_COLORS[opt.id].split(" ")[1].replace("to-", "")})`,
+              "--orb-glow": ORB_GLOW_COLORS[opt.id],
+            }}
+            data-option={opt.id}
+          >
+            <div className="orb-inner">
+              <div className="orb-id">{opt.id}</div>
+              <div className="orb-text">{opt.text}</div>
+            </div>
+          </div>
+        ))}
+
+        {projectiles.map((p) => (
+          <div
+            key={p.id}
+            className="projectile"
+            style={{
+              left: p.targetX - 10,
+              top: p.targetY - 10,
+            }}
+          />
+        ))}
+
+        {crosshair && (
+          <div
+            className="crosshair"
+            style={{
+              left: `${crosshair.x}%`,
+              top: `${crosshair.y}%`,
+            }}
+          >
+            <div className="crosshair-line vertical" />
+            <div className="crosshair-line horizontal" />
+            <div className="crosshair-dot" />
+          </div>
+        )}
+
+        {hitEffects.map((e) => (
+          <div
+            key={e.id}
+            className={`hit-effect ${e.correct ? "hit-correct" : "hit-wrong"}`}
+            style={{
+              left: e.x - 75,
+              top: e.y - 75,
+            }}
+          />
+        ))}
+
+        {particles.map((p) => (
+          <div
+            key={p.id}
+            className="particle particle-explode"
+            style={{
+              left: p.x,
+              top: p.y,
+              width: p.size,
+              height: p.size,
+              backgroundColor: p.color,
+              "--tx": p["--tx"],
+              "--ty": p["--ty"],
+            }}
+          />
+        ))}
+
+        {scorePopups.map((s) => (
+          <div
+            key={s.id}
+            className={`score-popup ${s.type}`}
+            style={{
+              left: s.x,
+              top: s.y - 50,
+            }}
+          >
+            {s.text}
+          </div>
+        ))}
+
+        {ripples.map((r) => (
+          <div
+            key={r.id}
+            className="ripple"
+            style={{
+              left: r.x - r.size / 2,
+              top: r.y - r.size / 2,
+              width: r.size,
+              height: r.size,
+              border: `3px solid ${r.color}`,
+            }}
+          />
+        ))}
+
+        {confetti.map((c) => (
+          <div
+            key={c.id}
+            className="confetti"
+            style={{
+              left: c.x,
+              top: c.y,
+              width: c.width,
+              height: c.height,
+              backgroundColor: c.color,
+              "--dx": c["--dx"],
+              "--dy": c["--dy"],
+              "--rot": c["--rot"],
+            }}
+          />
+        ))}
+      </div>
+    </div>
+  );
 }
