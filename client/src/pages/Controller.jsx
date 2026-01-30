@@ -97,6 +97,7 @@ export default function Controller() {
         });
 
         io.on('gameOver', (data) => {
+            console.log('🎮 Game over received on controller', data);
             setIsGameOver(true);
             setFinalScore(data.finalScores[io.id] || 0);
         });
