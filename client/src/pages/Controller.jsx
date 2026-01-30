@@ -398,7 +398,12 @@ export default function Controller() {
     };
 
     const handleExitToLobby = () => {
-        window.location.href = '/';
+        if (channel) {
+            channel.emit('exitToLobby');
+        }
+        setTimeout(() => {
+            window.location.href = '/';
+        }, 100);
     };
 
     if (!connected) {
@@ -494,23 +499,25 @@ export default function Controller() {
                     </div>
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', width: '100%', maxWidth: '300px' }}>
-                        <button
-                            onClick={handleRestart}
+                        <div
                             style={{
                                 width: '100%',
                                 padding: '1.25rem',
                                 fontSize: '1.2rem',
                                 fontWeight: 800,
-                                background: 'var(--accent-primary)',
-                                border: 'none',
+                                background: 'rgba(255,255,255,0.05)',
+                                border: '2px dashed var(--accent-primary)',
                                 borderRadius: 'var(--radius-md)',
-                                color: 'white',
-                                boxShadow: '0 8px 25px rgba(103, 80, 164, 0.4)',
-                                cursor: 'pointer'
+                                color: 'var(--accent-primary)',
+                                boxOrientation: 'vertical',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '10px'
                             }}
                         >
-                            🔄 RESTART GAME
-                        </button>
+                            🎯 SHOOT THE BUTTON ON SCREEN TO RESTART
+                        </div>
                         <button
                             onClick={handleExitToLobby}
                             style={{
@@ -522,7 +529,8 @@ export default function Controller() {
                                 border: '1px solid var(--glass-border)',
                                 borderRadius: 'var(--radius-sm)',
                                 color: 'var(--text-secondary)',
-                                cursor: 'pointer'
+                                cursor: 'pointer',
+                                marginTop: '0.5rem'
                             }}
                         >
                             Exit to Lobby

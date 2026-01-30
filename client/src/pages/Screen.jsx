@@ -272,6 +272,17 @@ export default function Screen() {
       setTimeLeft(30);
     });
 
+    io.on('exitToLobby', () => {
+      console.log('🏠 Returning to lobby...');
+      setScores({});
+      scoresRef.current = {};
+      setCurrentQuestion(0);
+      setIsGameOver(false);
+      setTimeLeft(30);
+      // The Screen rendering logic will automatically show QR because controllers will be deleted on disconnect,
+      // but we force a clean state here.
+    });
+
     return () => {
       clearTimeout(handshakeTimeout);
       // Only close if actually connected
@@ -328,6 +339,29 @@ export default function Screen() {
           hitOrb = orb.dataset.option;
         }
       });
+
+      // Check collision with Restart Button if Game Over
+      if (isGameOver && !hitOrb) {
+        const restartBtn = document.querySelector('.restart-button-target');
+        if (restartBtn) {
+          const rect = restartBtn.getBoundingClientRect();
+          if (
+            targetX >= rect.left &&
+            targetX <= rect.right &&
+            targetY >= rect.top &&
+            targetY <= rect.bottom
+          ) {
+            console.log('🎯 RESTART BUTTON HIT!');
+            // Reuse restartGame logic
+            setScores({});
+            scoresRef.current = {};
+            setCurrentQuestion(0);
+            setIsGameOver(false);
+            setTimeLeft(30);
+            return; // Exit handleShoot early
+          }
+        }
+      }
 
       if (hitOrb) {
         const isCorrect = hitOrb === question.correct;
@@ -449,31 +483,6 @@ export default function Screen() {
     );
   }
 
-  if (isGameOver) {
-    return (
-      <div className="screen-container">
-        <div className="game-over-screen" style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          height: '100vh',
-          textAlign: 'center',
-          animation: 'bounceIn 0.8s cubic-bezier(0.34, 1.56, 0.64, 1)'
-        }}>
-          <h1 style={{ fontSize: '6rem', fontWeight: '900', color: 'var(--accent-error)', textShadow: '0 0 50px rgba(179, 38, 30, 0.5)', marginBottom: '2rem' }}>TIME'S UP!</h1>
-          <div style={{ background: 'var(--glass-bg)', padding: '3rem', borderRadius: 'var(--radius-lg)', border: '1px solid var(--glass-border)', backdropFilter: 'blur(20px)', minWidth: '400px' }}>
-            <h2 style={{ fontSize: '2rem', marginBottom: '1.5rem' }}>Final Score</h2>
-            <p style={{ fontSize: '4.5rem', fontWeight: '900', color: 'var(--accent-secondary)' }}>
-              {Math.max(0, ...Object.values(scores))}
-            </p>
-            <p style={{ marginTop: '2rem', color: 'var(--text-secondary)', fontSize: '1.2rem' }}>Check your controller to Restart or Exit</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   if (controllers.length === 0) {
     return (
       <div className="qr-fullscreen">
@@ -523,6 +532,44 @@ export default function Screen() {
                 ))
             )}
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (isGameOver) {
+    return (
+      <div className="screen-container">
+        <div className="game-over-screen" style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          height: '100vh',
+          textAlign: 'center',
+          animation: 'bounceIn 0.8s cubic-bezier(0.34, 1.56, 0.64, 1)'
+        }}>
+          <h1 style={{ fontSize: '6rem', fontWeight: '900', color: 'var(--accent-error)', textShadow: '0 0 50px rgba(179, 38, 30, 0.5)', marginBottom: '2rem' }}>TIME'S UP!</h1>
+          <div style={{ background: 'var(--glass-bg)', padding: '3rem', borderRadius: 'var(--radius-lg)', border: '1px solid var(--glass-border)', backdropFilter: 'blur(20px)', minWidth: '400px', marginBottom: '3rem' }}>
+            <h2 style={{ fontSize: '2rem', marginBottom: '1.5rem' }}>Final Score</h2>
+            <p style={{ fontSize: '4.5rem', fontWeight: '900', color: 'var(--accent-secondary)' }}>
+              {Math.max(0, ...Object.values(scores), 0)}
+            </p>
+          </div>
+
+          <div className="restart-button-target" style={{
+            background: 'var(--accent-primary)',
+            padding: '2rem 4rem',
+            borderRadius: 'var(--radius-md)',
+            border: '4px solid rgba(255,255,255,0.3)',
+            boxShadow: '0 0 50px rgba(103, 80, 164, 0.6), inset 0 0 20px rgba(255,255,255,0.2)',
+            cursor: 'pointer',
+            transition: 'transform 0.2s',
+            animation: 'pulse 2s infinite'
+          }}>
+            <h2 style={{ fontSize: '2.5rem', fontWeight: '900', color: '#fff', margin: 0 }}>SHOOT TO RESTART</h2>
+          </div>
+          <p style={{ marginTop: '2rem', color: 'var(--text-secondary)', fontSize: '1.2rem' }}>Aim and shoot the button above!</p>
         </div>
       </div>
     );
