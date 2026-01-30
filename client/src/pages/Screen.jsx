@@ -150,139 +150,10 @@ export default function Screen() {
     }, 1800);
   }, []);
 
-  useEffect(() => {
-    const { geckosUrl, geckosPort, geckosPath } = getServerConfig();
+  // Ref to store the latest handleShoot function without triggering useEffect reconnections
+  const handleShootRef = useRef(null);
 
-    // Connect using configured mode (direct or proxy)
-    const io = geckos({
-      url: geckosUrl,
-      port: geckosPort,
-      ...(geckosPath && { path: geckosPath }),
-      iceServers: [
-        { urls: "stun:stun.metered.ca:80" },
-        {
-          urls: "turn:global.relay.metered.ca:443",
-          username: "admin",
-          credential: "admin",
-        },
-      ],
-    });
-    channelRef.current = io;
-
-    // Set timeout to detect hanging handshakes
-    const handshakeTimeout = setTimeout(() => {
-      if (!connectedRef.current) {
-        console.error("[SCREEN] Handshake timeout - possible issues:");
-        console.error(
-          '  - WebRTC data channel never opened (check for "🎮 data channel open")',
-        );
-        console.error("  - ICE negotiation failed (network blocking WebRTC)");
-        console.error("  - Server not responding to createRoom event");
-        console.error("  - CORS or mixed-content issues");
-        console.error("  - STUN/TURN servers unreachable");
-      }
-    }, 15000); // 15 second timeout
-
-    io.onConnect((error) => {
-      if (error) {
-        console.error("❌ connect error", error);
-        clearTimeout(handshakeTimeout);
-        return;
-      }
-      console.log("✅ connected to server");
-      connectedRef.current = true;
-      setChannel(io);
-      io.emit("createRoom");
-    });
-
-    io.on("open", () => {
-      console.log("🎮 data channel open");
-      clearTimeout(handshakeTimeout);
-    });
-
-    io.on("roomCreated", (data) => {
-      console.log("Room created:", data.roomId, "with token:", data.joinToken);
-      setRoomId(data.roomId);
-      setJoinToken(data.joinToken);
-    });
-
-    io.on("controllerJoined", (data) => {
-      console.log("Controller joined (Single Player Mode):", data.controllerId);
-      // Replace existing controller to ensure only 1 player (handles refreshes/ghosts)
-      setControllers([data.controllerId]);
-      setScores({ [data.controllerId]: 0 });
-    });
-
-    io.on("controllerLeft", (data) => {
-      console.log("Controller left:", data.controllerId);
-      setControllers((prev) => prev.filter((id) => id !== data.controllerId));
-      setScores((prev) => {
-        const newScores = { ...prev };
-        delete newScores[data.controllerId];
-        return newScores;
-      });
-    });
-
-    io.on("shoot", (data) => {
-      // handleShoot will be defined after declaration
-      console.log("Shoot event received:", data);
-    });
-
-    // Crosshair events for gyro aiming
-    io.on("crosshair", (data) => {
-      setCrosshair({ x: data.x, y: data.y, controllerId: data.controllerId });
-    });
-
-    io.on("startAiming", (data) => {
-      // Only show crosshair if gyro is enabled on the controller
-      if (data.gyroEnabled) {
-        setCrosshair({ x: 50, y: 50, controllerId: data.controllerId });
-      } else {
-        setCrosshair(null);
-      }
-    });
-
-    io.on("cancelAiming", () => {
-      setCrosshair(null);
-      setTargetedOrbId(null);
-    });
-
-    io.on("targeting", (data) => {
-      setTargetedOrbId(data.orbId);
-
-      // Clear existing timeout
-      if (targetTimeoutRef.current) clearTimeout(targetTimeoutRef.current);
-
-      // Auto-clear targeted state after 500ms of no updates
-      targetTimeoutRef.current = setTimeout(() => {
-        setTargetedOrbId(null);
-      }, 500);
-    });
-
-    io.on("restartGame", () => {
-      console.log("🔄 Restarting game...");
-      setScores({});
-      setCurrentQuestion(0);
-      setIsGameOver(false);
-      setTimeLeft(30);
-    });
-
-    return () => {
-      clearTimeout(handshakeTimeout);
-      // Only close if actually connected
-      if (connectedRef.current && channelRef.current) {
-        try {
-          channelRef.current.close();
-        } catch (error) {
-          // Ignore close errors
-          console.log("Error closing channel:", error);
-        }
-      }
-      connectedRef.current = false;
-    };
-  }, [handleShoot]);
-
-  // Define handleShoot before useEffect
+  // Define handleShoot
   const handleShoot = useCallback(
     (data) => {
       const { controllerId, targetXPercent, targetYPercent } = data;
@@ -343,8 +214,8 @@ export default function Screen() {
             setTimeLeft(30);
 
             // Send restart event to controllers
-            if (channel) {
-              channel.emit("gameRestarted");
+            if (channelRef.current) {
+              channelRef.current.emit("gameRestarted");
             }
           }
         } else {
@@ -422,8 +293,8 @@ export default function Screen() {
               }));
 
               // Send result back
-              if (channel) {
-                channel.emit("hitResult", {
+              if (channelRef.current) {
+                channelRef.current.emit("hitResult", {
                   controllerId,
                   correct: true,
                   points: 100,
@@ -443,8 +314,8 @@ export default function Screen() {
               // Ripple effect
               createRipple(targetX, targetY, "#ef4444");
 
-              if (channel) {
-                channel.emit("hitResult", {
+              if (channelRef.current) {
+                channelRef.current.emit("hitResult", {
                   controllerId,
                   correct: false,
                   points: 0,
@@ -456,7 +327,6 @@ export default function Screen() {
       }, 300);
     },
     [
-      channel,
       question,
       createParticles,
       createScorePopup,
@@ -466,16 +336,143 @@ export default function Screen() {
     ],
   );
 
-  // Add shoot handler after declaration
+  // Update the ref whenever handleShoot changes
   useEffect(() => {
-    // Find the io instance and add shoot handler
-    if (channelRef.current) {
-      const io = channelRef.current;
-      io.on("shoot", (data) => {
-        handleShoot(data);
-      });
-    }
+    handleShootRef.current = handleShoot;
   }, [handleShoot]);
+
+  useEffect(() => {
+    const { geckosUrl, geckosPort, geckosPath } = getServerConfig();
+
+    // Connect using configured mode (direct or proxy)
+    const io = geckos({
+      url: geckosUrl,
+      port: geckosPort,
+      ...(geckosPath && { path: geckosPath }),
+      iceServers: [
+        { urls: "stun:stun.metered.ca:80" },
+        {
+          urls: "turn:global.relay.metered.ca:443",
+          username: "admin",
+          credential: "admin",
+        },
+      ],
+    });
+    channelRef.current = io;
+
+    // Set timeout to detect hanging handshakes
+    const handshakeTimeout = setTimeout(() => {
+      if (!connectedRef.current) {
+        console.error("[SCREEN] Handshake timeout - possible issues:");
+        console.error(
+          '  - WebRTC data channel never opened (check for "🎮 data channel open")',
+        );
+        console.error("  - ICE negotiation failed (network blocking WebRTC)");
+        console.error("  - Server not responding to createRoom event");
+        console.error("  - CORS or mixed-content issues");
+        console.error("  - STUN/TURN servers unreachable");
+      }
+    }, 15000); // 15 second timeout
+
+    io.onConnect((error) => {
+      if (error) {
+        console.error("❌ connect error", error);
+        clearTimeout(handshakeTimeout);
+        return;
+      }
+      console.log("✅ connected to server");
+      connectedRef.current = true;
+      setChannel(io);
+      io.emit("createRoom");
+    });
+
+    io.on("open", () => {
+      console.log("🎮 data channel open");
+      clearTimeout(handshakeTimeout);
+    });
+
+    io.on("roomCreated", (data) => {
+      console.log("Room created:", data.roomId, "with token:", data.joinToken);
+      setRoomId(data.roomId);
+      setJoinToken(data.joinToken);
+    });
+
+    io.on("controllerJoined", (data) => {
+      console.log("Controller joined (Single Player Mode):", data.controllerId);
+      // Replace existing controller to ensure only 1 player (handles refreshes/ghosts)
+      setControllers([data.controllerId]);
+      setScores({ [data.controllerId]: 0 });
+    });
+
+    io.on("controllerLeft", (data) => {
+      console.log("Controller left:", data.controllerId);
+      setControllers((prev) => prev.filter((id) => id !== data.controllerId));
+      setScores((prev) => {
+        const newScores = { ...prev };
+        delete newScores[data.controllerId];
+        return newScores;
+      });
+    });
+
+    io.on("shoot", (data) => {
+      if (handleShootRef.current) {
+        handleShootRef.current(data);
+      }
+    });
+
+    // Crosshair events for gyro aiming
+    io.on("crosshair", (data) => {
+      setCrosshair({ x: data.x, y: data.y, controllerId: data.controllerId });
+    });
+
+    io.on("startAiming", (data) => {
+      // Only show crosshair if gyro is enabled on the controller
+      if (data.gyroEnabled) {
+        setCrosshair({ x: 50, y: 50, controllerId: data.controllerId });
+      } else {
+        setCrosshair(null);
+      }
+    });
+
+    io.on("cancelAiming", () => {
+      setCrosshair(null);
+      setTargetedOrbId(null);
+    });
+
+    io.on("targeting", (data) => {
+      setTargetedOrbId(data.orbId);
+
+      // Clear existing timeout
+      if (targetTimeoutRef.current) clearTimeout(targetTimeoutRef.current);
+
+      // Auto-clear targeted state after 500ms of no updates
+      targetTimeoutRef.current = setTimeout(() => {
+        setTargetedOrbId(null);
+      }, 500);
+    });
+
+    io.on("restartGame", () => {
+      console.log("🔄 Restarting game...");
+      setScores({});
+      setCurrentQuestion(0);
+      setIsGameOver(false);
+      setTimeLeft(30);
+    });
+
+    return () => {
+      clearTimeout(handshakeTimeout);
+      // Only close if actually connected
+      if (connectedRef.current && channelRef.current) {
+        try {
+          channelRef.current.close();
+        } catch (error) {
+          // Ignore close errors
+          console.log("Error closing channel:", error);
+        }
+      }
+      connectedRef.current = false;
+    };
+  }, []);
 
   // Shoot handler is now properly set up
 
