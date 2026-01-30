@@ -97,15 +97,8 @@ export default function Controller() {
         });
 
         io.on('gameOver', (data) => {
-            console.log('🎮 Game over received on controller', data);
             setIsGameOver(true);
             setFinalScore(data.finalScores[io.id] || 0);
-        });
-
-        io.on('restartGame', () => {
-            console.log('🔄 Game restarted');
-            setIsGameOver(false);
-            setLastResult(null);
         });
 
         return () => {
@@ -124,10 +117,6 @@ export default function Controller() {
             setNeedsGyroPermission(true);
         }
     }, []);
-
-    useEffect(() => {
-        console.log('🎮 isGameOver changed:', isGameOver);
-    }, [isGameOver]);
 
     const requestGyroPermission = async () => {
         if (typeof DeviceOrientationEvent.requestPermission === 'function') {
@@ -345,10 +334,6 @@ export default function Controller() {
                 // Use gyro position (already in percentages)
                 targetXPercent = aimPosition.x;
                 targetYPercent = aimPosition.y;
-            } else if (isGameOver) {
-                // During game over, if no gyro, point towards the screen button area (lower than center)
-                targetXPercent = 50;
-                targetYPercent = 70;
             } else {
                 // Use slingshot direction to target specific orb
                 const orbPositions = [
@@ -408,12 +393,7 @@ export default function Controller() {
     };
 
     const handleExitToLobby = () => {
-        if (channel) {
-            channel.emit('exitToLobby');
-        }
-        setTimeout(() => {
-            window.location.href = '/';
-        }, 100);
+        window.location.href = '/';
     };
 
     if (!connected) {
@@ -442,7 +422,7 @@ export default function Controller() {
         return <div className="controller-container"><div className="waiting-screen"><div className="pulse-ring" /><h2 className="waiting-title">Joining Room {roomId}...</h2></div></div>;
     }
 
-    if (needsGyroPermission && !gyroEnabled && !isGameOver) {
+    if (needsGyroPermission && !gyroEnabled) {
         return (
             <div className="controller-container" style={{ justifyContent: 'center', alignItems: 'center', textAlign: 'center', padding: '2rem' }}>
                 <div style={{ maxWidth: '340px', background: 'var(--glass-bg)', padding: '3rem 2rem', borderRadius: 'var(--radius-lg)', border: '1px solid var(--glass-border)', backdropFilter: 'blur(20px)', boxShadow: 'var(--glass-glow)', animation: 'bounceIn 0.8s cubic-bezier(0.34, 1.56, 0.64, 1)' }}>
@@ -509,25 +489,23 @@ export default function Controller() {
                     </div>
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', width: '100%', maxWidth: '300px' }}>
-                        <div
+                        <button
+                            onClick={handleRestart}
                             style={{
                                 width: '100%',
                                 padding: '1.25rem',
                                 fontSize: '1.2rem',
                                 fontWeight: 800,
-                                background: 'rgba(255,255,255,0.05)',
-                                border: '2px dashed var(--accent-primary)',
+                                background: 'var(--accent-primary)',
+                                border: 'none',
                                 borderRadius: 'var(--radius-md)',
-                                color: 'var(--accent-primary)',
-                                boxOrientation: 'vertical',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: '10px'
+                                color: 'white',
+                                boxShadow: '0 8px 25px rgba(103, 80, 164, 0.4)',
+                                cursor: 'pointer'
                             }}
                         >
-                            🎯 SHOOT THE BUTTON ON SCREEN TO RESTART
-                        </div>
+                            🔄 RESTART GAME
+                        </button>
                         <button
                             onClick={handleExitToLobby}
                             style={{
@@ -539,8 +517,7 @@ export default function Controller() {
                                 border: '1px solid var(--glass-border)',
                                 borderRadius: 'var(--radius-sm)',
                                 color: 'var(--text-secondary)',
-                                cursor: 'pointer',
-                                marginTop: '0.5rem'
+                                cursor: 'pointer'
                             }}
                         >
                             Exit to Lobby
