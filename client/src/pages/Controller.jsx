@@ -42,6 +42,9 @@ export default function Controller() {
         console.error("  - Server not responding to joinRoom event");
         console.error("  - CORS or mixed-content issues");
         console.error("  - STUN/TURN servers unreachable");
+        setJoinError(
+          "Connection timed out. Please refresh or check your internet connection.",
+        );
       }
     }, 15000); // 15 second timeout
 
@@ -63,22 +66,29 @@ export default function Controller() {
 
     io.onConnect((error) => {
       if (error) {
-        console.error("Connection error:", error);
+        console.error("❌ [CONTROLLER] Connection error:", error);
+        setJoinError(
+          "Failed to connect to server: " + (error.message || "Unknown error"),
+        );
         clearTimeout(handshakeTimeout);
         return;
       }
-      console.log("Connected to server");
+      console.log("✅ [CONTROLLER] Connected to server with ID:", io.id);
       connectedRef.current = true;
       setConnected(true);
       setChannel(io);
+
+      if (roomId && token) {
+        console.log("[CONTROLLER] Emitting joinRoom for:", roomId);
+        io.emit("joinRoom", { roomId, token });
+      } else {
+        console.error("[CONTROLLER] Missing roomId or token in URL");
+        setJoinError("Invalid link: missing room ID or token.");
+      }
     });
 
-    if (roomId && token) {
-      io.emit("joinRoom", { roomId, token });
-    }
-
     io.on("open", () => {
-      console.log("🎮 data channel open");
+      console.log("🎮 [CONTROLLER] Data channel open");
       clearTimeout(handshakeTimeout);
     });
 
@@ -86,10 +96,12 @@ export default function Controller() {
       if (data.success) {
         setJoined(true);
         setJoinError(null);
-        console.log("Joined room:", data.roomId);
+        console.log("✅ [CONTROLLER] Successfully joined room:", data.roomId);
+        clearTimeout(handshakeTimeout);
       } else {
-        console.error("Failed to join room:", data.error);
+        console.error("❌ [CONTROLLER] Failed to join room:", data.error);
         setJoinError(data.error);
+        clearTimeout(handshakeTimeout);
       }
     });
 

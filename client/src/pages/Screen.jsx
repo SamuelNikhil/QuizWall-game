@@ -376,23 +376,25 @@ export default function Screen() {
 
     io.onConnect((error) => {
       if (error) {
-        console.error("❌ connect error", error);
+        console.error("❌ [SCREEN] Connection error:", error);
         clearTimeout(handshakeTimeout);
         return;
       }
-      console.log("✅ connected to server");
+      console.log("✅ [SCREEN] Connected to server with ID:", io.id);
       connectedRef.current = true;
       setChannel(io);
+      console.log("[SCREEN] Emitting createRoom...");
       io.emit("createRoom");
     });
 
     io.on("open", () => {
-      console.log("🎮 data channel open");
+      console.log("🎮 [SCREEN] Data channel open");
       clearTimeout(handshakeTimeout);
     });
 
     io.on("roomCreated", (data) => {
-      console.log("Room created:", data.roomId, "with token:", data.joinToken);
+      console.log("[SCREEN] Room created successfully:", data.roomId);
+      console.log("[SCREEN] Join Token:", data.joinToken);
       setRoomId(data.roomId);
       setJoinToken(data.joinToken);
     });
@@ -415,6 +417,7 @@ export default function Screen() {
     });
 
     io.on("shoot", (data) => {
+      console.log("[SCREEN] Shoot event received from:", data.controllerId);
       if (handleShootRef.current) {
         handleShootRef.current(data);
       }
@@ -485,8 +488,8 @@ export default function Screen() {
         if (prev <= 1) {
           clearInterval(timerRef.current);
           setIsGameOver(true);
-          if (channel) {
-            channel.emit("gameOver", { finalScores: scores });
+          if (channelRef.current) {
+            channelRef.current.emit("gameOver", { finalScores: scores });
           }
           return 0;
         }
@@ -495,7 +498,7 @@ export default function Screen() {
     }, 1000);
 
     return () => clearInterval(timerRef.current);
-  }, [roomId, controllers.length, isGameOver, scores, channel]);
+  }, [roomId, controllers.length, isGameOver, scores]);
 
   const controllerUrl =
     roomId && joinToken

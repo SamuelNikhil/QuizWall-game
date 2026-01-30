@@ -28,7 +28,7 @@ function generateRoomId() {
 }
 
 io.onConnection((channel) => {
-  console.log(`[Geckos] Client connected: ${channel.id}`);
+  console.log(`[Geckos] New client connected: ${channel.id}`);
 
   // Set timeout to detect hanging handshakes
   const timeoutId = setTimeout(() => {
@@ -49,6 +49,7 @@ io.onConnection((channel) => {
   connectionTimeouts.set(channel.id, timeoutId);
 
   channel.on("createRoom", () => {
+    console.log(`[Room] Received createRoom from: ${channel.id}`);
     // Clear timeout on successful room creation
     const timeoutId = connectionTimeouts.get(channel.id);
     if (timeoutId) {
@@ -65,6 +66,9 @@ io.onConnection((channel) => {
   });
 
   channel.on("joinRoom", (data) => {
+    console.log(
+      `[Room] Received joinRoom from: ${channel.id} for roomId: ${data?.roomId}`,
+    );
     // Clear timeout on successful room join
     const timeoutId = connectionTimeouts.get(channel.id);
     if (timeoutId) {
@@ -76,6 +80,10 @@ io.onConnection((channel) => {
     const room = rooms.get(roomId);
 
     if (!room) {
+      console.log(
+        `[Room] Join failed: Room ${roomId} not found. Active rooms:`,
+        Array.from(rooms.keys()),
+      );
       channel.emit("joinedRoom", {
         roomId,
         success: false,
