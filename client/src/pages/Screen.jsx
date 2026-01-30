@@ -228,7 +228,6 @@ export default function Screen() {
     });
 
     io.on("shoot", (data) => {
-      setCrosshair(null); // Hide crosshair when shooting
       handleShoot(data);
     });
 
@@ -320,16 +319,19 @@ export default function Screen() {
         setProjectiles((prev) => prev.filter((p) => p.id !== id));
 
         if (isGameOver) {
-          // Check if shot hit the restart button (centered at 50% x, 70% y)
+          // Check if shot hit the restart button (Rectangle: bottom center)
           const centerX = window.innerWidth * 0.5;
-          const centerY = window.innerHeight * 0.7;
-          const buttonRadius = 100; // 200px button diameter
+          const centerY = window.innerHeight * 0.85;
+          const btnWidth = 450;
+          const btnHeight = 100;
 
-          const distanceToRestart = Math.sqrt(
-            Math.pow(targetX - centerX, 2) + Math.pow(targetY - centerY, 2),
-          );
+          const isHit =
+            targetX >= centerX - btnWidth / 2 &&
+            targetX <= centerX + btnWidth / 2 &&
+            targetY >= centerY - btnHeight / 2 &&
+            targetY <= centerY + btnHeight / 2;
 
-          if (distanceToRestart < buttonRadius) {
+          if (isHit) {
             // Hit the restart button!
             createParticles(targetX, targetY, 30, "#6750A4");
             createRipple(targetX, targetY, "#6750A4");
@@ -451,6 +453,10 @@ export default function Screen() {
               }
             }
           }
+          }
+          }
+          }
+          }
         }
       }, 300);
     },
@@ -515,100 +521,158 @@ export default function Screen() {
             height: "100vh",
             textAlign: "center",
             animation: "bounceIn 0.8s cubic-bezier(0.34, 1.56, 0.64, 1)",
+            position: "relative",
           }}
         >
           <h1
             style={{
-              fontSize: "6rem",
+              fontSize: "7rem",
               fontWeight: "900",
-              color: "var(--accent-error)",
-              textShadow: "0 0 50px rgba(179, 38, 30, 0.5)",
-              marginBottom: "2rem",
+              color: "#ff4444",
+              textShadow: "0 0 50px rgba(255, 0, 0, 0.5)",
+              marginBottom: "1rem",
             }}
           >
             TIME'S UP!
           </h1>
           <div
             style={{
-              background: "var(--glass-bg)",
-              padding: "3rem",
-              borderRadius: "var(--radius-lg)",
-              border: "1px solid var(--glass-border)",
+              background: "rgba(255, 255, 255, 0.05)",
+              padding: "4rem",
+              borderRadius: "30px",
+              border: "1px solid rgba(255, 255, 255, 0.1)",
               backdropFilter: "blur(20px)",
-              minWidth: "400px",
+              minWidth: "450px",
+              marginBottom: "2rem",
             }}
           >
-            <h2 style={{ fontSize: "2rem", marginBottom: "1.5rem" }}>
+            <h2
+              style={{
+                fontSize: "2rem",
+                marginBottom: "1rem",
+                color: "rgba(255, 255, 255, 0.8)",
+                fontWeight: "600",
+              }}
+            >
               Final Score
             </h2>
             <p
               style={{
-                fontSize: "4.5rem",
+                fontSize: "6rem",
                 fontWeight: "900",
-                color: "var(--accent-secondary)",
+                color: "#90e0ef",
+                margin: 0,
               }}
             >
               {Math.max(0, ...Object.values(scores))}
             </p>
           </div>
 
-          {/* Shoot to Restart Button */}
           <div
-            className="restart-button-orb"
             style={{
-              position: "absolute",
-              top: "70%",
-              left: "50%",
-              transform: "translate(-50%, -50%)",
-              width: "200px",
-              height: "200px",
-              borderRadius: "50%",
-              background:
-                "linear-gradient(135deg, var(--accent-primary), var(--accent-secondary))",
-              border: "4px solid rgba(255, 255, 255, 0.3)",
-              boxShadow:
-                "0 0 40px var(--accent-primary), 0 0 80px rgba(103, 80, 164, 0.4), inset 0 0 40px rgba(255, 255, 255, 0.1)",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              cursor: "pointer",
+              marginTop: "2rem",
+              padding: "1.5rem 4rem",
+              background: "#6750a4",
+              borderRadius: "20px",
+              boxShadow: "0 0 40px rgba(103, 80, 164, 0.6)",
+              border: "2px solid rgba(255, 255, 255, 0.1)",
               animation: "pulse 2s ease-in-out infinite",
-              zIndex: 100,
             }}
           >
-            <span
+            <h2
               style={{
-                fontSize: "3rem",
+                color: "#fff",
+                margin: 0,
+                fontSize: "2.5rem",
                 fontWeight: "900",
-                color: "#fff",
-                textShadow: "0 2px 10px rgba(0,0,0,0.3)",
-              }}
-            >
-              🎯
-            </span>
-            <span
-              style={{
-                fontSize: "1.5rem",
-                fontWeight: "800",
-                color: "#fff",
-                textShadow: "0 2px 10px rgba(0,0,0,0.3)",
-                marginTop: "0.5rem",
+                letterSpacing: "2px",
               }}
             >
               SHOOT TO RESTART
-            </span>
+            </h2>
           </div>
 
-          <p
-            style={{
-              marginTop: "28rem",
-              color: "var(--text-secondary)",
-              fontSize: "1.2rem",
-            }}
-          >
-            Or use your controller to Restart or Exit
-          </p>
+          {/* Crosshair visible during Game Over slinging */}
+          {crosshair && (
+            <div
+              style={{
+                position: "absolute",
+                left: `${crosshair.x}%`,
+                top: `${crosshair.y}%`,
+                transform: "translate(-50%, -50%)",
+                width: "60px",
+                height: "60px",
+                border: "3px solid #fff",
+                borderRadius: "50%",
+                pointerEvents: "none",
+                boxShadow: "0 0 20px rgba(255,255,255,0.5)",
+                zIndex: 1000,
+              }}
+            >
+              <div
+                style={{
+                  position: "absolute",
+                  left: "50%",
+                  top: "0",
+                  width: "2px",
+                  height: "100%",
+                  background: "rgba(255, 255, 255, 0.7)",
+                  transform: "translateX(-50%)",
+                }}
+              />
+              <div
+                style={{
+                  position: "absolute",
+                  top: "50%",
+                  left: "0",
+                  height: "2px",
+                  width: "100%",
+                  background: "rgba(255, 255, 255, 0.7)",
+                  transform: "translateY(-50%)",
+                }}
+              />
+              <div
+                style={{
+                  position: "absolute",
+                  left: "50%",
+                  top: "50%",
+                  transform: "translate(-50%, -50%)",
+                  width: "8px",
+                  height: "8px",
+                  background: "#ff4444",
+                  borderRadius: "50%",
+                }}
+              />
+            </div>
+          )}
+
+          {/* Projectiles & Particles visible during Game Over shooting */}
+          {projectiles.map((p) => (
+            <div
+              key={p.id}
+              className="projectile"
+              style={{
+                left: p.targetX - 10,
+                top: p.targetY - 10,
+                transition: "all 0.3s ease-out",
+              }}
+            />
+          ))}
+          {particles.map((p) => (
+            <div
+              key={p.id}
+              className="particle particle-explode"
+              style={{
+                left: p.x,
+                top: p.y,
+                width: p.size,
+                height: p.size,
+                backgroundColor: p.color,
+                "--tx": p["--tx"],
+                "--ty": p["--ty"],
+              }}
+            />
+          ))}
         </div>
       </div>
     );

@@ -316,6 +316,18 @@ export default function Controller() {
       const shootAngle = Math.atan2(-pullY, -pullX);
       let degrees = ((shootAngle * 180) / Math.PI + 360) % 360;
 
+      if (isGameOver) {
+        // When game is over, show crosshair on the restart button
+        if (channelRef.current) {
+          channelRef.current.emit(
+            "crosshair",
+            { x: 50, y: 85 },
+            { reliable: false },
+          );
+        }
+        return;
+      }
+
       const orbLabels = ["A", "B", "C", "D"];
       let orbIndex;
       // Precise 4-segment mapping (180° - 360°)
@@ -337,6 +349,21 @@ export default function Controller() {
           channelRef.current.emit("targeting", { orbId: newTarget });
         }
       }
+
+      // Emit crosshair position based on targeted orb for visual feedback on Screen
+      const orbPositions = [
+        { x: 15, y: 55 }, // A
+        { x: 40, y: 70 }, // B
+        { x: 60, y: 55 }, // C
+        { x: 80, y: 70 }, // D
+      ];
+      if (channelRef.current) {
+        channelRef.current.emit(
+          "crosshair",
+          { x: orbPositions[orbIndex].x, y: orbPositions[orbIndex].y },
+          { reliable: false },
+        );
+      }
     }
   };
 
@@ -351,6 +378,10 @@ export default function Controller() {
         // Use gyro position (already in percentages)
         targetXPercent = aimPosition.x;
         targetYPercent = aimPosition.y;
+      } else if (isGameOver) {
+        // Target the restart button
+        targetXPercent = 50;
+        targetYPercent = 85;
       } else {
         // Use slingshot direction to target specific orb
         const orbPositions = [
