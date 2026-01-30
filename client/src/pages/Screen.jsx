@@ -271,8 +271,9 @@ export default function Screen() {
     let targetX = (targetXPercent / 100) * window.innerWidth;
     let targetY = (targetYPercent / 100) * window.innerHeight;
 
-    // Non-gyro shots already target approximately the right spot (center for restart, orbs for quiz)
-    // No additional offset needed.
+    if (data.isTargetedShot) {
+      // No offset needed, targetXPercent=50 already points to center
+    }
 
     setProjectiles((prev) => [
       ...prev,
@@ -287,25 +288,22 @@ export default function Screen() {
         const restartBtn = document.querySelector('.restart-button-target');
         if (restartBtn) {
           const rect = restartBtn.getBoundingClientRect();
-          console.log(`[HitTest] RestartBtn Rect: L:${rect.left}, T:${rect.top}, R:${rect.right}, B:${rect.bottom}`);
-          console.log(`[HitTest] Final Shot Coords: X:${targetX}, Y:${targetY}`);
+          console.log(`[Game] Shot location: ${targetX}, ${targetY}`);
+          console.log(`[Game] Restart button rect: L:${rect.left}, R:${rect.right}, T:${rect.top}, B:${rect.bottom}`);
 
           if (targetX >= rect.left && targetX <= rect.right && targetY >= rect.top && targetY <= rect.bottom) {
-            console.log('🎯 RESTART BUTTON HIT! Syncing with server...');
-
-            // Notify server so all controllers reset
-            if (channelRef.current) {
-              channelRef.current.emit('restartGame');
+            console.log('🎯 RESTART BUTTON HIT!');
+            if (channel) {
+              channel.emit('restartGame');
+            } else {
+              // Fallback if channel not ready
+              setScores({});
+              scoresRef.current = {};
+              setCurrentQuestion(0);
+              setIsGameOver(false);
+              setTimeLeft(30);
             }
-
-            setScores({});
-            scoresRef.current = {};
-            setCurrentQuestion(0);
-            setIsGameOver(false);
-            setTimeLeft(30);
             return;
-          } else {
-            console.log('❌ Restart button missed');
           }
         }
       }
