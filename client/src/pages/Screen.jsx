@@ -76,12 +76,6 @@ export default function Screen() {
   const channelRef = useRef(null);
   const connectedRef = useRef(false);
   const targetTimeoutRef = useRef(null);
-  const handleShootRef = useRef(null);
-
-  // Sync handleShoot ref to avoid stale closures in Geckos listeners
-  useEffect(() => {
-    handleShootRef.current = handleShoot;
-  }, [handleShoot]);
 
   // Helper to create particles
   const createParticles = useCallback((x, y, count, color) => {
@@ -227,7 +221,7 @@ export default function Screen() {
     });
 
     io.on('shoot', (data) => {
-      handleShootRef.current?.(data);
+      handleShoot(data);
     });
 
     io.on('crosshair', (data) => {
@@ -319,11 +313,6 @@ export default function Screen() {
           if (targetX >= (rect.left - buffer) && targetX <= (rect.right + buffer) &&
             targetY >= (rect.top - buffer) && targetY <= (rect.bottom + buffer)) {
             console.log('🎯 RESTART BUTTON HIT!');
-
-            // Add visual feedback for restart hit
-            createRipple(targetX, targetY, '#6750A4');
-            createParticles(targetX, targetY, 25, '#ffffff');
-
             if (channelRef.current) {
               channelRef.current.emit('restartGame');
             } else {
