@@ -501,7 +501,7 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-Content: center;
+    justify-content: center;
     background: rgba(0, 0, 0, 0.85);
     backdrop-filter: blur(12px);
     z-index: 500;
@@ -510,48 +510,48 @@ body {
 }
 
 .game-over-title {
-    font-size: 6rem;
+    font-size: 3.5rem;
     font-weight: 900;
     color: var(--accent-error);
-    text-shadow: 0 0 50px rgba(179, 38, 30, 0.5);
-    margin-bottom: 2rem;
+    text-shadow: 0 0 30px rgba(179, 38, 30, 0.4);
+    margin-bottom: 1.5rem;
 }
 
 .final-score-box {
     background: var(--glass-bg);
-    padding: 3rem;
+    padding: 2rem;
     border-radius: var(--radius-lg);
     border: 1px solid var(--glass-border);
     backdrop-filter: blur(20px);
-    min-width: 400px;
-    margin-bottom: 3rem;
+    min-width: 320px;
+    margin-bottom: 2rem;
 }
 
 .final-score-label {
-    font-size: 2rem;
-    margin-bottom: 1.5rem;
+    font-size: 1.25rem;
+    margin-bottom: 0.75rem;
     color: var(--text-secondary);
 }
 
 .final-score-value {
-    font-size: 4.5rem;
+    font-size: 3rem;
     font-weight: 900;
     color: var(--accent-secondary);
 }
 
 .restart-button-target {
     background: var(--accent-primary);
-    padding: 2rem 4rem;
+    padding: 1.5rem 3rem;
     border-radius: var(--radius-md);
-    border: 4px solid rgba(255, 255, 255, 0.3);
-    box-shadow: 0 0 50px rgba(103, 80, 164, 0.6), inset 0 0 20px rgba(255, 255, 255, 0.2);
+    border: 3px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 0 0 40px rgba(103, 80, 164, 0.5), inset 0 0 15px rgba(255, 255, 255, 0.2);
     cursor: pointer;
     transition: transform 0.2s;
     animation: pulse 2s infinite;
 }
 
 .restart-text {
-    font-size: 2.5rem;
+    font-size: 1.75rem;
     font-weight: 900;
     color: #fff;
     margin: 0;

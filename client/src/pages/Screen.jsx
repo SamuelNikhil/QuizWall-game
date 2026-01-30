@@ -205,7 +205,19 @@ export default function Screen() {
 
     io.on('controllerLeft', (data) => {
       console.log('Controller left:', data.controllerId);
-      setControllers((prev) => prev.filter((id) => id !== data.controllerId));
+      setControllers((prev) => {
+        const next = prev.filter((id) => id !== data.controllerId);
+        // If no more players, reset the game state to fresh
+        if (next.length === 0) {
+          console.log('🔄 All players left. Resetting game state for next session.');
+          setIsGameOver(false);
+          setTimeLeft(30);
+          setScores({});
+          scoresRef.current = {};
+          setCurrentQuestion(0);
+        }
+        return next;
+      });
     });
 
     io.on('shoot', (data) => {
@@ -242,6 +254,11 @@ export default function Screen() {
       setCurrentQuestion(0);
       setIsGameOver(false);
       setTimeLeft(30);
+      setProjectiles([]);
+      setHitEffects([]);
+      setParticles([]);
+      setConfetti([]);
+      setScorePopups([]);
     });
 
     io.on('exitToLobby', () => {
@@ -288,15 +305,17 @@ export default function Screen() {
         const restartBtn = document.querySelector('.restart-button-target');
         if (restartBtn) {
           const rect = restartBtn.getBoundingClientRect();
-          console.log(`[Game] Shot location: ${targetX}, ${targetY}`);
-          console.log(`[Game] Restart button rect: L:${rect.left}, R:${rect.right}, T:${rect.top}, B:${rect.bottom}`);
+          // Add a small buffer (20px) to make hitting easier
+          const buffer = 20;
+          console.log(`[Game] Shot location: ${targetX.toFixed(1)}, ${targetY.toFixed(1)}`);
+          console.log(`[Game] Restart button rect: L:${rect.left.toFixed(1)}, R:${rect.right.toFixed(1)}, T:${rect.top.toFixed(1)}, B:${rect.bottom.toFixed(1)}`);
 
-          if (targetX >= rect.left && targetX <= rect.right && targetY >= rect.top && targetY <= rect.bottom) {
+          if (targetX >= (rect.left - buffer) && targetX <= (rect.right + buffer) &&
+            targetY >= (rect.top - buffer) && targetY <= (rect.bottom + buffer)) {
             console.log('🎯 RESTART BUTTON HIT!');
-            if (channel) {
-              channel.emit('restartGame');
+            if (channelRef.current) {
+              channelRef.current.emit('restartGame');
             } else {
-              // Fallback if channel not ready
               setScores({});
               scoresRef.current = {};
               setCurrentQuestion(0);
