@@ -386,13 +386,24 @@ export default function Controller() {
             <div className="controller-container">
                 <div className="waiting-screen">
                     <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>⚠️</div>
-                    <h2 className="waiting-title" style={{ color: '#f87171' }}>Access Denied</h2>
-                    <p style={{ color: 'var(--text-secondary)', marginTop: '0.5rem' }}>{joinError}</p>
+                    <h2 className="waiting-title" style={{ color: '#f87171', fontFamily: '"Courier New", monospace' }}>[ ACCESS_DENIED ]</h2>
+                    <p style={{ color: 'var(--text-secondary)', marginTop: '0.5rem', fontFamily: '"Courier New", monospace' }}>ERR: {joinError}</p>
                     <button
                         onClick={() => window.location.reload()}
-                        style={{ marginTop: '2rem', padding: '0.75rem 1.5rem', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '8px', color: 'white', cursor: 'pointer' }}
+                        style={{
+                            marginTop: '2rem',
+                            padding: '0.75rem 1.5rem',
+                            background: 'rgba(239, 68, 68, 0.1)',
+                            border: '1px solid #ef4444',
+                            borderRadius: '0',
+                            color: '#ef4444',
+                            cursor: 'pointer',
+                            fontFamily: '"Courier New", monospace',
+                            fontWeight: 'bold',
+                            textTransform: 'uppercase'
+                        }}
                     >
-                        Try Again
+                        Re-Authenticate
                     </button>
                 </div>
             </div>
@@ -405,13 +416,14 @@ export default function Controller() {
 
     if (needsGyroPermission && !gyroEnabled) {
         return (
-            <div className="controller-container" style={{ background: 'linear-gradient(180deg, #1a1a2e 0%, #0f0f1a 100%)', justifyContent: 'center', alignItems: 'center', textAlign: 'center', padding: '2rem' }}>
-                <div style={{ maxWidth: '300px' }}>
-                    <div style={{ width: '80px', height: '80px', margin: '0 auto 1.5rem', background: 'linear-gradient(135deg, var(--accent-primary), var(--accent-secondary))', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2.5rem' }}>📱</div>
-                    <h2 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '1rem', color: 'var(--text-primary)' }}>Enable Motion Control</h2>
-                    <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem', lineHeight: 1.6 }}>Allows gyroscope aiming. Tap to enable.</p>
-                    <button onClick={requestGyroPermission} style={{ width: '100%', padding: '1rem 2rem', fontSize: '1.125rem', fontWeight: 600, background: 'linear-gradient(135deg, var(--accent-primary), var(--accent-secondary))', border: 'none', borderRadius: '12px', color: 'white', cursor: 'pointer', boxShadow: '0 4px 20px rgba(99, 102, 241, 0.4)' }}>🎯 Enable & Play</button>
-                    <button onClick={() => { setNeedsGyroPermission(false); setGyroEnabled(false); }} style={{ marginTop: '1rem', background: 'transparent', border: '1px solid var(--glass-border)', color: 'var(--text-secondary)', padding: '0.75rem 1.5rem', borderRadius: '8px', cursor: 'pointer', fontSize: '0.875rem' }}>Skip (Touch Only)</button>
+            <div className="controller-container" style={{ background: 'radial-gradient(circle at center, #1a1a2e 0%, #0a0a0f 100%)', justifyContent: 'center', alignItems: 'center', textAlign: 'center', padding: '2rem' }}>
+                <div style={{ maxWidth: '300px', border: '1px solid var(--accent-primary)', padding: '2rem', background: 'rgba(0,0,0,0.4)', position: 'relative' }}>
+                    <div style={{ position: 'absolute', top: '-10px', left: '10px', background: '#0a0a0f', padding: '0 10px', color: var(--accent-primary), fontSize: '0.7rem', fontFamily: '"Courier New", monospace' }}>SENSORS_OFFLINE</div>
+                    <div style={{ width: '80px', height: '80px', margin: '0 auto 1.5rem', background: 'rgba(0, 210, 255, 0.1)', border: '2px solid var(--accent-primary)', borderRadius: '0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2.5rem' }}>📡</div>
+                    <h2 style={{ fontSize: '1.2rem', fontWeight: 800, marginBottom: '1rem', color: '#fff', fontFamily: '"Courier New", monospace', textTransform: 'uppercase' }}>Initialize Gyroscope</h2>
+                    <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem', lineHeight: 1.4, fontSize: '0.9rem' }}>Required for precision aiming. Link hardware sensors now.</p>
+                    <button onClick={requestGyroPermission} style={{ width: '100%', padding: '1rem', fontSize: '1rem', fontWeight: 'bold', background: 'var(--accent-primary)', border: 'none', borderRadius: '0', color: '#000', cursor: 'pointer', textTransform: 'uppercase', fontFamily: '"Courier New", monospace' }}>[ INITIALIZE ]</button>
+                    <button onClick={() => { setNeedsGyroPermission(false); setGyroEnabled(false); }} style={{ marginTop: '1rem', background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '0.8rem', textDecoration: 'underline', fontFamily: '"Courier New", monospace' }}>Bypass (Touch Only)</button>
                 </div>
             </div>
         );
@@ -419,63 +431,88 @@ export default function Controller() {
 
     return (
         <div className="controller-container" onMouseMove={handleMove} onMouseUp={handleEnd} onMouseLeave={handleEnd} onTouchMove={handleMove} onTouchEnd={handleEnd}>
-            <header className="controller-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 1.5rem', width: '100%' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <p className={`controller-status ${joined ? 'connected' : ''}`} style={{ margin: 0 }}>{joined ? '● Connected' : 'Connecting...'}</p>
-                    <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: 0 }}>Room: {roomId} {gyroEnabled ? '📱 Gyro ON' : ''}</p>
+            <header className="controller-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 1.5rem', width: '100%', borderBottom: '2px solid rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.3)' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    <p className={`controller-status ${joined ? 'connected' : ''}`} style={{ margin: 0, fontFamily: '"Courier New", monospace', fontSize: '0.9rem' }}>{joined ? 'SYS_LINK: ACTIVE' : 'SYS_LINK: PENDING'}</p>
+                    <p style={{ fontSize: '0.7rem', color: 'var(--accent-primary)', margin: 0, fontFamily: '"Courier New", monospace', opacity: 0.8 }}>ID: {roomId} // GYRO: {gyroEnabled ? 'ENABLED' : 'OFF'}</p>
                 </div>
 
                 <button
                     onClick={handleExit}
                     style={{
-                        background: 'rgba(239, 68, 68, 0.15)',
-                        border: '1px solid rgba(239, 68, 68, 0.3)',
-                        borderRadius: '8px',
-                        padding: '0.5rem 1rem',
-                        color: '#f87171',
-                        fontWeight: '600',
-                        fontSize: '0.875rem',
+                        background: 'transparent',
+                        border: '1px solid #ef4444',
+                        borderRadius: '0',
+                        padding: '0.4rem 0.8rem',
+                        color: '#ef4444',
+                        fontWeight: 'bold',
+                        fontSize: '0.75rem',
                         cursor: 'pointer',
-                        backdropFilter: 'blur(5px)'
+                        fontFamily: '"Courier New", monospace',
+                        textTransform: 'uppercase'
                     }}
                 >
-                    Exit
+                    Terminate
                 </button>
             </header>
 
 
             {lastResult && (
-                <div style={{ position: 'absolute', top: '25%', left: '50%', transform: 'translateX(-50%)', fontSize: '2.5rem', fontWeight: 700, color: lastResult.correct ? 'var(--accent-success)' : 'var(--accent-error)', textShadow: lastResult.correct ? '0 0 20px var(--accent-success)' : '0 0 20px var(--accent-error)', animation: 'pulse 0.5s ease-out', zIndex: 100 }}>
-                    {lastResult.correct ? '✓ +100' : '✗ Miss!'}
+                <div style={{ position: 'absolute', top: '22%', left: '50%', transform: 'translateX(-50%)', fontSize: '2rem', fontWeight: 800, color: lastResult.correct ? '#10b981' : '#ef4444', fontFamily: '"Courier New", monospace', textShadow: lastResult.correct ? '0 0 15px #10b981' : '0 0 15px #ef4444', zIndex: 100, background: 'rgba(0,0,0,0.6)', padding: '0.5rem 1rem', border: `1px solid ${lastResult.correct ? '#10b981' : '#ef4444'}` }}>
+                    {lastResult.correct ? '[ DATA_ACQUIRED ]' : '[ SIGNAL_LOST ]'}
                 </div>
             )}
 
             {isDragging && (
-                <div style={{ position: 'absolute', top: '18%', left: '50%', transform: 'translateX(-50%)', textAlign: 'center' }}>
+                <div style={{ position: 'absolute', top: '15%', left: '50%', transform: 'translateX(-50%)', textAlign: 'center', width: '100%' }}>
                     {gyroEnabled ? (
-                        <div style={{ width: '80px', height: '80px', border: '3px solid var(--accent-primary)', borderRadius: '50%', position: 'relative', margin: '0 auto', boxShadow: '0 0 20px var(--accent-primary)' }}>
-                            <div style={{ width: '14px', height: '14px', background: '#ef4444', borderRadius: '50%', position: 'absolute', left: `${aimPosition.x}%`, top: `${aimPosition.y}%`, transform: 'translate(-50%, -50%)', boxShadow: '0 0 15px #ef4444' }} />
+                        <div style={{ width: '70px', height: '70px', border: '1px solid var(--accent-primary)', position: 'relative', margin: '0 auto', boxShadow: 'inset 0 0 15px rgba(0, 210, 255, 0.2)' }}>
+                            <div style={{ position: 'absolute', top: '50%', left: '0', width: '100%', height: '1px', background: 'rgba(0, 210, 255, 0.3)' }} />
+                            <div style={{ position: 'absolute', left: '50%', top: '0', height: '100%', width: '1px', background: 'rgba(0, 210, 255, 0.3)' }} />
+                            <div style={{ width: '10px', height: '10px', background: '#ef4444', position: 'absolute', left: `${aimPosition.x}%`, top: `${aimPosition.y}%`, transform: 'translate(-50%, -50%)', boxShadow: '0 0 10px #ef4444' }} />
                         </div>
                     ) : (
-                        <div style={{ width: '100px', height: '100px', background: targetedOrb ? 'linear-gradient(135deg, var(--accent-primary), var(--accent-secondary))' : 'rgba(255,255,255,0.1)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto', boxShadow: targetedOrb ? '0 0 30px var(--accent-primary)' : 'none', transition: 'all 0.1s ease' }}>
-                            <span style={{ fontSize: '3rem', fontWeight: 700, color: 'white' }}>{targetedOrb || '?'}</span>
+                        <div style={{ width: '120px', height: '60px', background: targetedOrb ? 'rgba(0, 210, 255, 0.15)' : 'rgba(255,255,255,0.05)', border: `2px solid ${targetedOrb ? 'var(--accent-primary)' : 'rgba(255,255,255,0.1)'}`, borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto', transition: 'all 0.1s ease' }}>
+                            <span style={{ fontSize: '2rem', fontWeight: 900, color: '#fff', fontFamily: '"Courier New", monospace' }}>{targetedOrb || '??'}</span>
                         </div>
                     )}
-                    <p style={{ color: 'var(--accent-primary)', fontSize: '1rem', marginTop: '0.75rem', fontWeight: 600 }}>{gyroEnabled ? 'Tilt to aim!' : (targetedOrb ? `Targeting: ${targetedOrb}` : 'Pull further...')}</p>
+                    <p style={{ color: 'var(--accent-primary)', fontSize: '0.8rem', marginTop: '1rem', fontWeight: 'bold', fontFamily: '"Courier New", monospace', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                        {gyroEnabled ? 'Target Locked: Auto-Aim' : (targetedOrb ? `Targeting Sector ${targetedOrb}` : 'Calculating Trajectory...')}
+                    </p>
                 </div>
             )}
 
             <div className="slingshot-area" ref={slingshotRef}>
-                <div className="slingshot-base">
+                <div className="slingshot-base" style={{ border: '2px solid rgba(255,255,255,0.05)', borderRadius: '0', width: '220px', height: '220px' }}>
+                    <div style={{ position: 'absolute', top: '-15px', left: '50%', transform: 'translateX(-50%)', color: 'rgba(255,255,255,0.2)', fontSize: '0.6rem', fontFamily: '"Courier New", monospace' }}>LAUNCH_STATION_01</div>
                     {isDragging && power > 5 && (
-                        <div className="aim-line" style={{ width: power * 2, transform: `rotate(${Math.atan2(-pullBack.y, -pullBack.x) * (180 / Math.PI)}deg)`, left: '50%', top: '50%' }} />
+                        <div className="aim-line" style={{ height: '2px', background: 'var(--accent-primary)', width: power * 2, transform: `rotate(${Math.atan2(-pullBack.y, -pullBack.x) * (180 / Math.PI)}deg)`, left: '50%', top: '50%', opacity: 0.6 }} />
                     )}
-                    <div ref={ballRef} className="slingshot-ball" style={{ transform: `translate(${pullBack.x}px, ${pullBack.y}px)`, transition: isDragging ? 'none' : 'transform 0.3s ease-out', boxShadow: isDragging ? '0 0 40px var(--accent-primary), 0 0 60px var(--accent-primary)' : '0 0 30px var(--accent-primary)' }} onMouseDown={handleStart} onTouchStart={handleStart} />
+                    <div ref={ballRef} className="slingshot-ball" style={{
+                        borderRadius: '0',
+                        width: '60px',
+                        height: '60px',
+                        background: '#1a1a2e',
+                        border: '2px solid var(--accent-primary)',
+                        transform: `translate(${pullBack.x}px, ${pullBack.y}px)`,
+                        transition: isDragging ? 'none' : 'transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+                        boxShadow: isDragging ? '0 0 30px var(--accent-primary)' : 'none',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                    }}>
+                        <div style={{ width: '40%', height: '40%', border: '1px solid var(--accent-primary)', opacity: 0.5 }} />
+                    </div>
                 </div>
             </div>
 
-            <div className="power-indicator"><div className="power-fill" style={{ width: `${power}%` }} /></div>
-            <p style={{ marginTop: '1rem', color: 'var(--text-secondary)', fontSize: '0.875rem', textAlign: 'center' }}>{isDragging ? (gyroEnabled ? '🎯 Tilt phone to aim!' : '🎯 Target highlighted on wall!') : (gyroEnabled ? 'Pull + Tilt' : 'Pull to Target')}</p>
+            <div className="power-indicator" style={{ borderRadius: '0', height: '20px', border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(0,0,0,0.5)' }}>
+                <div className="power-fill" style={{ width: `${power}%`, borderRadius: '0', transition: 'width 0.05s ease' }} />
+                <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', fontSize: '0.6rem', color: '#fff', mixBlendMode: 'difference', fontFamily: '"Courier New", monospace' }}>CHARGE: {Math.round(power)}%</div>
+            </div>
+            <p style={{ marginTop: '1.5rem', color: 'rgba(255,255,255,0.4)', fontSize: '0.7rem', textAlign: 'center', fontFamily: '"Courier New", monospace', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                {isDragging ? '>> RELAYING COMMAND <<' : '>> READY FOR INPUT <<'}
+            </p>
         </div>
     );
 }
