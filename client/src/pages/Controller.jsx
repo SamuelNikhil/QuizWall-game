@@ -102,6 +102,12 @@ export default function Controller() {
             setFinalScore(data.finalScores[io.id] || 0);
         });
 
+        io.on('restartGame', () => {
+            console.log('🔄 Game restarted');
+            setIsGameOver(false);
+            setLastResult(null);
+        });
+
         return () => {
             clearTimeout(handshakeTimeout);
             if (connectedRef.current && channelRef.current) {
@@ -340,9 +346,9 @@ export default function Controller() {
                 targetXPercent = aimPosition.x;
                 targetYPercent = aimPosition.y;
             } else if (isGameOver) {
-                // During game over, if no gyro, point towards the screen center/button area
+                // During game over, if no gyro, point towards the screen button area (lower than center)
                 targetXPercent = 50;
-                targetYPercent = 50;
+                targetYPercent = 70;
             } else {
                 // Use slingshot direction to target specific orb
                 const orbPositions = [
