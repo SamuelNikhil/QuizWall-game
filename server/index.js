@@ -1,23 +1,23 @@
-import geckos from '@geckos.io/server';
+import geckos from "@geckos.io/server";
 
-import { randomBytes } from 'crypto';
+import { randomBytes } from "crypto";
 
 const io = geckos({
   iceServers: [
-    { urls: 'stun:stun.metered.ca:80' },
+    { urls: "stun:stun.metered.ca:80" },
     {
-      urls: 'turn:global.relay.metered.ca:443',
-      username: 'admin',
-      credential: 'admin'
-    }
-  ]
+      urls: "turn:global.relay.metered.ca:443",
+      username: "admin",
+      credential: "admin",
+    },
+  ],
 });
 
 // Rooms: roomId -> { screenChannel, controllers: [], joinToken }
 const rooms = new Map();
 
 function generateToken() {
-  return randomBytes(16).toString('hex');
+  return randomBytes(16).toString("hex");
 }
 
 // Track connection timeouts
@@ -34,7 +34,9 @@ io.onConnection((channel) => {
   const timeoutId = setTimeout(() => {
     const timeout = connectionTimeouts.get(channel.id);
     if (timeout) {
-      console.log(`[WARNING] Client ${channel.id} handshake timeout - possible issues:`);
+      console.log(
+        `[WARNING] Client ${channel.id} handshake timeout - possible issues:`,
+      );
       console.log(`  - WebRTC data channel never opened`);
       console.log(`  - ICE negotiation failed (check STUN/TURN servers)`);
       console.log(`  - Network blocking WebRTC (corporate firewall/VPN)`);
@@ -46,7 +48,7 @@ io.onConnection((channel) => {
 
   connectionTimeouts.set(channel.id, timeoutId);
 
-  channel.on('createRoom', () => {
+  channel.on("createRoom", () => {
     // Clear timeout on successful room creation
     const timeoutId = connectionTimeouts.get(channel.id);
     if (timeoutId) {
@@ -57,12 +59,12 @@ io.onConnection((channel) => {
     const roomId = generateRoomId();
     const joinToken = generateToken();
     rooms.set(roomId, { screenChannel: channel, controllers: [], joinToken });
-    channel.userData = { role: 'screen', roomId };
-    channel.emit('roomCreated', { roomId, joinToken });
+    channel.userData = { role: "screen", roomId };
+    channel.emit("roomCreated", { roomId, joinToken });
     console.log(`[Room] Created: ${roomId} with token: ${joinToken}`);
   });
 
-  channel.on('joinRoom', (data) => {
+  channel.on("joinRoom", (data) => {
     // Clear timeout on successful room join
     const timeoutId = connectionTimeouts.get(channel.id);
     if (timeoutId) {
@@ -74,89 +76,120 @@ io.onConnection((channel) => {
     const room = rooms.get(roomId);
 
     if (!room) {
-      channel.emit('joinedRoom', { roomId, success: false, error: 'Room not found' });
+      channel.emit("joinedRoom", {
+        roomId,
+        success: false,
+        error: "Room not found",
+      });
       return;
     }
 
     if (room.joinToken !== token) {
-      channel.emit('joinedRoom', { roomId, success: false, error: 'Invalid token' });
-      console.log(`[Room] Controller ${channel.id} rejected from ${roomId}: Invalid token`);
+      channel.emit("joinedRoom", {
+        roomId,
+        success: false,
+        error: "Invalid token",
+      });
+      console.log(
+        `[Room] Controller ${channel.id} rejected from ${roomId}: Invalid token`,
+      );
       return;
     }
 
-    if (room.controllers.length >= 1) {
-      channel.emit('joinedRoom', { roomId, success: false, error: 'Room is full' });
-      console.log(`[Room] Controller ${channel.id} rejected from ${roomId}: Room full`);
+    // Allow up to 4 controllers per room
+    if (room.controllers.length >= 4) {
+      channel.emit("joinedRoom", {
+        roomId,
+        success: false,
+        error: "Room is full",
+      });
+      console.log(
+        `[Room] Controller ${channel.id} rejected from ${roomId}: Room full`,
+      );
       return;
     }
 
     room.controllers.push(channel);
-    channel.userData = { role: 'controller', roomId };
-    channel.emit('joinedRoom', { roomId, success: true });
-    room.screenChannel.emit('controllerJoined', { controllerId: channel.id });
+    channel.userData = { role: "controller", roomId };
+    channel.emit("joinedRoom", { roomId, success: true });
+    room.screenChannel.emit("controllerJoined", { controllerId: channel.id });
     console.log(`[Room] Controller ${channel.id} joined ${roomId}`);
   });
 
   // Controller sends aim updates (high frequency, UDP-like)
-  channel.on('aim', (data) => {
+  channel.on("aim", (data) => {
     const { roomId } = channel.userData || {};
     const room = rooms.get(roomId);
     if (room && room.screenChannel) {
-      room.screenChannel.emit('aim', { controllerId: channel.id, ...data }, { reliable: false });
+      room.screenChannel.emit(
+        "aim",
+        { controllerId: channel.id, ...data },
+        { reliable: false },
+      );
     }
   });
 
   // Controller sends shoot event
-  channel.on('shoot', (data) => {
+  channel.on("shoot", (data) => {
     const { roomId } = channel.userData || {};
     const room = rooms.get(roomId);
     if (room && room.screenChannel) {
-      room.screenChannel.emit('shoot', { controllerId: channel.id, ...data });
+      room.screenChannel.emit("shoot", { controllerId: channel.id, ...data });
     }
   });
 
   // Screen sends hit result back to controller
-  channel.on('hitResult', (data) => {
+  channel.on("hitResult", (data) => {
     const { roomId } = channel.userData || {};
     const room = rooms.get(roomId);
     if (room) {
-      const target = room.controllers.find(c => c.id === data.controllerId);
+      const target = room.controllers.find((c) => c.id === data.controllerId);
       if (target) {
-        target.emit('hitResult', data);
+        target.emit("hitResult", data);
       }
     }
   });
 
   // Crosshair events for gyro aiming
-  channel.on('crosshair', (data) => {
+  channel.on("crosshair", (data) => {
     const { roomId } = channel.userData || {};
     const room = rooms.get(roomId);
     if (room && room.screenChannel) {
-      room.screenChannel.emit('crosshair', { controllerId: channel.id, ...data }, { reliable: false });
+      room.screenChannel.emit(
+        "crosshair",
+        { controllerId: channel.id, ...data },
+        { reliable: false },
+      );
     }
   });
 
-  channel.on('startAiming', (data) => {
+  channel.on("startAiming", (data) => {
     const { roomId } = channel.userData || {};
     const room = rooms.get(roomId);
     if (room && room.screenChannel) {
-      room.screenChannel.emit('startAiming', { controllerId: channel.id, ...data });
+      room.screenChannel.emit("startAiming", {
+        controllerId: channel.id,
+        ...data,
+      });
     }
   });
 
-  channel.on('cancelAiming', (data) => {
+  channel.on("cancelAiming", (data) => {
     const { roomId } = channel.userData || {};
     const room = rooms.get(roomId);
     if (room && room.screenChannel) {
-      room.screenChannel.emit('cancelAiming', { controllerId: channel.id });
+      room.screenChannel.emit("cancelAiming", { controllerId: channel.id });
     }
   });
 
-  channel.on('targeting', (data) => {
+  channel.on("targeting", (data) => {
     const { roomId } = channel.userData || {};
     const room = rooms.get(roomId);
     if (room && room.screenChannel) {
-      room.screenChannel.emit('targeting', { controllerId: channel.id, ...data });
+      room.screenChannel.emit("targeting", {
+        controllerId: channel.id,
+        ...data,
+      });
     }
   });
 
@@ -169,14 +202,14 @@ io.onConnection((channel) => {
     }
 
     const { role, roomId } = channel.userData || {};
-    if (role === 'screen' && roomId) {
+    if (role === "screen" && roomId) {
       rooms.delete(roomId);
       console.log(`[Room] Deleted: ${roomId}`);
-    } else if (role === 'controller' && roomId) {
+    } else if (role === "controller" && roomId) {
       const room = rooms.get(roomId);
       if (room) {
-        room.controllers = room.controllers.filter(c => c.id !== channel.id);
-        room.screenChannel.emit('controllerLeft', { controllerId: channel.id });
+        room.controllers = room.controllers.filter((c) => c.id !== channel.id);
+        room.screenChannel.emit("controllerLeft", { controllerId: channel.id });
       }
     }
     console.log(`[Geckos] Client disconnected: ${channel.id}`);
