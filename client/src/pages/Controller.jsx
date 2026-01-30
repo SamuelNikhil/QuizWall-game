@@ -339,6 +339,10 @@ export default function Controller() {
                 // Use gyro position (already in percentages)
                 targetXPercent = aimPosition.x;
                 targetYPercent = aimPosition.y;
+            } else if (isGameOver) {
+                // During game over, if no gyro, point towards the screen center/button area
+                targetXPercent = 50;
+                targetYPercent = 50;
             } else {
                 // Use slingshot direction to target specific orb
                 const orbPositions = [
