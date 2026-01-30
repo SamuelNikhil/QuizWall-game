@@ -395,7 +395,7 @@ export default function Screen() {
     return (
       <div className="qr-fullscreen">
         <h1 style={{ fontSize: '4.5rem', marginBottom: '1.5rem', color: '#fff', fontWeight: '900', textShadow: '0 0 50px rgba(103, 80, 164, 0.6)', textAlign: 'center', letterSpacing: '-3px', lineHeight: '1.1', fontFamily: 'var(--font-main)' }}>
-          Code Quiz Wall
+          Quiz Wall
         </h1>
         <div className="qr-content-wrapper">
           <div className="qr-left-column" style={{ display: 'flex' }}>
