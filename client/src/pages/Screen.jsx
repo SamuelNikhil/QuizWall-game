@@ -713,7 +713,7 @@ export default function Screen() {
             fontFamily: "var(--font-main)",
           }}
         >
-          Code Quiz Wall
+          Quiz Wall
         </h1>
 
         <div className="qr-content-wrapper">
