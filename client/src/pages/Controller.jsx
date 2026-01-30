@@ -119,6 +119,10 @@ export default function Controller() {
         }
     }, []);
 
+    useEffect(() => {
+        console.log('🎮 isGameOver changed:', isGameOver);
+    }, [isGameOver]);
+
     const requestGyroPermission = async () => {
         if (typeof DeviceOrientationEvent.requestPermission === 'function') {
             try {
@@ -423,7 +427,7 @@ export default function Controller() {
         return <div className="controller-container"><div className="waiting-screen"><div className="pulse-ring" /><h2 className="waiting-title">Joining Room {roomId}...</h2></div></div>;
     }
 
-    if (needsGyroPermission && !gyroEnabled) {
+    if (needsGyroPermission && !gyroEnabled && !isGameOver) {
         return (
             <div className="controller-container" style={{ justifyContent: 'center', alignItems: 'center', textAlign: 'center', padding: '2rem' }}>
                 <div style={{ maxWidth: '340px', background: 'var(--glass-bg)', padding: '3rem 2rem', borderRadius: 'var(--radius-lg)', border: '1px solid var(--glass-border)', backdropFilter: 'blur(20px)', boxShadow: 'var(--glass-glow)', animation: 'bounceIn 0.8s cubic-bezier(0.34, 1.56, 0.64, 1)' }}>

@@ -71,6 +71,7 @@ export default function Screen() {
   const [timeLeft, setTimeLeft] = useState(30);
   const [isGameOver, setIsGameOver] = useState(false);
   const timerRef = useRef(null);
+  const scoresRef = useRef({});
 
   const question = QUESTIONS[currentQuestion % QUESTIONS.length];
 
@@ -265,6 +266,7 @@ export default function Screen() {
     io.on('restartGame', () => {
       console.log('🔄 Restarting game...');
       setScores({});
+      scoresRef.current = {};
       setCurrentQuestion(0);
       setIsGameOver(false);
       setTimeLeft(30);
@@ -374,10 +376,14 @@ export default function Screen() {
           createConfetti(targetX, targetY);
 
           // Update score
-          setScores((prev) => ({
-            ...prev,
-            [controllerId]: (prev[controllerId] || 0) + 100,
-          }));
+          setScores((prev) => {
+            const next = {
+              ...prev,
+              [controllerId]: (prev[controllerId] || 0) + 100,
+            };
+            scoresRef.current = next;
+            return next;
+          });
 
           // Send result back
           if (channel) {
@@ -409,23 +415,24 @@ export default function Screen() {
   useEffect(() => {
     if (isGameOver || !roomId || controllers.length === 0) return;
 
+    console.log('⏱️ Starting game timer');
     timerRef.current = setInterval(() => {
       setTimeLeft((prev) => {
-        if (prev <= 1) {
+        const next = Math.max(0, prev - 1);
+        if (next === 0 && !isGameOver) {
           clearInterval(timerRef.current);
           setIsGameOver(true);
           if (channel) {
-            console.log('📢 Emitting gameOver from screen', scores);
-            channel.emit('gameOver', { finalScores: scores });
+            console.log('📢 Emitting gameOver from screen', scoresRef.current);
+            channel.emit('gameOver', { finalScores: scoresRef.current });
           }
-          return 0;
         }
-        return prev - 1;
+        return next;
       });
     }, 1000);
 
     return () => clearInterval(timerRef.current);
-  }, [roomId, controllers.length, isGameOver, scores, channel]);
+  }, [roomId, controllers.length, isGameOver, channel]);
 
   const controllerUrl = roomId && joinToken
     ? `${window.location.origin}/controller/${roomId}/${joinToken}`
