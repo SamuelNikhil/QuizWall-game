@@ -166,11 +166,7 @@ export default function Screen() {
       let targetX = (targetXPercent / 100) * window.innerWidth;
       let targetY = (targetYPercent / 100) * window.innerHeight;
 
-      // Add 50px offset to center the hit on the orb (100x100) for touch-targeted shots
-      if (data.isTargetedShot) {
-        targetX += 50;
-        targetY += 50;
-      }
+      // No manual offset needed as percentages are now pre-centered in Controller.jsx
 
       // Add projectile
       setProjectiles((prev) => [
@@ -191,7 +187,7 @@ export default function Screen() {
         if (isGameOver) {
           // Check if shot hit the restart button (Rectangle: bottom center)
           const centerX = window.innerWidth * 0.5;
-          const centerY = window.innerHeight * 0.85;
+          const centerY = window.innerHeight * 0.75;
           const btnWidth = 450;
           const btnHeight = 100;
 
