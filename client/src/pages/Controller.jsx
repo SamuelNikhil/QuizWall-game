@@ -786,30 +786,6 @@ export default function Controller() {
         </div>
       )}
 
-      {lastResult && gyroEnabled && (
-        <div
-          style={{
-            position: "absolute",
-            top: "25%",
-            left: "50%",
-            transform: "translateX(-50%)",
-            fontSize: "3rem",
-            fontWeight: 900,
-            color: lastResult.correct
-              ? "var(--accent-success)"
-              : "var(--accent-error)",
-            textShadow: lastResult.correct
-              ? "0 0 30px var(--accent-success)"
-              : "0 0 30px var(--accent-error)",
-            animation: "bounceIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
-            zIndex: 100,
-            letterSpacing: "-1px",
-          }}
-        >
-          {lastResult.correct ? "✓ EPIC HIT!" : "✗ MISS!"}
-        </div>
-      )}
-
       {isDragging && gyroEnabled && (
         <div
           style={{
