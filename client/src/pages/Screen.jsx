@@ -71,6 +71,8 @@ export default function Screen() {
   const [timeLeft, setTimeLeft] = useState(30);
   const [isGameOver, setIsGameOver] = useState(false);
   const timerRef = useRef(null);
+  const [showExitScores, setShowExitScores] = useState(false);
+  const [lastScores, setLastScores] = useState({});
 
   const question = QUESTIONS[currentQuestion % QUESTIONS.length];
 
@@ -404,18 +406,33 @@ export default function Screen() {
 
     io.on("controllerLeft", (data) => {
       console.log("Controller left:", data.controllerId);
-      setControllers((prev) => {
-        const newControllers = prev.filter((id) => id !== data.controllerId);
-        // Reset game state if last controller leaves
-        if (newControllers.length === 0) {
-          setIsGameOver(false);
-          setScores({});
-          setCurrentQuestion(0);
-          setTimeLeft(30);
-        }
-        return newControllers;
-      });
+
       setScores((prev) => {
+        const exitingScore = prev[data.controllerId];
+
+        setControllers((prevControllers) => {
+          const newControllers = prevControllers.filter(
+            (id) => id !== data.controllerId,
+          );
+
+          // If the last player leaves, show their secured score for 3 seconds
+          if (newControllers.length === 0 && exitingScore !== undefined) {
+            setLastScores({ [data.controllerId]: exitingScore });
+            setShowExitScores(true);
+
+            setTimeout(() => {
+              setShowExitScores(false);
+              setLastScores({});
+              setIsGameOver(false);
+              setScores({});
+              setCurrentQuestion(0);
+              setTimeLeft(30);
+            }, 3000);
+          }
+
+          return newControllers;
+        });
+
         const newScores = { ...prev };
         delete newScores[data.controllerId];
         return newScores;
@@ -691,6 +708,73 @@ export default function Screen() {
               }}
             />
           ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (showExitScores) {
+    const finalScore = Object.values(lastScores)[0] || 0;
+    return (
+      <div className="screen-container">
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            height: "100vh",
+            textAlign: "center",
+            background:
+              "radial-gradient(circle at center, #1a1a2e 0%, #0a0a0f 100%)",
+            animation: "fadeIn 0.5s ease-out",
+          }}
+        >
+          <div
+            style={{
+              padding: "3rem",
+              borderRadius: "40px",
+              background: "rgba(255, 255, 255, 0.03)",
+              border: "2px solid rgba(103, 80, 164, 0.3)",
+              backdropFilter: "blur(20px)",
+              boxShadow: "0 0 50px rgba(103, 80, 164, 0.2)",
+              animation: "bounceIn 0.8s cubic-bezier(0.34, 1.56, 0.64, 1)",
+            }}
+          >
+            <h1
+              style={{
+                fontSize: "2.5rem",
+                fontWeight: "800",
+                color: "var(--accent-secondary)",
+                marginBottom: "1rem",
+                letterSpacing: "2px",
+                textTransform: "uppercase",
+              }}
+            >
+              Score Secured
+            </h1>
+            <div
+              style={{
+                fontSize: "8rem",
+                fontWeight: "900",
+                color: "#fff",
+                textShadow: "0 0 40px rgba(103, 80, 164, 0.8)",
+                lineHeight: "1",
+                marginBottom: "1rem",
+              }}
+            >
+              {finalScore}
+            </div>
+            <p
+              style={{
+                fontSize: "1.2rem",
+                color: "rgba(255, 255, 255, 0.6)",
+                fontWeight: "600",
+              }}
+            >
+              Great Game! Returning to Lobby...
+            </p>
+          </div>
         </div>
       </div>
     );
