@@ -332,7 +332,7 @@ export default function Controller() {
         if (channelRef.current) {
           channelRef.current.emit(
             "crosshair",
-            { x: 50, y: 85 },
+            { x: 50, y: 75 },
             { reliable: false },
           );
         }
@@ -363,10 +363,10 @@ export default function Controller() {
 
       // Emit crosshair position based on targeted orb for visual feedback on Screen
       const orbPositions = [
-        { x: 15, y: 55 }, // A
-        { x: 40, y: 70 }, // B
-        { x: 60, y: 55 }, // C
-        { x: 80, y: 70 }, // D
+        { x: 18, y: 60 }, // A
+        { x: 43, y: 75 }, // B
+        { x: 63, y: 60 }, // C
+        { x: 83, y: 75 }, // D
       ];
       if (channelRef.current) {
         channelRef.current.emit(
@@ -392,14 +392,14 @@ export default function Controller() {
       } else if (isGameOver) {
         // Target the restart button
         targetXPercent = 50;
-        targetYPercent = 85;
+        targetYPercent = 75;
       } else {
         // Use slingshot direction to target specific orb
         const orbPositions = [
-          { x: 15, y: 55 }, // A
-          { x: 40, y: 70 }, // B
-          { x: 60, y: 55 }, // C
-          { x: 80, y: 70 }, // D
+          { x: 18, y: 60 }, // A
+          { x: 43, y: 75 }, // B
+          { x: 63, y: 60 }, // C
+          { x: 83, y: 75 }, // D
         ];
 
         const shootAngle = Math.atan2(-pullBack.y, -pullBack.x);

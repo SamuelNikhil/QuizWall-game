@@ -243,29 +243,21 @@ body {
 
 .orb-a {
     background: linear-gradient(135deg, var(--accent-primary), #775abd);
-    bottom: 12%;
-    left: 12%;
     animation-delay: 0s;
 }
 
 .orb-b {
     background: linear-gradient(135deg, var(--accent-secondary), #7fbed0);
-    bottom: 12%;
-    left: 34%;
     animation-delay: 0.5s;
 }
 
 .orb-c {
     background: linear-gradient(135deg, #ffb4ab, var(--accent-tertiary));
-    bottom: 12%;
-    left: 56%;
     animation-delay: 1s;
 }
 
 .orb-d {
     background: linear-gradient(135deg, #d0bcff, #b69df8);
-    bottom: 12%;
-    left: 78%;
     animation-delay: 1.5s;
 }
 
