@@ -777,7 +777,7 @@ export default function Controller() {
         </div>
       )}
 
-      {lastResult && (
+      {lastResult && gyroEnabled && (
         <div
           style={{
             position: "absolute",
@@ -801,7 +801,7 @@ export default function Controller() {
         </div>
       )}
 
-      {isDragging && (
+      {isDragging && gyroEnabled && (
         <div
           style={{
             position: "absolute",
@@ -811,61 +811,33 @@ export default function Controller() {
             textAlign: "center",
           }}
         >
-          {gyroEnabled ? (
+          <div
+            style={{
+              width: "90px",
+              height: "90px",
+              border: "4px solid var(--accent-primary)",
+              borderRadius: "38%",
+              position: "relative",
+              margin: "0 auto",
+              boxShadow: "0 0 30px rgba(103, 80, 164, 0.4)",
+              background: "var(--glass-bg)",
+              backdropFilter: "blur(10px)",
+            }}
+          >
             <div
               style={{
-                width: "90px",
-                height: "90px",
-                border: "4px solid var(--accent-primary)",
-                borderRadius: "38%",
-                position: "relative",
-                margin: "0 auto",
-                boxShadow: "0 0 30px rgba(103, 80, 164, 0.4)",
-                background: "var(--glass-bg)",
-                backdropFilter: "blur(10px)",
+                width: "18px",
+                height: "18px",
+                background: "var(--accent-tertiary)",
+                borderRadius: "50%",
+                position: "absolute",
+                left: `${aimPosition.x}%`,
+                top: `${aimPosition.y}%`,
+                transform: "translate(-50%, -50%)",
+                boxShadow: "0 0 20px var(--accent-tertiary)",
               }}
-            >
-              <div
-                style={{
-                  width: "18px",
-                  height: "18px",
-                  background: "var(--accent-tertiary)",
-                  borderRadius: "50%",
-                  position: "absolute",
-                  left: `${aimPosition.x}%`,
-                  top: `${aimPosition.y}%`,
-                  transform: "translate(-50%, -50%)",
-                  boxShadow: "0 0 20px var(--accent-tertiary)",
-                }}
-              />
-            </div>
-          ) : (
-            <div
-              style={{
-                width: "110px",
-                height: "110px",
-                background: targetedOrb
-                  ? "var(--accent-primary)"
-                  : "var(--glass-bg)",
-                borderRadius: "35%",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                margin: "0 auto",
-                boxShadow: targetedOrb
-                  ? "0 0 40px rgba(103, 80, 164, 0.6)"
-                  : "none",
-                transition: "all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
-                border: "2px solid var(--glass-border)",
-              }}
-            >
-              <span
-                style={{ fontSize: "3.5rem", fontWeight: 900, color: "#fff" }}
-              >
-                {targetedOrb || "?"}
-              </span>
-            </div>
-          )}
+            />
+          </div>
           <p
             style={{
               color: "var(--accent-secondary)",
@@ -875,11 +847,7 @@ export default function Controller() {
               letterSpacing: "0.5px",
             }}
           >
-            {gyroEnabled
-              ? "TILT & SHOOT! 🎯"
-              : targetedOrb
-                ? `LOCKED ON: ${targetedOrb}`
-                : "AIMING..."}
+            TILT & SHOOT! 🎯
           </p>
         </div>
       )}
