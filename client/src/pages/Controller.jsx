@@ -340,40 +340,41 @@ export default function Controller() {
         let degrees = ((shootAngle * 180) / Math.PI + 360) % 360;
 
         const orbLabels = ["A", "B", "C", "D"];
-      let orbIndex;
-      // Precise 4-segment mapping (180° - 360°)
-      // Segment 1: 180-225 (A), 2: 225-270 (B), 3: 270-315 (C), 4: 315-360/0-45 (D)
-      if (degrees >= 180 && degrees < 225) {
-        orbIndex = 0;
-      } else if (degrees >= 225 && degrees < 270) {
-        orbIndex = 1;
-      } else if (degrees >= 270 && degrees < 315) {
-        orbIndex = 2;
-      } else {
-        orbIndex = 3;
-      }
-
-      const newTarget = orbLabels[orbIndex];
-      if (newTarget !== targetedOrb) {
-        setTargetedOrb(newTarget);
-        if (channelRef.current) {
-          channelRef.current.emit("targeting", { orbId: newTarget });
+        let orbIndex;
+        // Precise 4-segment mapping (180° - 360°)
+        // Segment 1: 180-225 (A), 2: 225-270 (B), 3: 270-315 (C), 4: 315-360/0-45 (D)
+        if (degrees >= 180 && degrees < 225) {
+          orbIndex = 0;
+        } else if (degrees >= 225 && degrees < 270) {
+          orbIndex = 1;
+        } else if (degrees >= 270 && degrees < 315) {
+          orbIndex = 2;
+        } else {
+          orbIndex = 3;
         }
-      }
 
-      // Emit crosshair position based on targeted orb for visual feedback on Screen
-      const orbPositions = [
-        { x: 18, y: 60 }, // A
-        { x: 43, y: 75 }, // B
-        { x: 63, y: 60 }, // C
-        { x: 83, y: 75 }, // D
-      ];
-      if (channelRef.current) {
-        channelRef.current.emit(
-          "crosshair",
-          { x: orbPositions[orbIndex].x, y: orbPositions[orbIndex].y },
-          { reliable: false },
-        );
+        const newTarget = orbLabels[orbIndex];
+        if (newTarget !== targetedOrb) {
+          setTargetedOrb(newTarget);
+          if (channelRef.current) {
+            channelRef.current.emit("targeting", { orbId: newTarget });
+          }
+        }
+
+        // Emit crosshair position based on targeted orb for visual feedback on Screen
+        const orbPositions = [
+          { x: 18, y: 60 }, // A
+          { x: 43, y: 75 }, // B
+          { x: 63, y: 60 }, // C
+          { x: 83, y: 75 }, // D
+        ];
+        if (channelRef.current) {
+          channelRef.current.emit(
+            "crosshair",
+            { x: orbPositions[orbIndex].x, y: orbPositions[orbIndex].y },
+            { reliable: false },
+          );
+        }
       }
     }
   };
