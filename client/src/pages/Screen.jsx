@@ -53,7 +53,6 @@ const ORB_POSITIONS = [
 export default function Screen() {
   const [roomId, setRoomId] = useState(null);
   const [joinToken, setJoinToken] = useState(null);
-  const [channel, setChannel] = useState(null);
   const [controllers, setControllers] = useState([]);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [projectiles, setProjectiles] = useState([]);
@@ -71,6 +70,7 @@ export default function Screen() {
   const [timeLeft, setTimeLeft] = useState(30);
   const [isGameOver, setIsGameOver] = useState(false);
   const timerRef = useRef(null);
+  const [isTransitioning, setIsTransitioning] = useState(false);
   const [showExitScores, setShowExitScores] = useState(false);
   const [lastScores, setLastScores] = useState({});
 
@@ -299,10 +299,16 @@ export default function Screen() {
                 });
               }
 
-              // Next question after delay
+              // Start exit animation after the hit effect plays briefly
+              setTimeout(() => {
+                setIsTransitioning(true);
+              }, 800);
+
+              // Refresh question and start entry animation
               setTimeout(() => {
                 setCurrentQuestion((prev) => prev + 1);
                 setTimeLeft(30); // Reset timer for next question
+                setIsTransitioning(false);
               }, 1500);
             } else {
               // Red particles for wrong answer
@@ -968,7 +974,9 @@ export default function Screen() {
       </header>
 
       <div className="game-arena" ref={arenaRef}>
-        <div className="question-display">
+        <div
+          className={`question-display ${isTransitioning ? "slide-out" : "slide-in"}`}
+        >
           <p
             className="question-text"
             style={{
@@ -997,11 +1005,11 @@ export default function Screen() {
         {question.options.map((opt, i) => (
           <div
             key={opt.id}
-            className={`orb orb-${opt.id.toLowerCase()} ${targetedOrbId === opt.id ? "targeted" : ""}`}
+            className={`orb orb-${opt.id.toLowerCase()} ${targetedOrbId === opt.id ? "targeted" : ""} ${isTransitioning ? "exit-animation" : "entry-animation"}`}
             style={{
               left: ORB_POSITIONS[i].left,
               top: ORB_POSITIONS[i].top,
-              animationDelay: `${i * 0.5}s`,
+              animationDelay: isTransitioning ? "0s" : `${i * 0.15}s`,
             }}
             data-option={opt.id}
           >

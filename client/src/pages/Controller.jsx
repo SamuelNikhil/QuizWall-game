@@ -6,21 +6,17 @@ import { getServerConfig } from "../config/network";
 export default function Controller() {
   const { roomId, token } = useParams();
   const [joinError, setJoinError] = useState(null);
-  const [channel, setChannel] = useState(null);
   const [connected, setConnected] = useState(false);
   const [joined, setJoined] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [pullBack, setPullBack] = useState({ x: 0, y: 0 });
   const [power, setPower] = useState(0);
-  const [lastResult, setLastResult] = useState(null);
   const [gyroEnabled, setGyroEnabled] = useState(false);
   const [needsGyroPermission, setNeedsGyroPermission] = useState(
     typeof DeviceOrientationEvent !== "undefined",
   );
   const [aimPosition, setAimPosition] = useState({ x: 50, y: 50 });
   const [targetedOrb, setTargetedOrb] = useState(null); // 'A', 'B', 'C', or 'D'
-  const [isGameOver, setIsGameOver] = useState(false);
-  const [finalScore, setFinalScore] = useState(0);
 
   const slingshotRef = useRef(null);
   const ballRef = useRef(null);
@@ -76,7 +72,6 @@ export default function Controller() {
       console.log("✅ [CONTROLLER] Connected to server with ID:", io.id);
       connectedRef.current = true;
       setConnected(true);
-      setChannel(io);
 
       if (roomId && token) {
         console.log("[CONTROLLER] Emitting joinRoom for:", roomId);
@@ -103,25 +98,6 @@ export default function Controller() {
         setJoinError(data.error);
         clearTimeout(handshakeTimeout);
       }
-    });
-
-    io.on("hitResult", (data) => {
-      setLastResult(data);
-      if (navigator.vibrate) {
-        navigator.vibrate(data.correct ? [50, 50, 50] : [200]);
-      }
-      setTimeout(() => setLastResult(null), 2000);
-    });
-
-    io.on("gameOver", (data) => {
-      setIsGameOver(true);
-      setFinalScore(data.finalScores[io.id] || 0);
-    });
-
-    io.on("gameRestarted", () => {
-      setIsGameOver(false);
-      setLastResult(null);
-      setFinalScore(0);
     });
 
     return () => {
@@ -324,36 +300,23 @@ export default function Controller() {
     setPower((clampedDistance / maxDistance) * 100);
 
     if (!gyroEnabled) {
-      if (isGameOver) {
-        if (clampedDistance > 15 && channelRef.current) {
-          channelRef.current.emit(
-            "crosshair",
-            { x: 50, y: 75 },
-            { reliable: false },
-          );
-        }
-        return;
-      }
-
       if (clampedDistance > 20) {
         const shootAngle = Math.atan2(-pullY, -pullX);
         let degrees = ((shootAngle * 180) / Math.PI + 360) % 360;
 
-        const orbLabels = ["A", "B", "C", "D"];
-        let orbIndex;
-        // Precise 4-segment mapping (180° - 360°)
-        // Segment 1: 180-225 (A), 2: 225-270 (B), 3: 270-315 (C), 4: 315-360/0-45 (D)
-        if (degrees >= 180 && degrees < 225) {
-          orbIndex = 0;
-        } else if (degrees >= 225 && degrees < 270) {
-          orbIndex = 1;
-        } else if (degrees >= 270 && degrees < 315) {
-          orbIndex = 2;
-        } else {
-          orbIndex = 3;
-        }
+        const orbLabels = ["A", "B", "RESTART", "C", "D"];
+        const orbPositions = [
+          { x: 18, y: 60 }, // A
+          { x: 43, y: 75 }, // B
+          { x: 50, y: 75 }, // RESTART
+          { x: 63, y: 60 }, // C
+          { x: 83, y: 75 }, // D
+        ];
 
-        const newTarget = orbLabels[orbIndex];
+        let targetIndex = Math.floor((degrees - 180) / 36);
+        targetIndex = Math.max(0, Math.min(targetIndex, 4));
+
+        const newTarget = orbLabels[targetIndex];
         if (newTarget !== targetedOrb) {
           setTargetedOrb(newTarget);
           if (channelRef.current) {
@@ -361,17 +324,10 @@ export default function Controller() {
           }
         }
 
-        // Emit crosshair position based on targeted orb for visual feedback on Screen
-        const orbPositions = [
-          { x: 18, y: 60 }, // A
-          { x: 43, y: 75 }, // B
-          { x: 63, y: 60 }, // C
-          { x: 83, y: 75 }, // D
-        ];
         if (channelRef.current) {
           channelRef.current.emit(
             "crosshair",
-            { x: orbPositions[orbIndex].x, y: orbPositions[orbIndex].y },
+            { x: orbPositions[targetIndex].x, y: orbPositions[targetIndex].y },
             { reliable: false },
           );
         }
@@ -390,15 +346,12 @@ export default function Controller() {
         // Use gyro position (already in percentages)
         targetXPercent = aimPosition.x;
         targetYPercent = aimPosition.y;
-      } else if (isGameOver) {
-        // Target the restart button
-        targetXPercent = 50;
-        targetYPercent = 75;
       } else {
         // Use slingshot direction to target specific orb
         const orbPositions = [
           { x: 18, y: 60 }, // A
           { x: 43, y: 75 }, // B
+          { x: 50, y: 75 }, // RESTART
           { x: 63, y: 60 }, // C
           { x: 83, y: 75 }, // D
         ];
@@ -406,19 +359,11 @@ export default function Controller() {
         const shootAngle = Math.atan2(-pullBack.y, -pullBack.x);
         let degrees = ((shootAngle * 180) / Math.PI + 360) % 360;
 
-        let orbIndex;
-        if (degrees >= 180 && degrees < 225) {
-          orbIndex = 0;
-        } else if (degrees >= 225 && degrees < 270) {
-          orbIndex = 1;
-        } else if (degrees >= 270 && degrees < 315) {
-          orbIndex = 2;
-        } else {
-          orbIndex = 3;
-        }
+        let targetIndex = Math.floor((degrees - 180) / 36);
+        targetIndex = Math.max(0, Math.min(targetIndex, 4));
 
-        targetXPercent = orbPositions[orbIndex].x;
-        targetYPercent = orbPositions[orbIndex].y;
+        targetXPercent = orbPositions[targetIndex].x;
+        targetYPercent = orbPositions[targetIndex].y;
       }
 
       channelRef.current.emit("shoot", {
@@ -450,18 +395,6 @@ export default function Controller() {
       if (channelRef.current) channelRef.current.close();
       window.location.href = window.location.origin;
     }
-  };
-
-  const handleRestart = () => {
-    if (channel) {
-      channel.emit("restartGame");
-      setIsGameOver(false);
-      setLastResult(null);
-    }
-  };
-
-  const handleExitToLobby = () => {
-    window.location.href = "/";
   };
 
   if (!connected) {
@@ -666,126 +599,6 @@ export default function Controller() {
         </button>
       </header>
 
-      {isGameOver && (
-        <div
-          className="game-over-overlay"
-          style={{
-            position: "fixed",
-            top: "0",
-            left: "0",
-            width: "100%",
-            height: "100%",
-            background: "rgba(0, 0, 0, 0.8)",
-            backdropFilter: "blur(30px)",
-            zIndex: 2000,
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: "2rem",
-            textAlign: "center",
-            animation: "bounceIn 0.8s cubic-bezier(0.34, 1.56, 0.64, 1)",
-            pointerEvents: "none", // Allow clicks to pass through to slingshot area
-          }}
-        >
-          <h2
-            style={{
-              fontSize: "2.5rem",
-              fontWeight: 900,
-              marginBottom: "0.5rem",
-              color: "var(--accent-error)",
-            }}
-          >
-            GAME OVER!
-          </h2>
-          <p
-            style={{
-              color: "var(--text-secondary)",
-              marginBottom: "2rem",
-              fontSize: "1.1rem",
-            }}
-          >
-            Time ran out!
-          </p>
-
-          <div
-            style={{
-              background: "rgba(255,255,255,0.05)",
-              padding: "2rem",
-              borderRadius: "var(--radius-lg)",
-              border: "1px solid var(--glass-border)",
-              marginBottom: "3rem",
-              width: "100%",
-              maxWidth: "300px",
-            }}
-          >
-            <p
-              style={{
-                fontSize: "1rem",
-                color: "var(--text-secondary)",
-                marginBottom: "0.5rem",
-              }}
-            >
-              Your Score
-            </p>
-            <p
-              style={{
-                fontSize: "4rem",
-                fontWeight: 900,
-                color: "var(--accent-primary)",
-              }}
-            >
-              {finalScore}
-            </p>
-          </div>
-
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: "1rem",
-              width: "100%",
-              maxWidth: "300px",
-              pointerEvents: "auto",
-            }}
-          >
-            <button
-              onClick={handleRestart}
-              style={{
-                width: "100%",
-                padding: "1.25rem",
-                fontSize: "1.2rem",
-                fontWeight: 800,
-                background: "var(--accent-primary)",
-                border: "none",
-                borderRadius: "var(--radius-md)",
-                color: "white",
-                boxShadow: "0 8px 25px rgba(103, 80, 164, 0.4)",
-                cursor: "pointer",
-              }}
-            >
-              🔄 RESTART GAME
-            </button>
-            <button
-              onClick={handleExitToLobby}
-              style={{
-                width: "100%",
-                padding: "1rem",
-                fontSize: "1rem",
-                fontWeight: 700,
-                background: "transparent",
-                border: "1px solid var(--glass-border)",
-                borderRadius: "var(--radius-sm)",
-                color: "var(--text-secondary)",
-                cursor: "pointer",
-              }}
-            >
-              Exit to Lobby
-            </button>
-          </div>
-        </div>
-      )}
-
       {isDragging && gyroEnabled && (
         <div
           style={{
@@ -838,11 +651,7 @@ export default function Controller() {
       )}
 
       {/* Slingshot area - always visible even during game over for shooting restart button */}
-      <div
-        className="slingshot-area"
-        ref={slingshotRef}
-        style={{ zIndex: isGameOver ? 2001 : "auto" }}
-      >
+      <div className="slingshot-area" ref={slingshotRef}>
         <div className="slingshot-base">
           {isDragging && power > 5 && (
             <div

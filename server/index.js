@@ -200,28 +200,6 @@ io.onConnection((channel) => {
     }
   });
 
-  // Game over event from screen to all controllers in room
-  channel.on("gameOver", (data) => {
-    const { roomId } = channel.userData || {};
-    const room = rooms.get(roomId);
-    if (room) {
-      room.controllers.forEach((ctrl) => {
-        ctrl.emit("gameOver", data);
-      });
-    }
-  });
-
-  // Game restarted event from screen to all controllers in room
-  channel.on("gameRestarted", () => {
-    const { roomId } = channel.userData || {};
-    const room = rooms.get(roomId);
-    if (room) {
-      room.controllers.forEach((ctrl) => {
-        ctrl.emit("gameRestarted");
-      });
-    }
-  });
-
   // Restart game event from controller to screen
   channel.on("restartGame", () => {
     const { roomId } = channel.userData || {};

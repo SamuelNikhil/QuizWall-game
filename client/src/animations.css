@@ -1,5 +1,70 @@
 /* Material 3 Expressive Animations */
 
+/* Question Board Slide In/Out */
+@keyframes questionSlideIn {
+    0% {
+        transform: translate(-50%, -150%);
+        opacity: 0;
+    }
+    100% {
+        transform: translate(-50%, 0%);
+        opacity: 1;
+    }
+}
+
+@keyframes questionSlideOut {
+    0% {
+        transform: translate(-50%, 0%);
+        opacity: 1;
+    }
+    100% {
+        transform: translate(-50%, -150%);
+        opacity: 0;
+    }
+}
+
+/* Options Staggered Entrance (Ripple Scale) */
+@keyframes optionEntry {
+    0% {
+        transform: scale(0);
+        opacity: 0;
+    }
+    60% {
+        transform: scale(1.1);
+    }
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+@keyframes optionExit {
+    0% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    100% {
+        transform: scale(0);
+        opacity: 0;
+    }
+}
+
+.question-display.slide-in {
+    animation: questionSlideIn 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.question-display.slide-out {
+    animation: questionSlideOut 0.6s cubic-bezier(0.36, 0, 0.66, -0.56) forwards;
+}
+
+.orb.entry-animation {
+    animation: optionEntry 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.orb.exit-animation {
+    animation: optionExit 0.4s ease-in forwards;
+}
+
 /* Bouncy Entry Animation */
 @keyframes bounceIn {
     0% {
