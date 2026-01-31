@@ -44,10 +44,10 @@ const QUESTIONS = [
 ];
 
 const ORB_POSITIONS = [
-  { left: "10%", top: "75%" },
-  { left: "32%", top: "75%" },
-  { left: "54%", top: "75%" },
-  { left: "76%", top: "75%" },
+  { left: "15%", top: "55%" },
+  { left: "40%", top: "70%" },
+  { left: "60%", top: "55%" },
+  { left: "80%", top: "70%" },
 ];
 
 export default function Screen() {
@@ -68,6 +68,12 @@ export default function Screen() {
   const [scorePopups, setScorePopups] = useState([]); // Score popup animations
   const [ripples, setRipples] = useState([]); // Ripple effects
   const [confetti, setConfetti] = useState([]); // Confetti particles for correct answers
+  const [timeLeft, setTimeLeft] = useState(30);
+  const [isGameOver, setIsGameOver] = useState(false);
+  const timerRef = useRef(null);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [showExitScores, setShowExitScores] = useState(false);
+  const [lastScores, setLastScores] = useState({});
 
   const question = QUESTIONS[currentQuestion % QUESTIONS.length];
 
@@ -121,21 +127,22 @@ export default function Screen() {
   // Create confetti function
   const createConfetti = useCallback((x, y) => {
     const newConfetti = [];
-    const colors = ["#10b981", "#34d399", "#6ee7b7", "#ffffff", "#fbbf24"];
-    for (let i = 0; i < 30; i++) {
-      const dx = (Math.random() - 0.5) * 400;
-      const dy = -Math.random() * 300 - 100;
-      const rot = Math.random() * 720 - 360;
+    // Material 3 Expressive confetti colors
+    const colors = ["#6750A4", "#95d4e4", "#FFD8E4", "#ffffff", "#10b981"];
+    for (let i = 0; i < 40; i++) {
+      const dx = (Math.random() - 0.5) * 500;
+      const dy = -Math.random() * 400 - 150;
+      const rot = Math.random() * 1080 - 540;
       newConfetti.push({
         id: `confetti-${Date.now()}-${i}`,
-        x: x + (Math.random() - 0.5) * 50,
-        y: y + (Math.random() - 0.5) * 50,
+        x: x + (Math.random() - 0.5) * 60,
+        y: y + (Math.random() - 0.5) * 60,
         color: colors[Math.floor(Math.random() * colors.length)],
         "--dx": `${dx}px`,
         "--dy": `${dy}px`,
         "--rot": `${rot}deg`,
-        width: Math.random() * 10 + 5,
-        height: Math.random() * 10 + 5,
+        width: Math.random() * 12 + 6,
+        height: Math.random() * 12 + 6,
       });
     }
     setConfetti((prev) => [...prev, ...newConfetti]);
@@ -143,8 +150,201 @@ export default function Screen() {
       setConfetti((prev) =>
         prev.filter((c) => !newConfetti.some((nc) => nc.id === c.id)),
       );
-    }, 1500);
+    }, 1800);
   }, []);
+
+  // Ref to store the latest handleShoot function without triggering useEffect reconnections
+  const handleShootRef = useRef(null);
+
+  // Define handleShoot
+  const handleShoot = useCallback(
+    (data) => {
+      const { controllerId, targetXPercent, targetYPercent } = data;
+      const id = `shot-${Math.random().toString(36).substr(2, 9)}`;
+
+      // Clear targeting state when shot is fired
+      setTargetedOrbId(null);
+
+      // Convert percentages to actual pixel positions based on window size
+      let targetX = (targetXPercent / 100) * window.innerWidth;
+      let targetY = (targetYPercent / 100) * window.innerHeight;
+
+      // No manual offset needed as percentages are now pre-centered in Controller.jsx
+
+      // Add projectile
+      setProjectiles((prev) => [
+        ...prev,
+        {
+          id,
+          x: window.innerWidth / 2,
+          y: window.innerHeight,
+          targetX,
+          targetY,
+        },
+      ]);
+
+      // Animate projectile to target
+      setTimeout(() => {
+        setProjectiles((prev) => prev.filter((p) => p.id !== id));
+
+        if (isGameOver) {
+          // Check if shot hit the restart button (Rectangle: bottom center)
+          const centerX = window.innerWidth * 0.5;
+          const centerY = window.innerHeight * 0.75;
+          const btnWidth = 450;
+          const btnHeight = 100;
+
+          const isHit =
+            targetX >= centerX - btnWidth / 2 &&
+            targetX <= centerX + btnWidth / 2 &&
+            targetY >= centerY - btnHeight / 2 &&
+            targetY <= centerY + btnHeight / 2;
+
+          if (isHit) {
+            // Hit the restart button!
+            createParticles(targetX, targetY, 30, "#6750A4");
+            createRipple(targetX, targetY, "#6750A4");
+            createConfetti(targetX, targetY);
+
+            // Reset game state
+            setScores({});
+            setCurrentQuestion(0);
+            setIsGameOver(false);
+            setTimeLeft(30);
+
+            // Send restart event to controllers
+            if (channelRef.current) {
+              channelRef.current.emit("gameRestarted");
+            }
+          }
+        } else {
+          // Check collision with orbs
+          const orbElements = document.querySelectorAll(".orb");
+          let hitOrb = null;
+
+          orbElements.forEach((orb) => {
+            const rect = orb.getBoundingClientRect();
+            const orbCenterX = rect.left + rect.width / 2;
+            const orbCenterY = rect.top + rect.height / 2;
+            const distance = Math.sqrt(
+              Math.pow(targetX - orbCenterX, 2) +
+                Math.pow(targetY - orbCenterY, 2),
+            );
+            if (distance < 60) {
+              hitOrb = orb.dataset.option;
+            }
+          });
+
+          if (hitOrb) {
+            const isCorrect = hitOrb === question.correct;
+
+            // Add visual animation to ALL orbs
+            const orbElements = document.querySelectorAll(".orb");
+            orbElements.forEach((orb) => {
+              const isHitOrb = orb.dataset.option === hitOrb;
+              const orbClass = isCorrect ? "correct-answer" : "wrong-answer";
+
+              // Add animation class to all orbs
+              orb.classList.add(orbClass);
+
+              // For the hit orb, we'll make the animation more prominent
+              if (isHitOrb) {
+                orb.classList.add("hit-orb");
+              }
+            });
+
+            // Remove animation classes after completion
+            setTimeout(() => {
+              orbElements.forEach((orb) => {
+                orb.classList.remove(
+                  "correct-answer",
+                  "wrong-answer",
+                  "hit-orb",
+                );
+              });
+            }, 1200);
+
+            // Add hit effect
+            setHitEffects((prev) => [
+              ...prev,
+              { id, x: targetX, y: targetY, correct: isCorrect },
+            ]);
+
+            setTimeout(() => {
+              setHitEffects((prev) => prev.filter((e) => e.id !== id));
+            }, 500);
+
+            // Enhanced feedback with particles and popups
+            if (isCorrect) {
+              // Green particles for correct answer
+              createParticles(targetX, targetY, 20, "#10b981");
+              // Score popup
+              createScorePopup(targetX, targetY, "+100", "correct");
+              // Ripple effect
+              createRipple(targetX, targetY, "#10b981");
+              // Confetti explosion
+              createConfetti(targetX, targetY);
+
+              // Update score
+              setScores((prev) => ({
+                ...prev,
+                [controllerId]: (prev[controllerId] || 0) + 100,
+              }));
+
+              // Send result back
+              if (channelRef.current) {
+                channelRef.current.emit("hitResult", {
+                  controllerId,
+                  correct: true,
+                  points: 100,
+                });
+              }
+
+              // Start exit animation after the hit effect plays briefly
+              setTimeout(() => {
+                setIsTransitioning(true);
+              }, 800);
+
+              // Refresh question and start entry animation
+              setTimeout(() => {
+                setCurrentQuestion((prev) => prev + 1);
+                setTimeLeft(30); // Reset timer for next question
+                setIsTransitioning(false);
+              }, 1500);
+            } else {
+              // Red particles for wrong answer
+              createParticles(targetX, targetY, 15, "#ef4444");
+              // Score popup
+              createScorePopup(targetX, targetY, "✗", "wrong");
+              // Ripple effect
+              createRipple(targetX, targetY, "#ef4444");
+
+              if (channelRef.current) {
+                channelRef.current.emit("hitResult", {
+                  controllerId,
+                  correct: false,
+                  points: 0,
+                });
+              }
+            }
+          }
+        }
+      }, 300);
+    },
+    [
+      question,
+      createParticles,
+      createScorePopup,
+      createRipple,
+      createConfetti,
+      isGameOver,
+    ],
+  );
+
+  // Update the ref whenever handleShoot changes
+  useEffect(() => {
+    handleShootRef.current = handleShoot;
+  }, [handleShoot]);
 
   useEffect(() => {
     const { geckosUrl, geckosPort, geckosPath } = getServerConfig();
@@ -181,23 +381,25 @@ export default function Screen() {
 
     io.onConnect((error) => {
       if (error) {
-        console.error("❌ connect error", error);
+        console.error("❌ [SCREEN] Connection error:", error);
         clearTimeout(handshakeTimeout);
         return;
       }
-      console.log("✅ connected to server");
+      console.log("✅ [SCREEN] Connected to server with ID:", io.id);
       connectedRef.current = true;
       setChannel(io);
+      console.log("[SCREEN] Emitting createRoom...");
       io.emit("createRoom");
     });
 
     io.on("open", () => {
-      console.log("🎮 data channel open");
+      console.log("🎮 [SCREEN] Data channel open");
       clearTimeout(handshakeTimeout);
     });
 
     io.on("roomCreated", (data) => {
-      console.log("Room created:", data.roomId, "with token:", data.joinToken);
+      console.log("[SCREEN] Room created successfully:", data.roomId);
+      console.log("[SCREEN] Join Token:", data.joinToken);
       setRoomId(data.roomId);
       setJoinToken(data.joinToken);
     });
@@ -211,21 +413,44 @@ export default function Screen() {
 
     io.on("controllerLeft", (data) => {
       console.log("Controller left:", data.controllerId);
-      setControllers((prev) => prev.filter((id) => id !== data.controllerId));
+
       setScores((prev) => {
+        const exitingScore = prev[data.controllerId];
+
+        setControllers((prevControllers) => {
+          const newControllers = prevControllers.filter(
+            (id) => id !== data.controllerId,
+          );
+
+          // If the last player leaves, show their secured score for 3 seconds
+          if (newControllers.length === 0 && exitingScore !== undefined) {
+            setLastScores({ [data.controllerId]: exitingScore });
+            setShowExitScores(true);
+
+            setTimeout(() => {
+              setShowExitScores(false);
+              setLastScores({});
+              setIsGameOver(false);
+              setScores({});
+              setCurrentQuestion(0);
+              setTimeLeft(30);
+            }, 3000);
+          }
+
+          return newControllers;
+        });
+
         const newScores = { ...prev };
         delete newScores[data.controllerId];
         return newScores;
       });
-      return () => {
-        clearTimeout(handshakeTimeout);
-        io.close();
-      };
     });
 
     io.on("shoot", (data) => {
-      setCrosshair(null); // Hide crosshair when shooting
-      handleShoot(data);
+      console.log("[SCREEN] Shoot event received from:", data.controllerId);
+      if (handleShootRef.current) {
+        handleShootRef.current(data);
+      }
     });
 
     // Crosshair events for gyro aiming
@@ -259,164 +484,51 @@ export default function Screen() {
       }, 500);
     });
 
+    io.on("restartGame", () => {
+      console.log("🔄 Restarting game...");
+      setScores({});
+      setCurrentQuestion(0);
+      setIsGameOver(false);
+      setTimeLeft(30);
+    });
+
     return () => {
       clearTimeout(handshakeTimeout);
       // Only close if actually connected
       if (connectedRef.current && channelRef.current) {
         try {
           channelRef.current.close();
-        } catch (e) {
+        } catch (error) {
           // Ignore close errors
+          console.log("Error closing channel:", error);
         }
       }
       connectedRef.current = false;
     };
   }, []);
 
-  const handleShoot = useCallback(
-    (data) => {
-      const { controllerId, targetXPercent, targetYPercent, power } = data;
-      const id = `shot-${Math.random().toString(36).substr(2, 9)}`;
+  // Shoot handler is now properly set up
 
-      // Clear targeting state when shot is fired
-      setTargetedOrbId(null);
+  // Timer effect
+  useEffect(() => {
+    if (isGameOver || !roomId || controllers.length === 0) return;
 
-      // Convert percentages to actual pixel positions based on window size
-      let targetX = (targetXPercent / 100) * window.innerWidth;
-      let targetY = (targetYPercent / 100) * window.innerHeight;
-
-      // Add 50px offset to center the hit on the orb (100x100) for touch-targeted shots
-      if (data.isTargetedShot) {
-        targetX += 50;
-        targetY += 50;
-      }
-
-      // Add projectile
-      setProjectiles((prev) => [
-        ...prev,
-        {
-          id,
-          x: window.innerWidth / 2,
-          y: window.innerHeight,
-          targetX,
-          targetY,
-        },
-      ]);
-
-      // Animate projectile to target
-      setTimeout(() => {
-        setProjectiles((prev) => prev.filter((p) => p.id !== id));
-
-        // Check collision with orbs
-        const orbElements = document.querySelectorAll(".orb");
-        let hitOrb = null;
-
-        orbElements.forEach((orb) => {
-          const rect = orb.getBoundingClientRect();
-          const orbCenterX = rect.left + rect.width / 2;
-          const orbCenterY = rect.top + rect.height / 2;
-          const distance = Math.sqrt(
-            Math.pow(targetX - orbCenterX, 2) +
-              Math.pow(targetY - orbCenterY, 2),
-          );
-          if (distance < 60) {
-            hitOrb = orb.dataset.option;
+    timerRef.current = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(timerRef.current);
+          setIsGameOver(true);
+          if (channelRef.current) {
+            channelRef.current.emit("gameOver", { finalScores: scores });
           }
-        });
-
-        if (hitOrb) {
-          const isCorrect = hitOrb === question.correct;
-
-          // Add visual animation to ALL orbs
-          const orbElements = document.querySelectorAll(".orb");
-          orbElements.forEach((orb) => {
-            const isHitOrb = orb.dataset.option === hitOrb;
-            const orbClass = isCorrect ? "correct-answer" : "wrong-answer";
-
-            // Add animation class to all orbs
-            orb.classList.add(orbClass);
-
-            // For the hit orb, we'll make the animation more prominent
-            if (isHitOrb) {
-              orb.classList.add("hit-orb");
-            }
-          });
-
-          // Remove animation classes after completion
-          setTimeout(() => {
-            orbElements.forEach((orb) => {
-              orb.classList.remove("correct-answer", "wrong-answer", "hit-orb");
-            });
-          }, 1200);
-
-          // Add hit effect
-          setHitEffects((prev) => [
-            ...prev,
-            { id, x: targetX, y: targetY, correct: isCorrect },
-          ]);
-
-          setTimeout(() => {
-            setHitEffects((prev) => prev.filter((e) => e.id !== id));
-          }, 500);
-
-          // Enhanced feedback with particles and popups
-          if (isCorrect) {
-            // Green particles for correct answer
-            createParticles(targetX, targetY, 20, "#10b981");
-            // Score popup
-            createScorePopup(targetX, targetY, "+100", "correct");
-            // Ripple effect
-            createRipple(targetX, targetY, "#10b981");
-            // Confetti explosion
-            createConfetti(targetX, targetY);
-
-            // Update score
-            setScores((prev) => ({
-              ...prev,
-              [controllerId]: (prev[controllerId] || 0) + 100,
-            }));
-
-            // Send result back
-            if (channel) {
-              channel.emit("hitResult", {
-                controllerId,
-                correct: true,
-                points: 100,
-              });
-            }
-
-            // Next question after delay
-            setTimeout(() => {
-              setCurrentQuestion((prev) => prev + 1);
-            }, 1500);
-          } else {
-            // Red particles for wrong answer
-            createParticles(targetX, targetY, 15, "#ef4444");
-            // Score popup
-            createScorePopup(targetX, targetY, "✗", "wrong");
-            // Ripple effect
-            createRipple(targetX, targetY, "#ef4444");
-
-            if (channel) {
-              channel.emit("hitResult", {
-                controllerId,
-                correct: false,
-                points: 0,
-              });
-            }
-          }
+          return 0;
         }
-      }, 300);
-    },
-    [
-      channel,
-      question,
-      createParticles,
-      createScorePopup,
-      createRipple,
-      createConfetti,
-    ],
-  );
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timerRef.current);
+  }, [roomId, controllers.length, isGameOver, scores]);
 
   const controllerUrl =
     roomId && joinToken
@@ -434,33 +546,292 @@ export default function Screen() {
     );
   }
 
+  if (isGameOver && controllers.length > 0) {
+    return (
+      <div className="screen-container">
+        <div
+          className="game-over-screen"
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            height: "100vh",
+            textAlign: "center",
+            animation: "bounceIn 0.8s cubic-bezier(0.34, 1.56, 0.64, 1)",
+            position: "relative",
+            scale: "0.8",
+          }}
+        >
+          <h1
+            style={{
+              fontSize: "5rem",
+              fontWeight: "900",
+              color: "#ff4444",
+              textShadow: "0 0 40px rgba(255, 0, 0, 0.5)",
+              marginBottom: "0.5rem",
+            }}
+          >
+            TIME'S UP!
+          </h1>
+          <div
+            style={{
+              background: "rgba(255, 255, 255, 0.05)",
+              padding: "2.5rem",
+              borderRadius: "30px",
+              border: "1px solid rgba(255, 255, 255, 0.1)",
+              backdropFilter: "blur(20px)",
+              minWidth: "350px",
+              marginBottom: "1.5rem",
+            }}
+          >
+            <h2
+              style={{
+                fontSize: "1.5rem",
+                marginBottom: "0.5rem",
+                color: "rgba(255, 255, 255, 0.8)",
+                fontWeight: "600",
+              }}
+            >
+              Final Score
+            </h2>
+            <p
+              style={{
+                fontSize: "4.5rem",
+                fontWeight: "900",
+                color: "#90e0ef",
+                margin: 0,
+              }}
+            >
+              {Math.max(0, ...Object.values(scores))}
+            </p>
+          </div>
+
+          <div
+            style={{
+              marginTop: "1rem",
+              padding: "1rem 3rem",
+              background: "#6750a4",
+              borderRadius: "20px",
+              boxShadow: "0 0 30px rgba(103, 80, 164, 0.6)",
+              border: "2px solid rgba(255, 255, 255, 0.1)",
+              animation: "pulse 2s ease-in-out infinite",
+            }}
+          >
+            <h2
+              style={{
+                color: "#fff",
+                margin: 0,
+                fontSize: "1.8rem",
+                fontWeight: "900",
+                letterSpacing: "1.5px",
+              }}
+            >
+              SHOOT TO RESTART
+            </h2>
+          </div>
+
+          {/* Crosshair visible during Game Over slinging */}
+          {crosshair && (
+            <div
+              style={{
+                position: "absolute",
+                left: `${crosshair.x}%`,
+                top: `${crosshair.y}%`,
+                transform: "translate(-50%, -50%)",
+                width: "40px",
+                height: "40px",
+                pointerEvents: "none",
+                zIndex: 1000,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              {/* Outer Glow Ring */}
+              <div
+                style={{
+                  position: "absolute",
+                  width: "100%",
+                  height: "100%",
+                  borderRadius: "50%",
+                  border: "1px solid rgba(255, 255, 255, 0.3)",
+                  boxShadow: "0 0 15px rgba(0, 242, 255, 0.2)",
+                }}
+              />
+
+              {/* Four small corner notches */}
+              {[0, 90, 180, 270].map((deg) => (
+                <div
+                  key={deg}
+                  style={{
+                    position: "absolute",
+                    width: "2px",
+                    height: "8px",
+                    background: "#00f2ff",
+                    transform: `rotate(${deg}deg) translateY(-18px)`,
+                    boxShadow: "0 0 8px #00f2ff",
+                  }}
+                />
+              ))}
+
+              {/* Central high-vis dot */}
+              <div
+                style={{
+                  width: "6px",
+                  height: "6px",
+                  background: "#fff",
+                  borderRadius: "50%",
+                  boxShadow: "0 0 12px #fff, 0 0 20px #00f2ff",
+                }}
+              />
+            </div>
+          )}
+
+          {/* Projectiles & Particles visible during Game Over shooting */}
+          {projectiles.map((p) => (
+            <div
+              key={p.id}
+              className="projectile"
+              style={{
+                left: p.targetX - 10,
+                top: p.targetY - 10,
+                transition: "all 0.3s ease-out",
+              }}
+            />
+          ))}
+          {particles.map((p) => (
+            <div
+              key={p.id}
+              className="particle particle-explode"
+              style={{
+                left: p.x,
+                top: p.y,
+                width: p.size,
+                height: p.size,
+                backgroundColor: p.color,
+                "--tx": p["--tx"],
+                "--ty": p["--ty"],
+              }}
+            />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (showExitScores) {
+    const finalScore = Object.values(lastScores)[0] || 0;
+    return (
+      <div className="screen-container">
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            height: "100vh",
+            textAlign: "center",
+            background:
+              "radial-gradient(circle at center, #1a1a2e 0%, #0a0a0f 100%)",
+            animation: "fadeIn 0.5s ease-out",
+          }}
+        >
+          <div
+            style={{
+              padding: "3rem",
+              borderRadius: "40px",
+              background: "rgba(255, 255, 255, 0.03)",
+              border: "2px solid rgba(103, 80, 164, 0.3)",
+              backdropFilter: "blur(20px)",
+              boxShadow: "0 0 50px rgba(103, 80, 164, 0.2)",
+              animation: "bounceIn 0.8s cubic-bezier(0.34, 1.56, 0.64, 1)",
+            }}
+          >
+            <h1
+              style={{
+                fontSize: "2.5rem",
+                fontWeight: "800",
+                color: "var(--accent-secondary)",
+                marginBottom: "1rem",
+                letterSpacing: "2px",
+                textTransform: "uppercase",
+              }}
+            >
+              Score Secured
+            </h1>
+            <div
+              style={{
+                fontSize: "8rem",
+                fontWeight: "900",
+                color: "#fff",
+                textShadow: "0 0 40px rgba(103, 80, 164, 0.8)",
+                lineHeight: "1",
+                marginBottom: "1rem",
+              }}
+            >
+              {finalScore}
+            </div>
+            <p
+              style={{
+                fontSize: "1.2rem",
+                color: "rgba(255, 255, 255, 0.6)",
+                fontWeight: "600",
+              }}
+            >
+              Great Game! Returning to Lobby...
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (controllers.length === 0) {
     return (
       <div className="qr-fullscreen">
         <h1
           style={{
-            fontSize: "3.5rem",
+            fontSize: "3rem",
             marginBottom: "1rem",
             color: "#fff",
-            fontWeight: "800",
-            textShadow: "0 0 40px rgba(99, 102, 241, 0.6)",
+            fontWeight: "900",
+            textShadow: "0 0 50px rgba(103, 80, 164, 0.6)",
             textAlign: "center",
-            letterSpacing: "-2px",
-            lineHeight: "1.2",
+            letterSpacing: "-3px",
+            lineHeight: "1.1",
+            fontFamily: "var(--font-main)",
           }}
         >
-          Code Quiz Wall
+          Quiz Wall
         </h1>
 
         <div className="qr-content-wrapper">
           <div className="qr-left-column">
             <div className="qr-box-large">
-              <QRCodeSVG value={controllerUrl} size={280} level="H" />
+              <QRCodeSVG
+                value={controllerUrl}
+                size={240}
+                level="H"
+                fgColor="#1C1B1F"
+              />
             </div>
+            <p
+              style={{
+                marginTop: "2rem",
+                fontSize: "1.25rem",
+                fontWeight: "600",
+                opacity: 0.8,
+              }}
+            >
+              Scan to Play 🎯
+            </p>
           </div>
 
           <div className="qr-leaderboard">
-            <h3>Leaderboard</h3>
+            <h3 style={{ fontFamily: "var(--font-main)", fontWeight: "800" }}>
+              Leaderboard
+            </h3>
             {Object.keys(scores).length === 0 ? (
               <div
                 style={{
@@ -468,19 +839,39 @@ export default function Screen() {
                   textAlign: "center",
                   opacity: 0.6,
                   fontStyle: "italic",
-                  fontSize: "1.1rem",
+                  fontSize: "1rem",
                 }}
               >
-                Waiting for players...
+                Waiting for challengers...
               </div>
             ) : (
               Object.entries(scores)
                 .sort(([, a], [, b]) => b - a)
                 .slice(0, 5)
                 .map(([id, score], i) => (
-                  <div key={id} className="qr-leaderboard-item">
-                    <span>#{i + 1} Player</span>
-                    <span style={{ color: "var(--accent-primary)" }}>
+                  <div
+                    key={id}
+                    className="qr-leaderboard-item"
+                    style={{
+                      borderRadius: "var(--radius-md)",
+                      border:
+                        i === 0
+                          ? "2px solid var(--accent-primary)"
+                          : "1px solid var(--glass-border)",
+                      background:
+                        i === 0 ? "rgba(103, 80, 164, 0.2)" : "var(--glass-bg)",
+                    }}
+                  >
+                    <span style={{ fontSize: "0.9rem" }}>
+                      {i === 0 ? "👑" : `#${i + 1}`} Player
+                    </span>
+                    <span
+                      style={{
+                        color: "var(--accent-secondary)",
+                        fontWeight: "800",
+                        fontSize: "1rem",
+                      }}
+                    >
                       {score} pts
                     </span>
                   </div>
@@ -499,57 +890,127 @@ export default function Screen() {
         style={{ justifyContent: "flex-end", padding: "2rem" }}
       >
         <div className="player-count-badge">
-          <span style={{ fontSize: "1.2rem" }}>👥</span>
-          <span style={{ fontWeight: "bold", marginRight: "10px" }}>
+          <span
+            style={{
+              fontSize: "1.2rem",
+              filter: "drop-shadow(0 0 10px rgba(103, 80, 164, 0.5))",
+            }}
+          >
+            👥
+          </span>
+          <span style={{ fontWeight: "900", color: "var(--text-primary)" }}>
             {controllers.length}
           </span>
 
           <div
             style={{
               display: "flex",
-              gap: "15px",
-              borderLeft: "1px solid rgba(255,255,255,0.3)",
-              paddingLeft: "15px",
+              gap: "20px",
+              borderLeft: "2px solid var(--glass-border)",
+              paddingLeft: "20px",
             }}
           >
             {Object.keys(scores).length === 0 ? (
-              <span style={{ opacity: 0.5, fontSize: "0.9rem" }}>
-                Waiting for shots...
+              <span
+                style={{ opacity: 0.6, fontSize: "1rem", fontWeight: "600" }}
+              >
+                Ready for takeoff...
               </span>
             ) : (
               <span
-                style={{ display: "flex", alignItems: "center", gap: "8px" }}
+                style={{ display: "flex", alignItems: "center", gap: "10px" }}
               >
-                <span style={{ opacity: 0.7, fontSize: "1rem" }}>Score:</span>
                 <span
                   style={{
-                    color: "#fff",
-                    fontWeight: "bold",
-                    fontSize: "1.2rem",
+                    color: "var(--accent-secondary)",
+                    fontWeight: "800",
+                    fontSize: "1.1rem",
                   }}
                 >
-                  {Math.max(...Object.values(scores))}
+                  High Score: {Math.max(...Object.values(scores))}
                 </span>
               </span>
             )}
           </div>
         </div>
+        {/* Timer Bar */}
+        <div
+          style={{
+            position: "absolute",
+            top: "0",
+            left: "0",
+            width: "100%",
+            height: "8px",
+            background: "rgba(255,255,255,0.1)",
+            zIndex: 1000,
+          }}
+        >
+          <div
+            style={{
+              width: `${(timeLeft / 30) * 100}%`,
+              height: "100%",
+              background:
+                timeLeft <= 10
+                  ? "var(--accent-error)"
+                  : "var(--accent-primary)",
+              transition: "width 1s linear, background 0.3s ease",
+              boxShadow: `0 0 20px ${timeLeft <= 10 ? "var(--accent-error)" : "var(--accent-primary)"}`,
+            }}
+          />
+        </div>
+        <div
+          style={{
+            position: "absolute",
+            top: "3rem",
+            left: "2rem",
+            fontSize: "1.8rem",
+            fontWeight: "900",
+            color:
+              timeLeft <= 10 ? "var(--accent-error)" : "var(--text-primary)",
+            zIndex: 1000,
+          }}
+        >
+          {timeLeft}s
+        </div>
       </header>
 
       <div className="game-arena" ref={arenaRef}>
-        <div className="question-display">
-          <p className="question-text">{question.text}</p>
-          <pre className="code-block">{question.code}</pre>
+        <div
+          className={`question-display ${isTransitioning ? "slide-out" : "slide-in"}`}
+        >
+          <p
+            className="question-text"
+            style={{
+              fontFamily: "var(--font-main)",
+              fontWeight: "800",
+              color: "#fff",
+            }}
+          >
+            {question.text}
+          </p>
+          <pre
+            className="code-block"
+            style={{
+              borderRadius: "var(--radius-md)",
+              background: "rgba(0,0,0,0.3)",
+              border: "1px solid var(--glass-border)",
+              color: "var(--accent-secondary)",
+              fontWeight: "600",
+            }}
+          >
+            {question.code}
+          </pre>
         </div>
 
         {/* Answer Orbs */}
         {question.options.map((opt, i) => (
           <div
             key={opt.id}
-            className={`orb orb-${opt.id.toLowerCase()} ${targetedOrbId === opt.id ? "targeted" : ""}`}
+            className={`orb orb-${opt.id.toLowerCase()} ${targetedOrbId === opt.id ? "targeted" : ""} ${isTransitioning ? "exit-animation" : "entry-animation"}`}
             style={{
               left: ORB_POSITIONS[i].left,
               top: ORB_POSITIONS[i].top,
+              animationDelay: isTransitioning ? "0s" : `${i * 0.15}s`,
             }}
             data-option={opt.id}
           >
@@ -578,51 +1039,50 @@ export default function Screen() {
               left: `${crosshair.x}%`,
               top: `${crosshair.y}%`,
               transform: "translate(-50%, -50%)",
-              width: "60px",
-              height: "60px",
-              border: "3px solid #fff",
-              borderRadius: "50%",
+              width: "40px",
+              height: "40px",
               pointerEvents: "none",
-              boxShadow:
-                "0 0 20px rgba(255,255,255,0.5), inset 0 0 20px rgba(255,255,255,0.2)",
               zIndex: 1000,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
             }}
           >
-            {/* Crosshair lines */}
+            {/* Outer Glow Ring */}
             <div
               style={{
                 position: "absolute",
-                left: "50%",
-                top: "0",
-                width: "2px",
-                height: "100%",
-                background: "rgba(255,255,255,0.7)",
-                transform: "translateX(-50%)",
-              }}
-            />
-            <div
-              style={{
-                position: "absolute",
-                top: "50%",
-                left: "0",
-                height: "2px",
                 width: "100%",
-                background: "rgba(255,255,255,0.7)",
-                transform: "translateY(-50%)",
+                height: "100%",
+                borderRadius: "50%",
+                border: "1px solid rgba(255, 255, 255, 0.3)",
+                boxShadow: "0 0 15px rgba(0, 242, 255, 0.2)",
               }}
             />
-            {/* Center dot */}
+
+            {/* Four small corner notches */}
+            {[0, 90, 180, 270].map((deg) => (
+              <div
+                key={deg}
+                style={{
+                  position: "absolute",
+                  width: "2px",
+                  height: "8px",
+                  background: "#00f2ff",
+                  transform: `rotate(${deg}deg) translateY(-18px)`,
+                  boxShadow: "0 0 8px #00f2ff",
+                }}
+              />
+            ))}
+
+            {/* Central high-vis dot */}
             <div
               style={{
-                position: "absolute",
-                left: "50%",
-                top: "50%",
-                transform: "translate(-50%, -50%)",
-                width: "8px",
-                height: "8px",
-                background: "#ef4444",
+                width: "6px",
+                height: "6px",
+                background: "#fff",
                 borderRadius: "50%",
-                boxShadow: "0 0 10px #ef4444",
+                boxShadow: "0 0 12px #fff, 0 0 20px #00f2ff",
               }}
             />
           </div>
