@@ -53,6 +53,7 @@ const ORB_POSITIONS = [
 export default function Screen() {
   const [roomId, setRoomId] = useState(null);
   const [joinToken, setJoinToken] = useState(null);
+  const [channel, setChannel] = useState(null);
   const [controllers, setControllers] = useState([]);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [projectiles, setProjectiles] = useState([]);
