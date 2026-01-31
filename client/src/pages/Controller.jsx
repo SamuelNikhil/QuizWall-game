@@ -323,13 +323,9 @@ export default function Controller() {
     setPullBack({ x: pullX, y: pullY });
     setPower((clampedDistance / maxDistance) * 100);
 
-    if (!gyroEnabled && clampedDistance > 20) {
-      const shootAngle = Math.atan2(-pullY, -pullX);
-      let degrees = ((shootAngle * 180) / Math.PI + 360) % 360;
-
+    if (!gyroEnabled) {
       if (isGameOver) {
-        // When game is over, show crosshair on the restart button
-        if (channelRef.current) {
+        if (clampedDistance > 15 && channelRef.current) {
           channelRef.current.emit(
             "crosshair",
             { x: 50, y: 75 },
@@ -339,7 +335,11 @@ export default function Controller() {
         return;
       }
 
-      const orbLabels = ["A", "B", "C", "D"];
+      if (clampedDistance > 20) {
+        const shootAngle = Math.atan2(-pullY, -pullX);
+        let degrees = ((shootAngle * 180) / Math.PI + 360) % 360;
+
+        const orbLabels = ["A", "B", "C", "D"];
       let orbIndex;
       // Precise 4-segment mapping (180° - 360°)
       // Segment 1: 180-225 (A), 2: 225-270 (B), 3: 270-315 (C), 4: 315-360/0-45 (D)
@@ -427,8 +427,16 @@ export default function Controller() {
         isTargetedShot: !gyroEnabled,
       });
       if (navigator.vibrate) navigator.vibrate(50);
+
+      // Clear crosshair after shooting (non-gyro only)
+      if (!gyroEnabled && channelRef.current) {
+        channelRef.current.emit("cancelAiming", {});
+      }
     } else {
-      if (channelRef.current) channelRef.current.emit("cancelAiming", {});
+      // Clear crosshair if cancelled (non-gyro only)
+      if (!gyroEnabled && channelRef.current) {
+        channelRef.current.emit("cancelAiming", {});
+      }
     }
 
     setPullBack({ x: 0, y: 0 });
