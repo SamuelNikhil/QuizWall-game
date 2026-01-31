@@ -619,47 +619,50 @@ export default function Screen() {
                 left: `${crosshair.x}%`,
                 top: `${crosshair.y}%`,
                 transform: "translate(-50%, -50%)",
-                width: "60px",
-                height: "60px",
-                border: "3px solid #fff",
-                borderRadius: "50%",
+                width: "40px",
+                height: "40px",
                 pointerEvents: "none",
-                boxShadow: "0 0 20px rgba(255,255,255,0.5)",
                 zIndex: 1000,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
               }}
             >
+              {/* Outer Glow Ring */}
               <div
                 style={{
                   position: "absolute",
-                  left: "50%",
-                  top: "0",
-                  width: "2px",
-                  height: "100%",
-                  background: "rgba(255, 255, 255, 0.7)",
-                  transform: "translateX(-50%)",
-                }}
-              />
-              <div
-                style={{
-                  position: "absolute",
-                  top: "50%",
-                  left: "0",
-                  height: "2px",
                   width: "100%",
-                  background: "rgba(255, 255, 255, 0.7)",
-                  transform: "translateY(-50%)",
+                  height: "100%",
+                  borderRadius: "50%",
+                  border: "1px solid rgba(255, 255, 255, 0.3)",
+                  boxShadow: "0 0 15px rgba(0, 242, 255, 0.2)",
                 }}
               />
+
+              {/* Four small corner notches */}
+              {[0, 90, 180, 270].map((deg) => (
+                <div
+                  key={deg}
+                  style={{
+                    position: "absolute",
+                    width: "2px",
+                    height: "8px",
+                    background: "#00f2ff",
+                    transform: `rotate(${deg}deg) translateY(-18px)`,
+                    boxShadow: "0 0 8px #00f2ff",
+                  }}
+                />
+              ))}
+
+              {/* Central high-vis dot */}
               <div
                 style={{
-                  position: "absolute",
-                  left: "50%",
-                  top: "50%",
-                  transform: "translate(-50%, -50%)",
-                  width: "8px",
-                  height: "8px",
-                  background: "#ff4444",
+                  width: "6px",
+                  height: "6px",
+                  background: "#fff",
                   borderRadius: "50%",
+                  boxShadow: "0 0 12px #fff, 0 0 20px #00f2ff",
                 }}
               />
             </div>
@@ -947,51 +950,50 @@ export default function Screen() {
               left: `${crosshair.x}%`,
               top: `${crosshair.y}%`,
               transform: "translate(-50%, -50%)",
-              width: "60px",
-              height: "60px",
-              border: "3px solid #fff",
-              borderRadius: "50%",
+              width: "40px",
+              height: "40px",
               pointerEvents: "none",
-              boxShadow:
-                "0 0 20px rgba(255,255,255,0.5), inset 0 0 20px rgba(255,255,255,0.2)",
               zIndex: 1000,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
             }}
           >
-            {/* Crosshair lines */}
+            {/* Outer Glow Ring */}
             <div
               style={{
                 position: "absolute",
-                left: "50%",
-                top: "0",
-                width: "2px",
-                height: "100%",
-                background: "rgba(255,255,255,0.7)",
-                transform: "translateX(-50%)",
-              }}
-            />
-            <div
-              style={{
-                position: "absolute",
-                top: "50%",
-                left: "0",
-                height: "2px",
                 width: "100%",
-                background: "rgba(255,255,255,0.7)",
-                transform: "translateY(-50%)",
+                height: "100%",
+                borderRadius: "50%",
+                border: "1px solid rgba(255, 255, 255, 0.3)",
+                boxShadow: "0 0 15px rgba(0, 242, 255, 0.2)",
               }}
             />
-            {/* Center dot */}
+
+            {/* Four small corner notches */}
+            {[0, 90, 180, 270].map((deg) => (
+              <div
+                key={deg}
+                style={{
+                  position: "absolute",
+                  width: "2px",
+                  height: "8px",
+                  background: "#00f2ff",
+                  transform: `rotate(${deg}deg) translateY(-18px)`,
+                  boxShadow: "0 0 8px #00f2ff",
+                }}
+              />
+            ))}
+
+            {/* Central high-vis dot */}
             <div
               style={{
-                position: "absolute",
-                left: "50%",
-                top: "50%",
-                transform: "translate(-50%, -50%)",
-                width: "8px",
-                height: "8px",
-                background: "#ef4444",
+                width: "6px",
+                height: "6px",
+                background: "#fff",
                 borderRadius: "50%",
-                boxShadow: "0 0 10px #ef4444",
+                boxShadow: "0 0 12px #fff, 0 0 20px #00f2ff",
               }}
             />
           </div>
