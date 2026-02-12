@@ -8,6 +8,9 @@ export const CONFIG = {
     /** Path to SQLite database file */
     DB_PATH: process.env.DB_PATH || './QuizzWall.sqlite',
 
+    /** Path to Questions JSON file */
+    QUESTIONS_PATH: process.env.QUESTIONS_PATH || './src/data/questions.json',
+
     /** Game timer duration in seconds */
     TIMER_DURATION: 30,
 

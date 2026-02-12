@@ -45,17 +45,6 @@ export async function initDatabase(): Promise<Database> {
     );
   `);
 
-  db.run(`
-    CREATE TABLE IF NOT EXISTS questions (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      text TEXT NOT NULL,
-      code TEXT,
-      options TEXT NOT NULL,
-      correct TEXT NOT NULL,
-      category TEXT DEFAULT 'javascript'
-    );
-  `);
-
   saveDatabase();
   console.log('[DB] Tables initialized');
   return db;

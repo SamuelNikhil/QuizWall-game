@@ -6,7 +6,6 @@
 import geckos from '@geckos.io/server';
 import { CONFIG } from './infrastructure/config.ts';
 import { initDatabase } from './data/database.ts';
-import { seedQuestions } from './data/questionRepository.ts';
 import { RoomManager } from './domain/RoomManager.ts';
 import { registerEventHandlers } from './transport/eventHandlers.ts';
 
@@ -14,7 +13,6 @@ async function main() {
     // 1. Initialize database (async for sql.js WASM loading)
     console.log('[Boot] Initializing database...');
     await initDatabase();
-    seedQuestions();
 
     // 2. Create Geckos.io server with CORS for cross-origin
     const io = geckos({
