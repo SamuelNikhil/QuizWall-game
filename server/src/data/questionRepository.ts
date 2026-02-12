@@ -1,117 +1,41 @@
 // ==========================================
-// Question Repository — Data Layer (sql.js)
+// Question Repository — JSON Layer
 // ==========================================
 
-import { getDatabase, saveDatabase } from './database.ts';
-import type { ServerQuestion, QuestionOption } from '../shared/types.ts';
+import { readFileSync, existsSync } from 'fs';
+import { CONFIG } from '../infrastructure/config.ts';
+import type { ServerQuestion } from '../shared/types.ts';
 
-const DEFAULT_QUESTIONS: Omit<ServerQuestion, 'id'>[] = [
-    {
-        text: 'What is the output of the following code?',
-        code: 'console.log(typeof null);',
-        options: [
-            { id: 'A', text: 'null' },
-            { id: 'B', text: 'object' },
-            { id: 'C', text: 'undefined' },
-            { id: 'D', text: 'string' },
-        ],
-        correct: 'B',
-    },
-    {
-        text: 'Which method removes the last element from an array?',
-        code: 'const arr = [1, 2, 3];\narr.???();',
-        options: [
-            { id: 'A', text: 'shift()' },
-            { id: 'B', text: 'pop()' },
-            { id: 'C', text: 'slice()' },
-            { id: 'D', text: 'splice()' },
-        ],
-        correct: 'B',
-    },
-    {
-        text: 'What does "===" check in JavaScript?',
-        code: "1 === '1'",
-        options: [
-            { id: 'A', text: 'Value only' },
-            { id: 'B', text: 'Type only' },
-            { id: 'C', text: 'Value and Type' },
-            { id: 'D', text: 'Reference' },
-        ],
-        correct: 'C',
-    },
-    {
-        text: 'What will be logged?',
-        code: 'console.log(0.1 + 0.2 === 0.3);',
-        options: [
-            { id: 'A', text: 'true' },
-            { id: 'B', text: 'false' },
-            { id: 'C', text: 'undefined' },
-            { id: 'D', text: 'NaN' },
-        ],
-        correct: 'B',
-    },
-    {
-        text: 'Which is NOT a JavaScript data type?',
-        code: 'let x = ???;',
-        options: [
-            { id: 'A', text: 'Symbol' },
-            { id: 'B', text: 'BigInt' },
-            { id: 'C', text: 'Float' },
-            { id: 'D', text: 'undefined' },
-        ],
-        correct: 'C',
-    },
-];
+let cachedQuestions: ServerQuestion[] | null = null;
 
-/** Seed default questions if the table is empty */
-export function seedQuestions(): void {
-    const db = getDatabase();
+/** Load questions from JSON file */
+export function loadQuestions(): ServerQuestion[] {
+    if (cachedQuestions) return cachedQuestions;
 
-    const result = db.exec('SELECT COUNT(*) as c FROM questions');
-    const count = result.length > 0 ? (result[0].values[0][0] as number) : 0;
+    if (!existsSync(CONFIG.QUESTIONS_PATH)) {
+        console.error(`[QuestionRepo] Questions file not found at: ${CONFIG.QUESTIONS_PATH}`);
+        return [];
+    }
 
-    if (count === 0) {
-        const stmt = db.prepare(
-            'INSERT INTO questions (text, code, options, correct, category) VALUES (?, ?, ?, ?, ?)'
-        );
-
-        for (const q of DEFAULT_QUESTIONS) {
-            stmt.run([q.text, q.code || null, JSON.stringify(q.options), q.correct, 'javascript']);
-        }
-        stmt.free();
-        saveDatabase();
-        console.log(`[DB] Seeded ${DEFAULT_QUESTIONS.length} default questions`);
-    } else {
-        console.log(`[DB] Questions table already has ${count} entries, skipping seed`);
+    try {
+        const fileContent = readFileSync(CONFIG.QUESTIONS_PATH, 'utf-8');
+        cachedQuestions = JSON.parse(fileContent) as ServerQuestion[];
+        console.log(`[QuestionRepo] Loaded ${cachedQuestions.length} questions from JSON`);
+        return cachedQuestions;
+    } catch (err) {
+        console.error('[QuestionRepo] Error parsing questions.json:', err);
+        return [];
     }
 }
 
-/** Get all questions from database */
+/** Get all questions */
 export function getAllQuestions(): ServerQuestion[] {
-    const db = getDatabase();
-    const result = db.exec('SELECT id, text, code, options, correct, category FROM questions');
-
-    if (result.length === 0) return [];
-
-    const columns = result[0].columns;
-    return result[0].values.map((row) => {
-        const obj: Record<string, unknown> = {};
-        columns.forEach((col, i) => { obj[col] = row[i]; });
-
-        return {
-            id: obj.id as number,
-            text: obj.text as string,
-            code: (obj.code as string) || undefined,
-            options: JSON.parse(obj.options as string) as QuestionOption[],
-            correct: obj.correct as string,
-            category: obj.category as string,
-        };
-    });
+    return loadQuestions();
 }
 
 /** Get a random subset of questions */
 export function getRandomQuestions(count: number): ServerQuestion[] {
-    const all = getAllQuestions();
+    const all = [...getAllQuestions()];
     for (let i = all.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [all[i], all[j]] = [all[j], all[i]];

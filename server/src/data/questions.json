@@ -1,0 +1,242 @@
+[
+    {
+        "id": 1,
+        "text": "In which city was the Indian National Congress founded?",
+        "options": [
+            {
+                "id": "A",
+                "text": "Calcutta"
+            },
+            {
+                "id": "B",
+                "text": "Bombay"
+            },
+            {
+                "id": "C",
+                "text": "Madras"
+            },
+            {
+                "id": "D",
+                "text": "Delhi"
+            }
+        ],
+        "correct": "B",
+        "category": "Indian History"
+    },
+    {
+        "id": 2,
+        "text": "Who was the first Governor-General of independent India?",
+        "options": [
+            {
+                "id": "A",
+                "text": "Lord Mountbatten"
+            },
+            {
+                "id": "B",
+                "text": "C. Rajagopalachari"
+            },
+            {
+                "id": "C",
+                "text": "Dr. Rajendra Prasad"
+            },
+            {
+                "id": "D",
+                "text": "Jawaharlal Nehru"
+            }
+        ],
+        "correct": "A",
+        "category": "Indian History"
+    },
+    {
+        "id": 3,
+        "text": "The Indus Valley Civilization belonged to which age?",
+        "options": [
+            {
+                "id": "A",
+                "text": "Paleolithic Age"
+            },
+            {
+                "id": "B",
+                "text": "Neolithic Age"
+            },
+            {
+                "id": "C",
+                "text": "Bronze Age"
+            },
+            {
+                "id": "D",
+                "text": "Iron Age"
+            }
+        ],
+        "correct": "C",
+        "category": "Indian History"
+    },
+    {
+        "id": 4,
+        "text": "Which ruler is known for his conversion to Buddhism after the Battle of Kalinga?",
+        "options": [
+            {
+                "id": "A",
+                "text": "Chandragupta Maurya"
+            },
+            {
+                "id": "B",
+                "text": "Ashoka"
+            },
+            {
+                "id": "C",
+                "text": "Samudragupta"
+            },
+            {
+                "id": "D",
+                "text": "Harsha"
+            }
+        ],
+        "correct": "B",
+        "category": "Indian History"
+    },
+    {
+        "id": 5,
+        "text": "The 'Quit India Movement' was launched in response to which proposal?",
+        "options": [
+            {
+                "id": "A",
+                "text": "Cabinet Mission"
+            },
+            {
+                "id": "B",
+                "text": "Cripps Proposals"
+            },
+            {
+                "id": "C",
+                "text": "Simon Commission Report"
+            },
+            {
+                "id": "D",
+                "text": "Wavell Plan"
+            }
+        ],
+        "correct": "B",
+        "category": "Indian History"
+    },
+    {
+        "id": 6,
+        "text": "Who was the founder of the Mughal Empire in India?",
+        "options": [
+            {
+                "id": "A",
+                "text": "Akbar"
+            },
+            {
+                "id": "B",
+                "text": "Humayun"
+            },
+            {
+                "id": "C",
+                "text": "Babur"
+            },
+            {
+                "id": "D",
+                "text": "Sher Shah Suri"
+            }
+        ],
+        "correct": "C",
+        "category": "Indian History"
+    },
+    {
+        "id": 7,
+        "text": "The Swadeshi Movement started in 1905 as a protest against what?",
+        "options": [
+            {
+                "id": "A",
+                "text": "The Rowlatt Act"
+            },
+            {
+                "id": "B",
+                "text": "Partition of Bengal"
+            },
+            {
+                "id": "C",
+                "text": "The Jallianwala Bagh Massacre"
+            },
+            {
+                "id": "D",
+                "text": "The Salt Tax"
+            }
+        ],
+        "correct": "B",
+        "category": "Indian History"
+    },
+    {
+        "id": 8,
+        "text": "Who was known as the 'Frontier Gandhi'?",
+        "options": [
+            {
+                "id": "A",
+                "text": "Maulana Abul Kalam Azad"
+            },
+            {
+                "id": "B",
+                "text": "Khan Abdul Ghaffar Khan"
+            },
+            {
+                "id": "C",
+                "text": "Sheikh Abdullah"
+            },
+            {
+                "id": "D",
+                "text": "Mohammad Ali Jinnah"
+            }
+        ],
+        "correct": "B",
+        "category": "Indian History"
+    },
+    {
+        "id": 9,
+        "text": "Which battle established the British supremacy in India?",
+        "options": [
+            {
+                "id": "A",
+                "text": "Battle of Plassey"
+            },
+            {
+                "id": "B",
+                "text": "Battle of Buxar"
+            },
+            {
+                "id": "C",
+                "text": "Third Battle of Panipat"
+            },
+            {
+                "id": "D",
+                "text": "Battle of Wandiwash"
+            }
+        ],
+        "correct": "B",
+        "category": "Indian History"
+    },
+    {
+        "id": 10,
+        "text": "Who wrote 'Discovery of India'?",
+        "options": [
+            {
+                "id": "A",
+                "text": "Mahatma Gandhi"
+            },
+            {
+                "id": "B",
+                "text": "Sardar Patel"
+            },
+            {
+                "id": "C",
+                "text": "Jawaharlal Nehru"
+            },
+            {
+                "id": "D",
+                "text": "Rabindranath Tagore"
+            }
+        ],
+        "correct": "C",
+        "category": "Indian History"
+    }
+]

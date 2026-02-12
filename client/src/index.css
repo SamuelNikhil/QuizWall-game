@@ -234,7 +234,8 @@ body {
     cursor: pointer;
     animation: expressiveFloat 6s ease-in-out infinite;
     border: 3px solid rgba(255, 255, 255, 0.1);
-    transform: translate(-50%, -50%); /* Fix for aiming accuracy */
+    transform: translate(-50%, -50%);
+    /* Fix for aiming accuracy */
 }
 
 .orb:hover {
@@ -279,11 +280,9 @@ body {
 .controller-container {
     width: 100vw;
     height: 100vh;
-    background: radial-gradient(
-        circle at 50% 100%,
-        #2b283a 0%,
-        #121217 100%
-    );
+    background: radial-gradient(circle at 50% 100%,
+            #2b283a 0%,
+            #121217 100%);
     color: var(--text-primary);
     display: flex;
     flex-direction: column;
@@ -380,12 +379,10 @@ body {
 
 .power-fill {
     height: 100%;
-    background: linear-gradient(
-        90deg,
-        var(--accent-success),
-        var(--accent-primary),
-        var(--accent-error)
-    );
+    background: linear-gradient(90deg,
+            var(--accent-success),
+            var(--accent-primary),
+            var(--accent-error));
     transition: width 0.1s ease;
     border-radius: 6px;
 }
@@ -412,6 +409,7 @@ body {
 
 /* --- Animations --- */
 @keyframes float {
+
     0%,
     100% {
         transform: translateY(0);
