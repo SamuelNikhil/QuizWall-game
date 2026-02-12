@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: slingshot-client
+    env: static
+    buildCommand: cd client && npm install && npm run build
+    staticPublishPath: client/dist
+    envVars:
+      - key: VITE_SERVER_URL
+        sync: false # User must provide this in Render dashboard
