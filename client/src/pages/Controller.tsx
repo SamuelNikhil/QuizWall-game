@@ -182,15 +182,12 @@ export default function Controller() {
     const handleStart = useCallback((e: React.TouchEvent | React.MouseEvent) => {
         if (phase !== 'playing') return;
 
-        const touch = 'touches' in e ? e.touches[0] : e;
         const rect = containerRef.current?.getBoundingClientRect();
         if (!rect) return;
 
-        const x = touch.clientX - rect.left;
-        const y = touch.clientY - rect.top;
-
         setIsDragging(true);
-        setStartPos({ x, y });
+        // Fixed center start position
+        setStartPos({ x: rect.width / 2, y: rect.height / 2 });
         setPullBack(0);
         setPower(0);
 
@@ -210,7 +207,7 @@ export default function Controller() {
         const dx = startPos.x - x;
         const dy = startPos.y - y;
         const dist = Math.sqrt(dx * dx + dy * dy);
-        const maxPull = rect.height * 0.45;
+        const maxPull = 100; // Match boundaryRadius
         const clampedDist = Math.min(dist, maxPull);
         const angle = Math.atan2(dy, dx);
 
@@ -311,8 +308,14 @@ export default function Controller() {
     }
 
     // ---- Playing (Slingshot) ----
-    const slingshotCenterX = containerRef.current ? containerRef.current.offsetWidth / 2 : 200;
-    const slingshotCenterY = containerRef.current ? containerRef.current.offsetHeight * 0.75 : 500;
+    const width = containerRef.current?.offsetWidth || 400;
+    const height = containerRef.current?.offsetHeight || 800;
+    const slingshotCenterX = width / 2;
+    const slingshotCenterY = height / 2; // Moved to center
+
+    // Slingshot boundary radius
+    const boundaryRadius = 100;
+
     const pullEndX = isDragging ? slingshotCenterX - Math.cos(aimAngle) * pullBack : slingshotCenterX;
     const pullEndY = isDragging ? slingshotCenterY - Math.sin(aimAngle) * pullBack : slingshotCenterY;
 
@@ -334,36 +337,39 @@ export default function Controller() {
                     style={{
                         position: 'absolute', inset: 0, zIndex: 2000, pointerEvents: 'none',
                         background: lastHit.correct
-                            ? 'radial-gradient(circle at center, rgba(16,185,129,0.3), transparent 70%)'
-                            : 'radial-gradient(circle at center, rgba(239,68,68,0.3), transparent 70%)',
+                            ? 'radial-gradient(circle at center, rgba(16,185,129,0.4), transparent 80%)'
+                            : 'radial-gradient(circle at center, rgba(239,68,68,0.4), transparent 80%)',
                         animation: 'bounceIn 0.5s ease-out',
                     }}
                 />
             )}
 
             {/* Header */}
-            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, padding: '1rem 1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 10 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <span style={{ fontSize: '1.5rem' }}>{role === 'leader' ? '👑' : '🎮'}</span>
-                    <span style={{ fontWeight: 800, color: '#fff', fontSize: '0.85rem' }}>Score: {teamScore}</span>
+            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, padding: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', background: 'rgba(255,255,255,0.05)', padding: '0.6rem 1rem', borderRadius: 'var(--radius-md)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                    <span style={{ fontSize: '1.4rem' }}>{role === 'leader' ? '👑' : '🎮'}</span>
+                    <span style={{ fontWeight: 800, color: '#fff', fontSize: '1rem', letterSpacing: '0.5px' }}>Score: {teamScore}</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                    <span style={{ fontWeight: 800, color: timeLeft <= 10 ? 'var(--accent-error)' : '#fff', fontSize: '1.2rem' }}>
-                        {timeLeft}s
-                    </span>
+                    <div style={{ background: 'rgba(255,255,255,0.05)', padding: '0.6rem 1rem', borderRadius: 'var(--radius-md)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                        <span style={{ fontWeight: 800, color: timeLeft <= 10 ? '#ff6b6b' : '#fff', fontSize: '1.1rem', fontVariantNumeric: 'tabular-nums' }}>
+                            {timeLeft}s
+                        </span>
+                    </div>
                     <button
                         onClick={() => {
                             clientRef.current?.close();
                             window.location.href = '/';
                         }}
                         style={{
-                            width: '36px', height: '36px', borderRadius: '50%',
+                            width: '42px', height: '42px', borderRadius: '50%',
                             background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)',
-                            color: '#fff', fontSize: '1.1rem', fontWeight: 800, cursor: 'pointer',
+                            color: '#fff', fontSize: '1.2rem', cursor: 'pointer',
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            backdropFilter: 'blur(8px)',
+                            backdropFilter: 'blur(10px)', transition: 'all 0.2s ease',
                         }}
-                        aria-label="Leave game"
+                        onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.15)')}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.08)')}
                     >
                         ✕
                     </button>
@@ -375,60 +381,76 @@ export default function Controller() {
                 <button
                     onClick={requestGyroPermission}
                     style={{
-                        position: 'absolute', bottom: '2rem', left: '50%', transform: 'translateX(-50%)',
-                        padding: '0.75rem 1.5rem', background: 'var(--glass-bg)', border: '1px solid var(--glass-border)',
-                        borderRadius: 'var(--radius-md)', color: '#fff', fontWeight: 700, fontSize: '0.85rem',
-                        cursor: 'pointer', zIndex: 10,
+                        position: 'absolute', bottom: '4rem', left: '50%', transform: 'translateX(-50%)',
+                        padding: '1rem 2rem', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)',
+                        borderRadius: 'var(--radius-md)', color: '#fff', fontWeight: 800, fontSize: '0.9rem',
+                        cursor: 'pointer', zIndex: 10, backdropFilter: 'blur(15px)',
+                        boxShadow: '0 8px 32px rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', gap: '0.5rem'
                     }}
                 >
-                    🎯 Enable Gyro Aim
+                    <span style={{ fontSize: '1.2rem' }}>🎯</span> Enable Gyro Aim
                 </button>
             )}
 
             {/* Power indicator */}
             {isDragging && (
                 <div style={{
-                    position: 'absolute', bottom: '1rem', left: '50%', transform: 'translateX(-50%)',
-                    width: '60%', height: '8px', background: 'rgba(255,255,255,0.1)', borderRadius: '4px', zIndex: 10,
+                    position: 'absolute', bottom: '2rem', left: '50%', transform: 'translateX(-50%)',
+                    width: '70%', height: '12px', background: 'rgba(255,255,255,0.08)', borderRadius: '6px', zIndex: 10,
+                    border: '1px solid rgba(255,255,255,0.1)', overflow: 'hidden', padding: '2px'
                 }}>
                     <div style={{
                         width: `${power}%`, height: '100%', borderRadius: '4px',
-                        background: power > 70 ? 'var(--accent-error)' : power > 40 ? 'var(--accent-secondary)' : 'var(--accent-primary)',
-                        transition: 'width 0.1s ease, background 0.2s ease',
+                        background: `linear-gradient(90deg, #7cff6b 0%, #00f2ff ${power > 50 ? '50%' : '100%'}, #ff4444 100%)`,
+                        boxShadow: `0 0 15px ${power > 70 ? '#ff4444aa' : power > 30 ? '#00f2ffaa' : '#7cff6baa'}`,
+                        transition: 'width 0.05s linear',
                     }} />
                 </div>
             )}
 
             {/* Slingshot visual */}
-            {isDragging && (
-                <svg
-                    style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 5 }}
-                >
+            <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 5 }}>
+                {/* Dotted Circle Boundary */}
+                <circle
+                    cx={slingshotCenterX}
+                    cy={slingshotCenterY}
+                    r={boundaryRadius}
+                    fill="none"
+                    stroke="rgba(255, 255, 255, 0.2)"
+                    strokeWidth={2}
+                    strokeDasharray="8,8"
+                />
+
+                {/* Slingshot Joystick Handle */}
+                <circle
+                    cx={pullEndX} cy={pullEndY} r={35}
+                    fill={isDragging ? 'var(--accent-primary)' : 'rgba(255,255,255,0.1)'}
+                    stroke="rgba(255,255,255,0.3)" strokeWidth={2}
+                    style={{
+                        filter: isDragging ? 'drop-shadow(0 0 20px rgba(103, 80, 164, 0.8))' : 'none',
+                        transition: isDragging ? 'none' : 'all 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28)'
+                    }}
+                />
+
+                {/* Aiming help */}
+                {isDragging && !gyroEnabled && (
                     <line
-                        x1={slingshotCenterX} y1={slingshotCenterY}
-                        x2={pullEndX} y2={pullEndY}
-                        stroke="rgba(255,255,255,0.4)" strokeWidth={3} strokeDasharray="6,6"
+                        x1={pullEndX} y1={pullEndY}
+                        x2={pullEndX + (slingshotCenterX - pullEndX) * 2}
+                        y2={pullEndY + (slingshotCenterY - pullEndY) * 2}
+                        stroke="rgba(255,255,255,0.15)" strokeWidth={2} strokeDasharray="5,5"
                     />
-                    <circle
-                        cx={pullEndX} cy={pullEndY} r={14}
-                        fill="var(--accent-primary)" stroke="white" strokeWidth={2}
-                        style={{ filter: 'drop-shadow(0 0 12px rgba(103, 80, 164, 0.6))' }}
-                    />
-                    <circle
-                        cx={slingshotCenterX} cy={slingshotCenterY} r={6}
-                        fill="rgba(255,255,255,0.3)"
-                    />
-                </svg>
-            )}
+                )}
+            </svg>
 
             {/* Instructions */}
             {!isDragging && (
                 <div style={{
-                    position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-                    textAlign: 'center', opacity: 0.5, pointerEvents: 'none',
+                    position: 'absolute', top: '40%', left: '50%', transform: 'translate(-50%, -50%)',
+                    textAlign: 'center', opacity: 0.4, pointerEvents: 'none',
                 }}>
-                    <p style={{ fontSize: '1.2rem', fontWeight: 700, color: '#fff' }}>Pull to Aim</p>
-                    <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Release to Shoot</p>
+                    <p style={{ fontSize: '1.5rem', fontWeight: 800, color: '#fff', marginBottom: '0.5rem' }}>Pull to Aim</p>
+                    <p style={{ fontSize: '1rem', color: 'var(--text-secondary)' }}>Release to Shoot</p>
                 </div>
             )}
         </div>
