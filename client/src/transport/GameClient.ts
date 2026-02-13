@@ -60,6 +60,12 @@ function getServerConfig() {
         geckosPath = (import.meta.env.VITE_SIGNALING_PATH as string) || '';
     }
 
+    console.log('[Network] Env Check:', {
+        FULL_ENV: import.meta.env,
+        VITE_USE_PROXY: import.meta.env.VITE_USE_PROXY,
+        TYPE: typeof import.meta.env.VITE_USE_PROXY
+    });
+
     console.log('[Network]', { mode: useProxy ? 'PROXY' : 'DIRECT', geckosUrl, geckosPort });
 
     return { geckosUrl, geckosPort, geckosPath };
@@ -85,12 +91,7 @@ export class GameClient {
                 port: geckosPort,
                 ...(geckosPath && { path: geckosPath }),
                 iceServers: [
-                    { urls: 'stun:stun.metered.ca:80' },
-                    {
-                        urls: 'turn:global.relay.metered.ca:443',
-                        username: 'admin',
-                        credential: 'admin',
-                    },
+                    { urls: 'stun:stun.l.google.com:19302' },
                 ],
             });
 

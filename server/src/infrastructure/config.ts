@@ -22,11 +22,6 @@ export const CONFIG = {
 
     /** ICE servers for WebRTC */
     ICE_SERVERS: [
-        { urls: 'stun:stun.metered.ca:80' },
-        {
-            urls: 'turn:global.relay.metered.ca:443',
-            username: 'admin',
-            credential: 'admin',
-        },
+        { urls: 'stun:stun.l.google.com:19302' },
     ],
 } as const;
