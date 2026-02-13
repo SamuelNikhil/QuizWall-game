@@ -20,8 +20,13 @@ export const CONFIG = {
     /** Timer sync interval — how often server sends timerSync to clients (ms) */
     TIMER_SYNC_INTERVAL: 1000,
 
+    /** UDP port range for WebRTC data channels (must match Docker EXPOSE) */
+    UDP_PORT_MIN: parseInt(process.env.UDP_PORT_MIN || '9000', 10),
+    UDP_PORT_MAX: parseInt(process.env.UDP_PORT_MAX || '9100', 10),
+
     /** ICE servers for WebRTC */
     ICE_SERVERS: [
         { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun.metered.ca:80' },
     ],
 } as const;
