@@ -33,11 +33,13 @@ function getServerConfig() {
         serverUrl = `${window.location.protocol}//${window.location.hostname}`;
     }
 
+    // Ensure protocol
     if (!serverUrl.startsWith('http')) {
-        const protocol = serverUrl.includes('localhost') ? 'http' : 'https';
+        const protocol = window.location.protocol === 'https:' ? 'https' : 'http';
         serverUrl = `${protocol}://${serverUrl}`;
     }
 
+    // Ensure port is attached if not present
     if (!serverUrl.match(/:\d+/) && serverPort) {
         serverUrl = `${serverUrl}:${serverPort}`;
     }
@@ -48,25 +50,18 @@ function getServerConfig() {
     let geckosUrl: string, geckosPort: number, geckosPath: string;
 
     if (useProxy) {
-        // In proxy mode, geckos.io needs protocol://hostname (NO port in the URL)
-        // and the port as a separate number
-        const locPort = parseInt(window.location.port, 10);
-        geckosUrl = `${window.location.protocol}//${window.location.hostname}`;
-        geckosPort = locPort || (window.location.protocol === 'https:' ? 443 : 80);
-        geckosPath = (import.meta.env.VITE_SIGNALING_PATH as string) || '/.wrtc';
+        // In proxy mode, connect to the Vite dev server
+        geckosUrl = window.location.hostname;
+        geckosPort = parseInt(window.location.port, 10) || (window.location.protocol === 'https:' ? 443 : 80);
+        geckosPath = (import.meta.env.VITE_SIGNALING_PATH as string) || '/.wrtc/v2';
     } else {
-        geckosUrl = `${urlObj.protocol}//${urlObj.hostname}`;
+        // In direct mode, connect to the EC2 IP directly
+        // Geckos.io v3 requires: url with protocol+hostname (NOT port), port as separate param
+        const urlObj = new URL(serverUrl);
+        geckosUrl = `${urlObj.protocol}//${urlObj.hostname}`; // e.g., "http://3.108.77.64"
         geckosPort = connectionPort;
-        geckosPath = (import.meta.env.VITE_SIGNALING_PATH as string) || '';
+        geckosPath = (import.meta.env.VITE_SIGNALING_PATH as string) || '/.wrtc/v2';
     }
-
-    console.log('[Network] Env Check:', {
-        FULL_ENV: import.meta.env,
-        VITE_USE_PROXY: import.meta.env.VITE_USE_PROXY,
-        TYPE: typeof import.meta.env.VITE_USE_PROXY
-    });
-
-    console.log('[Network]', { mode: useProxy ? 'PROXY' : 'DIRECT', geckosUrl, geckosPort });
 
     return { geckosUrl, geckosPort, geckosPath };
 }
@@ -82,19 +77,25 @@ export class GameClient {
 
     // ---- Connection ----
 
-    connect(): Promise<Channel> {
+    async connect(): Promise<Channel> {
+        const { geckosUrl, geckosPort, geckosPath } = getServerConfig();
+
+        const options: any = {
+            url: geckosUrl,
+            port: geckosPort,
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun.metered.ca:80' },
+            ],
+        };
+
+        if (geckosPath) {
+            options.path = geckosPath;
+        }
+
+        const io = geckos(options);
+
         return new Promise((resolve, reject) => {
-            const { geckosUrl, geckosPort, geckosPath } = getServerConfig();
-
-            const io = geckos({
-                url: geckosUrl,
-                port: geckosPort,
-                ...(geckosPath && { path: geckosPath }),
-                iceServers: [
-                    { urls: 'stun:stun.l.google.com:19302' },
-                ],
-            });
-
             const timeout = setTimeout(() => {
                 if (!this.connected) {
                     reject(new Error('Connection timeout'));
@@ -109,8 +110,11 @@ export class GameClient {
                 }
                 this.channel = io;
                 this.connected = true;
-                console.log('✅ Connected:', io.id);
                 resolve(io);
+            });
+
+            io.onDisconnect(() => {
+                this.connected = false;
             });
         });
     }

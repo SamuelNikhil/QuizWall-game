@@ -1,20 +1,22 @@
-# Use a lightweight Node.js image
-FROM node:20-alpine
+    # Use a lightweight Node.js image
+    FROM node:20-alpine
 
-# Set working directory
-WORKDIR /app
+    # Set working directory
+    WORKDIR /app
 
-# Copy package files first for better caching
-COPY package.json package-lock.json ./
+    # Copy package files first for better caching
+    COPY package.json package-lock.json ./
 
-# Install dependencies (including production dependencies like tsx)
-RUN npm ci
+    # Install dependencies with proper permissions
+    RUN npm ci && \
+        chmod -R 755 /app/node_modules/.bin
 
-# Copy the rest of the application code
-COPY . .
+    # Copy the rest of the application code
+    COPY . .
 
-# Expose the port the app runs on
-EXPOSE 3000
+    # Expose HTTP signaling port + WebRTC UDP port range
+    EXPOSE 3000
+    EXPOSE 9000-9100/udp
 
-# Start the application using the existing start script (tsx)
-CMD ["npm", "start"]
+    # Start the application using the existing start script (tsx)
+    CMD ["npm", "start"]

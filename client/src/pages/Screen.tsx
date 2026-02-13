@@ -290,6 +290,8 @@ export default function Screen() {
             });
         }).catch((err) => {
             console.error('Connection failed:', err);
+            // Note: setError is not available in this component
+            // The error is logged to console for debugging
         });
 
         return () => { client.close(); };
