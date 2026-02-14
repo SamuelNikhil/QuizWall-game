@@ -1,9 +1,34 @@
 services:
+  # ============================================================
+  # Game Server (Node.js + Geckos.io WebRTC)
+  # ============================================================
+  - type: web
+    name: slingshot-server
+    env: node
+    region: singapore
+    buildCommand: cd server && npm install
+    startCommand: cd server && npm start
+    envVars:
+      - key: PORT
+        value: 3000
+      - key: NODE_ENV
+        value: production
+
+  # ============================================================
+  # Client (React + Vite static site)
+  # ============================================================
   - type: web
     name: slingshot-client
     env: static
     buildCommand: cd client && npm install && npm run build
     staticPublishPath: client/dist
     envVars:
+      # Server URL - points to the server service above
+      # After deploy, update this to: https://slingshot-server.onrender.com
       - key: VITE_SERVER_URL
-        sync: false # User must provide this in Render dashboard
+        value: https://slingshot-server.onrender.com
+      - key: VITE_SERVER_PORT
+        value: 3000
+      # Use DIRECT mode since both client and server are on Render (same HTTPS origin)
+      - key: VITE_USE_PROXY
+        value: false
