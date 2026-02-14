@@ -14,9 +14,19 @@ interface LobbyProps {
     onSetTeamName: (name: string) => void;
     onReady: () => void;
     onStartGame: () => void;
+    gyroEnabled: boolean;
+    onRequestGyro: () => void;
 }
 
-export default function Lobby({ role, lobby, onSetTeamName, onReady, onStartGame }: LobbyProps) {
+export default function Lobby({
+    role,
+    lobby,
+    onSetTeamName,
+    onReady,
+    onStartGame,
+    gyroEnabled,
+    onRequestGyro
+}: LobbyProps) {
     const [teamName, setTeamName] = useState('');
     const [nameSubmitted, setNameSubmitted] = useState(false);
     const [isReady, setIsReady] = useState(false);
@@ -158,9 +168,39 @@ export default function Lobby({ role, lobby, onSetTeamName, onReady, onStartGame
                     <h2 style={{ fontSize: '1.5rem', fontWeight: 900, color: '#fff', marginBottom: '0.25rem' }}>
                         {lobby?.team.name || 'Team'}
                     </h2>
-                    <p style={{ color: 'var(--accent-secondary)', fontSize: '0.9rem', fontWeight: 600, marginBottom: '2rem' }}>
+                    <p style={{ color: 'var(--accent-secondary)', fontSize: '0.9rem', fontWeight: 600, marginBottom: '1rem' }}>
                         👑 You are the Leader
                     </p>
+
+                    {/* Gyro Setup */}
+                    <div style={{ marginBottom: '1.5rem' }}>
+                        <button
+                            onClick={onRequestGyro}
+                            style={{
+                                width: '100%',
+                                padding: '0.75rem',
+                                background: gyroEnabled ? 'rgba(16, 185, 129, 0.1)' : 'rgba(255, 255, 255, 0.05)',
+                                color: gyroEnabled ? 'var(--accent-success)' : '#fff',
+                                border: `1px solid ${gyroEnabled ? 'rgba(16, 185, 129, 0.4)' : 'var(--glass-border)'}`,
+                                borderRadius: 'var(--radius-md)',
+                                fontSize: '0.9rem',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '0.5rem',
+                                transition: 'all 0.2s ease'
+                            }}
+                        >
+                            {gyroEnabled ? '✅ Gyro Ready' : '🎯 Setup Gyro Aim'}
+                        </button>
+                        {!gyroEnabled && (
+                            <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '0.4rem' }}>
+                                (Required for motion controls)
+                            </p>
+                        )}
+                    </div>
 
                     {/* Members list */}
                     <div style={{ marginBottom: '2rem' }}>
@@ -245,9 +285,34 @@ export default function Lobby({ role, lobby, onSetTeamName, onReady, onStartGame
                 <h2 style={{ fontSize: '1.5rem', fontWeight: 900, color: '#fff', marginBottom: '0.25rem' }}>
                     {lobby?.team.name || 'Waiting for team...'}
                 </h2>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', fontWeight: 600, marginBottom: '2rem' }}>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', fontWeight: 600, marginBottom: '1rem' }}>
                     🎮 Team Member
                 </p>
+
+                {/* Gyro Setup */}
+                <div style={{ marginBottom: '1.5rem' }}>
+                    <button
+                        onClick={onRequestGyro}
+                        style={{
+                            width: '100%',
+                            padding: '0.75rem',
+                            background: gyroEnabled ? 'rgba(16, 185, 129, 0.1)' : 'rgba(255, 255, 255, 0.05)',
+                            color: gyroEnabled ? 'var(--accent-success)' : '#fff',
+                            border: `1px solid ${gyroEnabled ? 'rgba(16, 185, 129, 0.4)' : 'var(--glass-border)'}`,
+                            borderRadius: 'var(--radius-md)',
+                            fontSize: '0.9rem',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '0.5rem',
+                            transition: 'all 0.2s ease'
+                        }}
+                    >
+                        {gyroEnabled ? '✅ Gyro Ready' : '🎯 Setup Gyro Aim'}
+                    </button>
+                </div>
 
                 {/* Members list */}
                 <div style={{ marginBottom: '2rem' }}>
