@@ -1,13 +1,7 @@
-# ============================================================
-# IMPORTANT: Routing Configuration for SPA
-# ============================================================
-#
-# This file handles client-side routing (React Router).
-# It MUST be at: client/public/_redirects
-#
-# NOTE: Render.com does NOT support WebSocket proxying via _redirects!
-# For WebRTC proxying on Render, you need to deploy the server
-# on Render as well, or use direct mode with HTTPS server.
-#
-# For SPA routing (all routes -> index.html):
+# Proxy Geckos.io signaling to EC2 game server
+# Render rewrites (status 200) forward the request server-side,
+# avoiding mixed-content (HTTPS→HTTP) browser blocks.
+/.wrtc/*  http://3.108.77.64:3000/.wrtc/:splat  200
+
+# SPA fallback — must be LAST (catch-all)
 /*  /index.html  200

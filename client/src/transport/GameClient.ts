@@ -77,65 +77,41 @@ export class GameClient {
     async connect(): Promise<Channel> {
         const { geckosUrl, geckosPort, geckosPath } = getServerConfig();
 
-        // Build connection options for Geckos.io v3
-        // geckosUrl is already protocol+hostname (e.g., 'http://3.108.77.64')
         const options: any = {
             url: geckosUrl,
             port: geckosPort,
             iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
                 { urls: 'stun:stun.metered.ca:80' },
-                {
-                    urls: 'turn:global.relay.metered.ca:443',
-                    username: 'admin',
-                    credential: 'admin',
-                },
             ],
         };
 
-        // Only add path if explicitly configured
         if (geckosPath) {
             options.path = geckosPath;
         }
 
-        console.log('[Geckos] Connecting to:', { url: geckosUrl, port: geckosPort, path: geckosPath });
-        console.log('[Geckos] Options:', JSON.stringify(options, null, 2));
-
         const io = geckos(options);
-
-        // Add detailed logging for debugging
-        console.log('[Geckos] Created client instance');
 
         return new Promise((resolve, reject) => {
             const timeout = setTimeout(() => {
                 if (!this.connected) {
-                    console.error('[Geckos] Connection timeout after 15 seconds');
-                    console.error('[Geckos] This could be due to:');
-                    console.error('[Geckos] 1. Network/firewall blocking UDP traffic');
-                    console.error('[Geckos] 2. Incorrect server address or port');
-                    console.error('[Geckos] 3. ICE server issues');
-                    console.error('[Geckos] 4. EC2 security group misconfiguration');
-                    reject(new Error('Connection timeout - check server URL, port, and firewall'));
+                    reject(new Error('Connection timeout'));
                 }
             }, 15000);
 
             io.onConnect((error) => {
                 clearTimeout(timeout);
                 if (error) {
-                    console.error('[Geckos] Connection error:', error);
-                    console.error('[Geckos] Error type:', typeof error);
-                    console.error('[Geckos] Error keys:', Object.keys(error));
                     reject(error);
                     return;
                 }
                 this.channel = io;
                 this.connected = true;
-                console.log('✅ Connected:', io.id);
                 resolve(io);
             });
 
-            // Add additional debugging events
-            io.onDisconnect((reason) => {
-                console.warn('[Geckos] Disconnected:', reason);
+            io.onDisconnect(() => {
+                this.connected = false;
             });
         });
     }
