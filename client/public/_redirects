@@ -1,7 +1,2 @@
-# Proxy Geckos.io signaling to EC2 game server
-# Render rewrites (status 200) forward the request server-side,
-# avoiding mixed-content (HTTPS→HTTP) browser blocks.
-/.wrtc/*  http://3.108.77.64:3000/.wrtc/:splat  200
-
-# SPA fallback — must be LAST (catch-all)
+# SPA fallback (only used for local preview, not Render)
 /*  /index.html  200
