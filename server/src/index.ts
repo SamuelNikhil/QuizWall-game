@@ -19,13 +19,12 @@ async function main() {
     const server = http.createServer();
 
     // 3. Create Geckos.io server with CORS for cross-origin
-    //    portRange pins WebRTC UDP ports so Docker/EC2 can expose them
+    //    Signaling path is /.wrtc/v2 by default in v3
     const io = geckos({
         iceServers: [...CONFIG.ICE_SERVERS],
-        portRange: { min: CONFIG.UDP_PORT_MIN, max: CONFIG.UDP_PORT_MAX },
         cors: { allowAuthorization: false, origin: '*' },
+        // path: '/.wrtc/v2', // Uncomment if you need to customize the path
     });
-    console.log(`[Boot] Geckos.io UDP port range: ${CONFIG.UDP_PORT_MIN}-${CONFIG.UDP_PORT_MAX}`);
 
     // 4. Create domain manager and wire transport
     const roomManager = new RoomManager();

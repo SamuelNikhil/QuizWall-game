@@ -1,18 +1,13 @@
-# Render/Netlify Redirects Configuration
-# =======================================
-# This file handles SPA routing and optional proxy fallback for WebRTC signaling.
+# ============================================================
+# IMPORTANT: Routing Configuration for SPA
+# ============================================================
 #
-# HOW IT WORKS:
-# - The first rule proxies signaling to your game server (only if VITE_USE_PROXY=true)
-# - The second rule enables SPA routing (all requests -> index.html)
+# This file handles client-side routing (React Router).
+# It MUST be at: client/public/_redirects
 #
-# TO USE PROXY MODE:
-# 1. Uncomment the proxy rule below
-# 2. Replace YOUR_GAME_SERVER_URL with your actual game server URL
-# 3. Set VITE_USE_PROXY=true in your environment
-
-# Proxy signaling to game server (MUST be before SPA fallback)
-/.wrtc/*  http://13.127.217.1:3000/.wrtc/:splat  200
-
-# SPA fallback (required for React Router)
+# NOTE: Render.com does NOT support WebSocket proxying via _redirects!
+# For WebRTC proxying on Render, you need to deploy the server
+# on Render as well, or use direct mode with HTTPS server.
+#
+# For SPA routing (all routes -> index.html):
 /*  /index.html  200
