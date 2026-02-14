@@ -7,10 +7,12 @@
     "dev": "vite --host",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview --host"
+    "preview": "vite preview --host",
+    "serve": "node render-server.js"
   },
   "dependencies": {
     "@geckos.io/client": "^3.0.2",
+    "express": "^4.22.1",
     "qrcode.react": "^4.2.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
