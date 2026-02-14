@@ -37,54 +37,30 @@ function getConnectionMode(): 'proxy' | 'direct' {
 }
 
 function getServerConfig() {
-    const connectionMode = getConnectionMode();
-    let serverUrl = import.meta.env.VITE_SERVER_URL as string;
-    const serverPort = (import.meta.env.VITE_SERVER_PORT as string) || String(DEFAULT_SERVER_PORT);
+    const useProxy = getConnectionMode() === 'proxy';
+    const port = parseInt(import.meta.env.VITE_SERVER_PORT || String(DEFAULT_SERVER_PORT), 10);
+    const signalingPath = (import.meta.env.VITE_SIGNALING_PATH as string) || '/.wrtc/v2';
 
-    // Fallback: if no server URL configured, use current host
-    if (!serverUrl) {
-        serverUrl = `${window.location.protocol}//${window.location.hostname}`;
+    if (useProxy) {
+        return {
+            geckosUrl: window.location.origin,
+            geckosPort: parseInt(window.location.port, 10) || (window.location.protocol === 'https:' ? 443 : 80),
+            geckosPath: signalingPath,
+        };
     }
 
-    // Ensure protocol
-    if (!serverUrl.startsWith('http')) {
-        const protocol = window.location.protocol === 'https:' ? 'https' : 'http';
-        serverUrl = `${protocol}://${serverUrl}`;
+    // Direct mode — extract hostname only (never includes port)
+    let raw = (import.meta.env.VITE_SERVER_URL as string) || window.location.hostname;
+    if (!raw.startsWith('http')) {
+        raw = `${window.location.protocol === 'https:' ? 'https' : 'http'}://${raw}`;
     }
+    const { protocol, hostname } = new URL(raw);
 
-    // Ensure port is attached if not present
-    if (!serverUrl.match(/:\d+/) && serverPort) {
-        serverUrl = `${serverUrl}:${serverPort}`;
-    }
-
-    const urlObj = new URL(serverUrl);
-    const connectionPort = parseInt(urlObj.port, 10) || DEFAULT_SERVER_PORT;
-
-    let geckosUrl: string, geckosPort: number, geckosPath: string;
-
-    if (connectionMode === 'proxy') {
-        // PROXY MODE: Connect through the hosting provider's proxy (Vite dev/preview, or custom server)
-        // This bypasses CORS and Mixed Content issues on HTTPS hosting
-        // Works when: VITE_USE_PROXY=true/proxy/1
-        geckosUrl = window.location.origin; // e.g., "https://slingshot-game.onrender.com"
-        geckosPort = parseInt(window.location.port, 10) || (window.location.protocol === 'https:' ? 443 : 80);
-        geckosPath = (import.meta.env.VITE_SIGNALING_PATH as string) || '/.wrtc/v2';
-        
-        console.log('[Network] PROXY MODE: Connecting through hosting provider');
-    } else {
-        // DIRECT MODE: Connect directly to server IP/hostname
-        // WARNING: May fail with Mixed Content errors on HTTPS (browser blocks HTTP from HTTPS page)
-        // Works when: VITE_USE_PROXY=false/undefined, or server supports HTTPS
-        geckosUrl = urlObj.origin; // e.g., "http://3.108.77.64"
-        geckosPort = connectionPort;
-        geckosPath = (import.meta.env.VITE_SIGNALING_PATH as string) || '/.wrtc/v2';
-        
-        console.log('[Network] DIRECT MODE: Connecting to', geckosUrl);
-    }
-
-    console.log('[Network] Config:', { mode: connectionMode, geckosUrl, geckosPort, geckosPath });
-
-    return { geckosUrl, geckosPort, geckosPath, connectionMode };
+    return {
+        geckosUrl: `${protocol}//${hostname}`,   // e.g. "http://3.108.77.64" (no port)
+        geckosPort: port,                         // solely from VITE_SERVER_PORT
+        geckosPath: signalingPath,
+    };
 }
 
 // --------------- GameClient Class ---------------
