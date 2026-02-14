@@ -127,7 +127,6 @@ export default function Controller() {
         if (!isDragging || !gyroEnabled || phase !== 'playing') return;
 
         const handleOrientation = (event: DeviceOrientationEvent) => {
-            const alpha = event.alpha ?? 0;
             const beta = event.beta ?? 0;
             const gamma = event.gamma ?? 0;
 
@@ -135,8 +134,12 @@ export default function Controller() {
             const relBeta = beta - gyroCalibration.beta;
 
             // Map to screen percentage
-            const x = Math.max(0, Math.min(100, 50 + relGamma * 1.5));
-            const y = Math.max(0, Math.min(100, 30 + relBeta * 1.0));
+            // NEGATE to fix inversion:
+            // - Tilting phone LEFT (gamma+) moves target LEFT (x-)
+            // - Tilting phone UP (beta+) moves target UP (y-)
+            // Multipliers reduced for lower sensitivity (0.8 and 0.6)
+            const x = Math.max(0, Math.min(100, 50 - relGamma * 0.8));
+            const y = Math.max(0, Math.min(100, 50 - relBeta * 0.6));
 
             setTargetXPercent(x);
             setTargetYPercent(y);
@@ -177,9 +180,16 @@ export default function Controller() {
         }
     }, []);
 
+    // Auto-request gyro on HTTPS mount
+    useEffect(() => {
+        if (window.location.protocol === 'https:' && phase === 'lobby') {
+            requestGyroPermission();
+        }
+    }, [requestGyroPermission, phase]);
+
     // ---- Slingshot touch handlers ----
 
-    const handleStart = useCallback((e: React.TouchEvent | React.MouseEvent) => {
+    const handleStart = useCallback(() => {
         if (phase !== 'playing') return;
 
         const rect = containerRef.current?.getBoundingClientRect();
@@ -277,6 +287,8 @@ export default function Controller() {
                     console.log('[Lobby] Leader clicked Start Game');
                     clientRef.current?.startGame();
                 }}
+                gyroEnabled={gyroEnabled}
+                onRequestGyro={requestGyroPermission}
             />
         );
     }
@@ -376,21 +388,7 @@ export default function Controller() {
                 </div>
             </div>
 
-            {/* Gyro toggle */}
-            {!gyroEnabled && (
-                <button
-                    onClick={requestGyroPermission}
-                    style={{
-                        position: 'absolute', bottom: '4rem', left: '50%', transform: 'translateX(-50%)',
-                        padding: '1rem 2rem', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)',
-                        borderRadius: 'var(--radius-md)', color: '#fff', fontWeight: 800, fontSize: '0.9rem',
-                        cursor: 'pointer', zIndex: 10, backdropFilter: 'blur(15px)',
-                        boxShadow: '0 8px 32px rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', gap: '0.5rem'
-                    }}
-                >
-                    <span style={{ fontSize: '1.2rem' }}>🎯</span> Enable Gyro Aim
-                </button>
-            )}
+            {/* Gyro Setup removed from here, now in Lobby */}
 
             {/* Power indicator */}
             {isDragging && (
