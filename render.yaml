@@ -23,12 +23,13 @@ services:
     buildCommand: cd client && npm install && npm run build
     staticPublishPath: client/dist
     envVars:
-      # Server URL - points to the server service above
-      # After deploy, update this to: https://slingshot-server.onrender.com
+      # EC2 game server URL (used by _redirects proxy rewrite)
       - key: VITE_SERVER_URL
-        value: https://slingshot-server.onrender.com
+        sync: false  # Set in Render dashboard: http://3.108.77.64
       - key: VITE_SERVER_PORT
-        value: 3000
-      # Use DIRECT mode since both client and server are on Render (same HTTPS origin)
+        value: "3000"
+      # PROXY mode: signaling goes through Render's _redirects → EC2
       - key: VITE_USE_PROXY
-        value: false
+        value: "true"
+      - key: VITE_SIGNALING_PATH
+        value: "/.wrtc/v2"
