@@ -55,7 +55,9 @@ export function saveDatabase(): void {
   if (!db) return;
   const data = db.export();
   const buffer = Buffer.from(data);
+  console.log(`[DB] Saving database to: ${CONFIG.DB_PATH} (${buffer.length} bytes)`);
   writeFileSync(CONFIG.DB_PATH, buffer);
+  console.log(`[DB] Database saved successfully`);
 }
 
 export function getDatabase(): Database {

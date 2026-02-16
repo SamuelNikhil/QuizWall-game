@@ -102,8 +102,8 @@ export interface StartAimingPayload {
 // ---------- Orb positions (shared constant) ----------
 
 export const ORB_POSITIONS = [
-    { id: 'A', left: '15%', top: '55%', x: 15, y: 55 },
-    { id: 'B', left: '40%', top: '70%', x: 40, y: 70 },
-    { id: 'C', left: '60%', top: '55%', x: 60, y: 55 },
-    { id: 'D', left: '80%', top: '70%', x: 80, y: 70 },
+    { id: 'A', left: '15%', top: '55%', x: 25, y: 65 },
+    { id: 'B', left: '40%', top: '70%', x: 50, y: 80 },
+    { id: 'C', left: '60%', top: '55%', x: 70, y: 65 },
+    { id: 'D', left: '80%', top: '70%', x: 90, y: 80 },
 ] as const;
