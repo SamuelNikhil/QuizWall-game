@@ -134,11 +134,11 @@ export default function Controller() {
             const relBeta = beta - gyroCalibration.beta;
 
             // Map to screen percentage
-            // - Tilting phone RIGHT (gamma+) moves target RIGHT (x+)
-            // - Tilting phone DOWN/FORWARD (beta+) moves target DOWN (y+)
-            // Multipliers reduced for lower sensitivity (0.8 and 0.6)
-            const x = Math.max(0, Math.min(100, 50 + relGamma * 0.8));
-            const y = Math.max(0, Math.min(100, 50 + relBeta * 0.6));
+            // - X: Tilting phone RIGHT (gamma+) moves target RIGHT (x+)
+            // - Y: Tilting phone FORWARD/AWAY (beta+) moves target UP (y-)
+            // Increased sensitivity slightly: X: 1.0, Y: 0.8
+            const x = Math.max(0, Math.min(100, 50 + relGamma * 1.0));
+            const y = Math.max(0, Math.min(100, 50 - relBeta * 0.8));
 
             setTargetXPercent(x);
             setTargetYPercent(y);
