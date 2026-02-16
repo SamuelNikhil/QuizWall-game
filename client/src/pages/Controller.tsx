@@ -295,7 +295,28 @@ export default function Controller() {
     // ---- Game Over ----
     if (phase === 'game-over') {
         return (
-            <div className="controller-container" style={{ justifyContent: 'center', alignItems: 'center', padding: '2rem' }}>
+            <div className="controller-container" style={{ justifyContent: 'center', alignItems: 'center', padding: '2rem', position: 'relative' }}>
+                {/* Header with Close Button */}
+                <div style={{ position: 'absolute', top: 0, left: 0, right: 0, padding: '1.5rem', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', zIndex: 10 }}>
+                    <button
+                        onClick={() => {
+                            clientRef.current?.close();
+                            window.location.href = '/';
+                        }}
+                        style={{
+                            width: '42px', height: '42px', borderRadius: '50%',
+                            background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)',
+                            color: '#fff', fontSize: '1.2rem', cursor: 'pointer',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            backdropFilter: 'blur(10px)', transition: 'all 0.2s ease',
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.15)')}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.08)')}
+                    >
+                        ✕
+                    </button>
+                </div>
+
                 <div style={{ textAlign: 'center', animation: 'bounceIn 0.8s cubic-bezier(0.34, 1.56, 0.64, 1)' }}>
                     <h1 style={{ fontSize: '2.5rem', fontWeight: 900, color: '#ff4444' }}>TIME'S UP!</h1>
                     <div style={{ background: 'var(--glass-bg)', padding: '2rem', borderRadius: 'var(--radius-lg)', border: '1px solid var(--glass-border)', margin: '1.5rem 0' }}>
