@@ -8,6 +8,7 @@ import { useParams } from 'react-router-dom';
 import { GameClient } from '../transport/GameClient';
 import Lobby from './Lobby';
 import type { LobbyState, PlayerRole, ScoreUpdate } from '../shared/types';
+import slingCenterImg from '../assets/sling-center.png';
 import '../index.css';
 import '../animations.css';
 
@@ -439,23 +440,25 @@ export default function Controller() {
                     strokeDasharray="8,8"
                 />
 
-                {/* Slingshot Joystick Handle */}
-                <circle
-                    cx={pullEndX} cy={pullEndY} r={35}
-                    fill={isDragging ? 'var(--accent-primary)' : 'rgba(255,255,255,0.1)'}
-                    stroke="rgba(255,255,255,0.3)" strokeWidth={2}
+                {/* Slingshot Image - The draggable element */}
+                <image
+                    href={slingCenterImg}
+                    x={pullEndX - 35}
+                    y={pullEndY - 35}
+                    width={70}
+                    height={70}
                     style={{
-                        filter: isDragging ? 'drop-shadow(0 0 20px rgba(103, 80, 164, 0.8))' : 'none',
-                        transition: isDragging ? 'none' : 'all 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28)'
+                        filter: isDragging ? 'drop-shadow(0 0 20px rgba(103, 80, 164, 0.8))' : 'drop-shadow(0 0 10px rgba(255, 255, 255, 0.5))',
+                        transition: isDragging ? 'none' : 'all 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28)',
+                        cursor: 'grab',
                     }}
                 />
 
-                {/* Aiming help */}
+                {/* Aiming help line */}
                 {isDragging && !gyroEnabled && (
                     <line
-                        x1={pullEndX} y1={pullEndY}
-                        x2={pullEndX + (slingshotCenterX - pullEndX) * 2}
-                        y2={pullEndY + (slingshotCenterY - pullEndY) * 2}
+                        x1={slingshotCenterX} y1={slingshotCenterY}
+                        x2={pullEndX} y2={pullEndY}
                         stroke="rgba(255,255,255,0.15)" strokeWidth={2} strokeDasharray="5,5"
                     />
                 )}

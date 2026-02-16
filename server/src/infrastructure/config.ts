@@ -2,11 +2,15 @@
 // Server Configuration
 // ==========================================
 
+import { resolve } from 'path';
+
+const PROJECT_ROOT = resolve(import.meta.dirname || '.', '..', '..');
+
 export const CONFIG = {
     PORT: parseInt(process.env.PORT || '3000', 10),
 
-    /** Path to SQLite database file */
-    DB_PATH: process.env.DB_PATH || './QuizzWall.sqlite',
+    /** Path to SQLite database file - absolute path */
+    DB_PATH: process.env.DB_PATH || resolve(PROJECT_ROOT, 'QuizzWall.sqlite'),
 
     /** Path to Questions JSON file */
     QUESTIONS_PATH: process.env.QUESTIONS_PATH || './src/data/questions.json',

@@ -9,11 +9,17 @@ import { CONFIG } from './infrastructure/config.ts';
 import { initDatabase } from './data/database.ts';
 import { RoomManager } from './domain/RoomManager.ts';
 import { registerEventHandlers } from './transport/eventHandlers.ts';
+import { getAllTeamsDebug, debugDbPath } from './data/teamRepository.ts';
 
 async function main() {
     // 1. Initialize database (async for sql.js WASM loading)
     console.log('[Boot] Initializing database...');
     await initDatabase();
+
+    // Debug: Log DB path and current teams
+    debugDbPath();
+    const teams = getAllTeamsDebug();
+    console.log('[Boot] Current teams in DB:', teams);
 
     // 2. Create HTTP server (DO NOT listen yet - routes must be registered first)
     const server = http.createServer();
