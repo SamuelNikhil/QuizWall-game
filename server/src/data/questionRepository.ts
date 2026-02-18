@@ -117,8 +117,8 @@ function deleteAiQuestions(): void {
 
 /**
  * Generate fresh questions for a new game session
- * Uses cached AI questions if available, otherwise generates via Groq
- * Falls back to static JSON if all else fails
+ * ALWAYS generates fresh AI questions via Groq to avoid repetition
+ * Falls back to static JSON only if AI generation fails
  */
 export async function generateSessionQuestions(sessionId: string): Promise<ServerQuestion[]> {
     // Check if we already have questions for this session
@@ -130,17 +130,11 @@ export async function generateSessionQuestions(sessionId: string): Promise<Serve
     const currentTopic = CONFIG.QUIZ_TOPIC || 'General Knowledge';
     let questions: ServerQuestion[] = [];
 
-    // Step 1: Try to load cached AI questions
-    const cachedAiQuestions = loadAiQuestions(currentTopic);
-    if (cachedAiQuestions && cachedAiQuestions.length > 0) {
-        console.log(`[QuestionRepo] Using cached AI questions for topic: ${currentTopic}`);
-        questions = cachedAiQuestions;
-    }
-    // Step 2: Try Groq if enabled and no cached questions
-    else if (isGroqEnabled()) {
+    // Step 1: ALWAYS try to generate fresh questions via Groq first (to avoid repetition)
+    if (isGroqEnabled()) {
         try {
             const groqService = getGroqService()!;
-            console.log(`[QuestionRepo] Generating ${CONFIG.QUESTIONS_PER_SESSION || 10} questions via Groq for topic: ${currentTopic}`);
+            console.log(`[QuestionRepo] Generating ${CONFIG.QUESTIONS_PER_SESSION || 10} FRESH questions via Groq for topic: ${currentTopic}`);
             
             questions = await groqService.generateQuestionsForSession();
             
@@ -148,21 +142,47 @@ export async function generateSessionQuestions(sessionId: string): Promise<Serve
                 throw new Error('Groq returned empty questions array');
             }
             
-            console.log(`[QuestionRepo] Generated ${questions.length} questions via Groq`);
+            // Remove any duplicates based on question text
+            const seenTexts = new Set<string>();
+            questions = questions.filter(q => {
+                const normalizedText = q.text.trim().toLowerCase();
+                if (seenTexts.has(normalizedText)) {
+                    console.log(`[QuestionRepo] Filtering duplicate question: "${q.text.substring(0, 50)}..."`);
+                    return false;
+                }
+                seenTexts.add(normalizedText);
+                return true;
+            });
+            
+            console.log(`[QuestionRepo] Generated ${questions.length} FRESH questions via Groq (after deduplication)`);
             console.log(`[QuestionRepo] First question:`, JSON.stringify(questions[0]).substring(0, 200));
             
-            // Save to Ai-questions.json for future use
+            // Save to Ai-questions.json for backup only (not for reuse)
             saveAiQuestions(questions, currentTopic);
             
         } catch (error) {
-            console.error('[QuestionRepo] Groq generation failed, falling back to static:', error);
-            questions = getRandomStaticQuestions(CONFIG.QUESTIONS_PER_SESSION || 10);
+            console.error('[QuestionRepo] Groq generation failed, falling back to cached/static:', error);
+            // Try cached AI questions as fallback
+            const cachedAiQuestions = loadAiQuestions(currentTopic);
+            if (cachedAiQuestions && cachedAiQuestions.length > 0) {
+                console.log(`[QuestionRepo] Using cached AI questions as fallback`);
+                questions = cachedAiQuestions;
+            } else {
+                console.log('[QuestionRepo] No cached questions, using static fallback');
+                questions = getRandomStaticQuestions(CONFIG.QUESTIONS_PER_SESSION || 10);
+            }
         }
     }
-    // Step 3: Fall back to static questions
+    // Step 2: Groq not enabled, try cached AI questions
     else {
-        console.log('[QuestionRepo] Groq not enabled, using static questions');
-        questions = getRandomStaticQuestions(CONFIG.QUESTIONS_PER_SESSION || 10);
+        const cachedAiQuestions = loadAiQuestions(currentTopic);
+        if (cachedAiQuestions && cachedAiQuestions.length > 0) {
+            console.log(`[QuestionRepo] Groq disabled, using cached AI questions for topic: ${currentTopic}`);
+            questions = cachedAiQuestions;
+        } else {
+            console.log('[QuestionRepo] Groq not enabled and no cache, using static questions');
+            questions = getRandomStaticQuestions(CONFIG.QUESTIONS_PER_SESSION || 10);
+        }
     }
 
     // Normalize format
@@ -196,8 +216,27 @@ export async function preGenerateForSession(sessionId: string): Promise<void> {
  * Get questions for an active session
  * Returns cached questions or generates new ones
  * Automatically adds static questions as buffer and generates +10 more if running low
+ * 
+ * @param sessionId - The session ID
+ * @param additionalCount - Optional number of additional questions to generate (for dynamic limit increases)
  */
-export async function getSessionQuestions(sessionId: string): Promise<ServerQuestion[]> {
+export async function getSessionQuestions(sessionId: string, additionalCount?: number): Promise<ServerQuestion[]> {
+    // If additionalCount is specified, generate more questions for existing session
+    if (additionalCount && additionalCount > 0 && sessionQuestionsCache.has(sessionId)) {
+        console.log(`[QuestionRepo] Generating +${additionalCount} additional questions for session ${sessionId}`);
+        
+        if (isGroqEnabled() && !isGenerating.has(sessionId)) {
+            isGenerating.add(sessionId);
+            try {
+                await generateMoreQuestionsForSession(sessionId, additionalCount);
+            } finally {
+                isGenerating.delete(sessionId);
+            }
+        }
+        
+        return sessionQuestionsCache.get(sessionId)!;
+    }
+    
     if (sessionQuestionsCache.has(sessionId)) {
         const questions = sessionQuestionsCache.get(sessionId)!;
         
@@ -235,11 +274,26 @@ const isGenerating = new Set<string>();
 
 /**
  * Background generation of more AI questions for a session
+ * Generates FRESH questions to avoid repetition
+ * 
+ * @param sessionId - The session ID
+ * @param count - Optional number of questions to generate (defaults to QUESTIONS_PER_SESSION)
  */
-async function generateMoreQuestionsForSession(sessionId: string): Promise<void> {
+async function generateMoreQuestionsForSession(sessionId: string, count?: number): Promise<void> {
     try {
         const groqService = getGroqService()!;
+        const questionCount = count || (CONFIG.QUESTIONS_PER_SESSION || 10);
+        console.log(`[QuestionRepo] Generating ${questionCount} FRESH questions in background for session ${sessionId}...`);
+        
+        // Temporarily override question count for this generation
+        const originalCount = groqService['questionCount'];
+        groqService['questionCount'] = questionCount;
+        
+        // Generate fresh questions (not from cache)
         const newQuestions = await groqService.generateQuestionsForSession();
+        
+        // Restore original count
+        groqService['questionCount'] = originalCount;
         
         if (newQuestions && newQuestions.length > 0) {
             // Normalize new questions
@@ -248,22 +302,34 @@ async function generateMoreQuestionsForSession(sessionId: string): Promise<void>
             // Get current cache
             const currentQuestions = sessionQuestionsCache.get(sessionId) || [];
             
-            // Filter out static questions that were added as buffer (keep only AI questions + new ones)
-            // Static questions don't have category set to the current topic
-            const currentTopic = CONFIG.QUIZ_TOPIC || 'General Knowledge';
-            const aiQuestions = currentQuestions.filter(q => q.category === currentTopic);
+            // Filter out any questions that have the same text as existing ones (avoid duplicates)
+            const existingTexts = new Set(currentQuestions.map(q => q.text.trim().toLowerCase()));
+            const uniqueNewQuestions = normalizedNew.filter(q => !existingTexts.has(q.text.trim().toLowerCase()));
             
-            // Combine AI questions with new ones
-            const allQuestions = [...aiQuestions, ...normalizedNew];
-            sessionQuestionsCache.set(sessionId, allQuestions);
-            
-            // Also save to file for persistence
-            const existingCache = loadAiQuestions(currentTopic);
-            if (existingCache) {
-                saveAiQuestions([...existingCache, ...normalizedNew], currentTopic);
+            if (uniqueNewQuestions.length === 0) {
+                console.log('[QuestionRepo] Generated questions were all duplicates, skipping...');
+                return;
             }
             
-            console.log(`[QuestionRepo] Background generation complete! Added ${normalizedNew.length} AI questions. Total AI questions: ${allQuestions.length}`);
+            // Combine existing with new fresh questions
+            const allQuestions = [...currentQuestions, ...uniqueNewQuestions];
+            sessionQuestionsCache.set(sessionId, allQuestions);
+            
+            // Also save to file for persistence (append mode)
+            const currentTopic = CONFIG.QUIZ_TOPIC || 'General Knowledge';
+            const existingCache = loadAiQuestions(currentTopic);
+            if (existingCache) {
+                // Also filter duplicates from file cache
+                const fileTexts = new Set(existingCache.map(q => q.text.trim().toLowerCase()));
+                const uniqueForFile = uniqueNewQuestions.filter(q => !fileTexts.has(q.text.trim().toLowerCase()));
+                if (uniqueForFile.length > 0) {
+                    saveAiQuestions([...existingCache, ...uniqueForFile], currentTopic);
+                }
+            } else {
+                saveAiQuestions(uniqueNewQuestions, currentTopic);
+            }
+            
+            console.log(`[QuestionRepo] Background generation complete! Added ${uniqueNewQuestions.length} FRESH AI questions. Total: ${allQuestions.length}`);
         }
     } catch (error) {
         console.error('[QuestionRepo] Background generation failed:', error);

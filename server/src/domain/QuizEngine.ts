@@ -17,7 +17,10 @@ export class QuizEngine {
     private questionsAnswered: number = 0;
     private initialized: boolean = false;
     private playerCount: number = 1; // Track number of players for timer logic
-    private usedQuestionIds: Set<number> = new Set(); // Track used questions to avoid repetition
+    private usedQuestionTexts: Set<string> = new Set(); // Track used question TEXTS to avoid repetition (more reliable than IDs)
+    private sessionQuestionLimit: number; // Dynamic limit that increases as player progresses
+    private readonly QUESTION_INCREMENT = 20; // How many questions to add when limit reached
+    private readonly QUESTION_THRESHOLD = 5; // How many questions remaining before increasing limit
 
     // Callbacks
     private onTimerTick?: (timeLeft: number) => void;
@@ -26,7 +29,9 @@ export class QuizEngine {
     constructor(sessionId?: string) {
         // Generate unique session ID if not provided
         this.sessionId = sessionId || `session-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
-        console.log(`[QuizEngine] Created with sessionId: ${this.sessionId}`);
+        // Initialize session limit from config
+        this.sessionQuestionLimit = CONFIG.QUESTIONS_PER_SESSION || 30;
+        console.log(`[QuizEngine] Created with sessionId: ${this.sessionId}, initial limit: ${this.sessionQuestionLimit}`);
     }
 
     /**
@@ -146,28 +151,31 @@ export class QuizEngine {
         this.timeLeft = CONFIG.TIMER_DURATION;
         this.currentIndex = 0;
         this.questionsAnswered = 0;
-        this.usedQuestionIds.clear(); // Clear used questions for new game
+        this.usedQuestionTexts.clear(); // Clear used questions for new game
         this.shuffleQuestions();
     }
 
     /** Get current question for client (without correct answer) */
     getCurrentQuestion(): ClientQuestion | null {
-        // Filter out used questions
-        const availableQuestions = this.questions.filter(q => !this.usedQuestionIds.has(q.id));
+        // Filter out used questions by TEXT (not ID, since AI might generate similar questions)
+        const availableQuestions = this.questions.filter(q => !this.usedQuestionTexts.has(q.text.trim().toLowerCase()));
         
-        // If no available questions, reset the used set
+        // If no available questions, we need to generate more or reset
         if (availableQuestions.length === 0) {
-            console.log('[QuizEngine] All questions used, resetting used set');
-            this.usedQuestionIds.clear();
-            return this.getCurrentQuestion();
+            console.log('[QuizEngine] All questions used! Triggering background generation...');
+            // Don't reset - this means we truly ran out and need more AI questions
+            // Return null to signal we need more questions
+            return null;
         }
         
-        // Get the current question from available ones
-        const q = availableQuestions[this.currentIndex % availableQuestions.length];
+        // Get the current question from available ones (pick randomly to ensure variety)
+        const randomIndex = Math.floor(Math.random() * availableQuestions.length);
+        const q = availableQuestions[randomIndex];
         if (!q) return null;
 
-        // Mark as used
-        this.usedQuestionIds.add(q.id);
+        // Mark as used by TEXT
+        this.usedQuestionTexts.add(q.text.trim().toLowerCase());
+        console.log(`[QuizEngine] Selected question: "${q.text.substring(0, 50)}..." | Used: ${this.usedQuestionTexts.size}/${this.questions.length}`);
 
         // Strip the `correct` field — client never sees it
         return {
@@ -180,28 +188,34 @@ export class QuizEngine {
 
     /** Validate an answer. Returns { correct, points, orbId } */
     validateAnswer(orbId: string): { correct: boolean; points: number } {
-        // Get available questions (not yet used)
-        const availableQuestions = this.questions.filter(q => !this.usedQuestionIds.has(q.id));
+        // Find the most recently used question (current question being asked)
+        // We track by the last added text in usedQuestionTexts
+        let currentQuestion: ServerQuestion | undefined;
         
-        // If all questions used, consider all questions as available for validation
-        const questionsToSearch = availableQuestions.length > 0 ? availableQuestions : this.questions;
-        
-        // Find the current question being asked (last one added to used set, or first available)
-        let q: ServerQuestion | undefined;
-        
-        if (this.usedQuestionIds.size > 0) {
-            // Get the most recently used question (current question)
-            const usedIdsArray = Array.from(this.usedQuestionIds);
-            const currentQuestionId = usedIdsArray[usedIdsArray.length - 1];
-            q = this.questions.find(question => question.id === currentQuestionId);
-        } else {
-            // No questions used yet, use first available
-            q = questionsToSearch[this.currentIndex % questionsToSearch.length];
+        if (this.usedQuestionTexts.size > 0) {
+            // Get all used texts and find the last one added
+            const usedTextsArray = Array.from(this.usedQuestionTexts);
+            const lastUsedText = usedTextsArray[usedTextsArray.length - 1];
+            
+            // Find the question with this text
+            currentQuestion = this.questions.find(q => 
+                q.text.trim().toLowerCase() === lastUsedText
+            );
         }
         
-        if (!q) return { correct: false, points: 0 };
+        // If no current question found, try to find one that hasn't been used
+        if (!currentQuestion) {
+            const availableQuestions = this.questions.filter(q => 
+                !this.usedQuestionTexts.has(q.text.trim().toLowerCase())
+            );
+            if (availableQuestions.length > 0) {
+                currentQuestion = availableQuestions[0];
+            }
+        }
+        
+        if (!currentQuestion) return { correct: false, points: 0 };
 
-        const isCorrect = orbId === q.correct;
+        const isCorrect = orbId === currentQuestion.correct;
         const points = isCorrect ? 100 : 0;
 
         if (isCorrect) {
@@ -215,15 +229,42 @@ export class QuizEngine {
     async nextQuestion(): Promise<ClientQuestion | null> {
         this.currentIndex++;
         
-        // Refresh questions from session cache to get any newly generated ones
-        try {
-            const updatedQuestions = await getSessionQuestions(this.sessionId);
-            if (updatedQuestions.length > this.questions.length) {
-                console.log(`[QuizEngine] Refreshed questions: ${this.questions.length} -> ${updatedQuestions.length}`);
-                this.questions = updatedQuestions;
+        // Check if player is approaching the session limit and increase it
+        const questionsRemaining = this.sessionQuestionLimit - this.questionsAnswered;
+        if (questionsRemaining <= this.QUESTION_THRESHOLD && questionsRemaining > 0) {
+            // Increase the session limit by 20 questions
+            const oldLimit = this.sessionQuestionLimit;
+            this.sessionQuestionLimit += this.QUESTION_INCREMENT;
+            console.log(`[QuizEngine] Session limit increased: ${oldLimit} -> ${this.sessionQuestionLimit} (answered: ${this.questionsAnswered})`);
+            
+            // Trigger background generation for more questions
+            console.log(`[QuizEngine] Triggering background generation for +${this.QUESTION_INCREMENT} questions...`);
+            try {
+                const updatedQuestions = await getSessionQuestions(this.sessionId, this.QUESTION_INCREMENT);
+                if (updatedQuestions.length > this.questions.length) {
+                    console.log(`[QuizEngine] Added ${updatedQuestions.length - this.questions.length} new questions. Total: ${updatedQuestions.length}`);
+                    this.questions = updatedQuestions;
+                }
+            } catch (error) {
+                console.error('[QuizEngine] Failed to generate more questions:', error);
             }
-        } catch (error) {
-            console.error('[QuizEngine] Failed to refresh questions:', error);
+        }
+        
+        // Check if we need more questions (less than 3 remaining)
+        const availableCount = this.questions.filter(q => !this.usedQuestionTexts.has(q.text.trim().toLowerCase())).length;
+        if (availableCount < 3) {
+            console.log(`[QuizEngine] Running low on available questions (${availableCount} left), fetching more...`);
+            
+            // Refresh questions from session cache to get any newly generated ones
+            try {
+                const updatedQuestions = await getSessionQuestions(this.sessionId);
+                if (updatedQuestions.length > this.questions.length) {
+                    console.log(`[QuizEngine] Refreshed questions: ${this.questions.length} -> ${updatedQuestions.length}`);
+                    this.questions = updatedQuestions;
+                }
+            } catch (error) {
+                console.error('[QuizEngine] Failed to refresh questions:', error);
+            }
         }
         
         return this.getCurrentQuestion();

@@ -63,8 +63,8 @@ export class GroqService {
                             content: prompt
                         }
                     ],
-                    temperature: 0.7,
-                    max_tokens: 2048,
+                    temperature: 0.9,
+                    max_tokens: 4096,
                 }),
             });
 
@@ -94,9 +94,16 @@ export class GroqService {
     }
 
     private buildPrompt(): string {
+        // Add randomness to ensure unique questions each generation
+        const randomSeed = Math.random().toString(36).substring(2, 10);
+        const timeSeed = Date.now().toString(36).substring(2, 8);
+        
         return `Generate ${this.questionCount} multiple-choice quiz questions about "${this.topic}".
 
-CRITICAL ACCURACY REQUIREMENTS:
+UNIQUE GENERATION SEED: ${randomSeed}-${timeSeed}
+Use this seed to ensure you generate COMPLETELY DIFFERENT questions from any previous requests.
+
+CRITICAL REQUIREMENTS:
 1. Each question must be FACTUALLY ACCURATE and historically correct
 2. Each question must have exactly 4 options labeled A, B, C, D
 3. Only ONE correct answer per question - verify the correct answer is accurate
@@ -104,6 +111,9 @@ CRITICAL ACCURACY REQUIREMENTS:
 5. Include specific dates, names, and events where applicable
 6. Avoid ambiguous or debatable questions
 7. Ensure all options are plausible but only one is definitively correct
+8. Generate COMPLETELY DIFFERENT questions - do NOT repeat common/popular questions
+9. Cover diverse sub-topics within "${this.topic}" - don't focus on the same events/people
+10. Be creative and explore lesser-known but interesting facts
 
 Respond ONLY with valid JSON in this EXACT format (no markdown, no explanation):
 [
