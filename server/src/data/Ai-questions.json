@@ -1,0 +1,246 @@
+{
+    "topic": "Indian History",
+    "generatedAt": "2026-02-18T07:18:50.856Z",
+    "questions": [
+        {
+            "id": 1,
+            "text": "Who was the first ruler of the Mauryan Empire?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Chandragupta Maurya"
+                },
+                {
+                    "id": "B",
+                    "text": "Ashoka the Great"
+                },
+                {
+                    "id": "C",
+                    "text": "Bindusara"
+                },
+                {
+                    "id": "D",
+                    "text": "Samudragupta"
+                }
+            ],
+            "correct": "A",
+            "category": "Indian History"
+        },
+        {
+            "id": 2,
+            "text": "The Indus Valley Civilization is known for its sophisticated?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Agricultural systems"
+                },
+                {
+                    "id": "B",
+                    "text": "Military conquests"
+                },
+                {
+                    "id": "C",
+                    "text": "Urban planning and architecture"
+                },
+                {
+                    "id": "D",
+                    "text": "Maritime trade networks"
+                }
+            ],
+            "correct": "C",
+            "category": "Indian History"
+        },
+        {
+            "id": 3,
+            "text": "The Mughal Empire was founded by?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Babur"
+                },
+                {
+                    "id": "B",
+                    "text": "Humayun"
+                },
+                {
+                    "id": "C",
+                    "text": "Akbar"
+                },
+                {
+                    "id": "D",
+                    "text": "Shah Jahan"
+                }
+            ],
+            "correct": "A",
+            "category": "Indian History"
+        },
+        {
+            "id": 4,
+            "text": "The ancient Indian university of Nalanda was located in?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Modern-day Pakistan"
+                },
+                {
+                    "id": "B",
+                    "text": "Modern-day Bangladesh"
+                },
+                {
+                    "id": "C",
+                    "text": "Modern-day Bihar"
+                },
+                {
+                    "id": "D",
+                    "text": "Modern-day Tamil Nadu"
+                }
+            ],
+            "correct": "C",
+            "category": "Indian History"
+        },
+        {
+            "id": 5,
+            "text": "The Vijayanagara Empire was founded in the 14th century by?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Harihara and Bukka Raya"
+                },
+                {
+                    "id": "B",
+                    "text": "Krishnadeva Raya and Aliya Rama Raya"
+                },
+                {
+                    "id": "C",
+                    "text": "Akbar and Birbal"
+                },
+                {
+                    "id": "D",
+                    "text": "Shivaji and Sambhaji"
+                }
+            ],
+            "correct": "A",
+            "category": "Indian History"
+        },
+        {
+            "id": 6,
+            "text": "The Battle of Plassey was fought in?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "1756"
+                },
+                {
+                    "id": "B",
+                    "text": "1757"
+                },
+                {
+                    "id": "C",
+                    "text": "1758"
+                },
+                {
+                    "id": "D",
+                    "text": "1759"
+                }
+            ],
+            "correct": "B",
+            "category": "Indian History"
+        },
+        {
+            "id": 7,
+            "text": "The Gupta period is often referred to as the?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Golden Age of Indian History"
+                },
+                {
+                    "id": "B",
+                    "text": "Dark Age of Indian History"
+                },
+                {
+                    "id": "C",
+                    "text": "Medieval Period of Indian History"
+                },
+                {
+                    "id": "D",
+                    "text": "Ancient Period of Indian History"
+                }
+            ],
+            "correct": "A",
+            "category": "Indian History"
+        },
+        {
+            "id": 8,
+            "text": "The ancient Indian philosopher who wrote the Arthashastra was?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Kautilya"
+                },
+                {
+                    "id": "B",
+                    "text": "Chanakya"
+                },
+                {
+                    "id": "C",
+                    "text": "Vishnu Sharma"
+                },
+                {
+                    "id": "D",
+                    "text": "Nagarjuna"
+                }
+            ],
+            "correct": "A",
+            "category": "Indian History"
+        },
+        {
+            "id": 9,
+            "text": "The city of Delhi has been the capital of?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Only the Mughal Empire"
+                },
+                {
+                    "id": "B",
+                    "text": "Only the British Raj"
+                },
+                {
+                    "id": "C",
+                    "text": "Multiple empires"
+                },
+                {
+                    "id": "D",
+                    "text": "Only the Mauryan Empire"
+                }
+            ],
+            "correct": "C",
+            "category": "Indian History"
+        },
+        {
+            "id": 10,
+            "text": "The Indian independence movement leader who is known for the Non-Cooperation Movement was?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Mahatma Gandhi"
+                },
+                {
+                    "id": "B",
+                    "text": "Jawaharlal Nehru"
+                },
+                {
+                    "id": "C",
+                    "text": "Subhas Chandra Bose"
+                },
+                {
+                    "id": "D",
+                    "text": "Bhagat Singh"
+                }
+            ],
+            "correct": "A",
+            "category": "Indian History"
+        }
+    ]
+}

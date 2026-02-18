@@ -14,10 +14,12 @@
         "outDir": "./dist",
         "rootDir": ".",
         "baseUrl": ".",
-        "paths": {}
+        "paths": {},
+        "types": ["node"]
     },
     "include": [
-        "src/**/*.ts"
+        "src/**/*.ts",
+        "*.ts"
     ],
     "exclude": [
         "node_modules",
