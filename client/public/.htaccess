@@ -1,0 +1,45 @@
+# Hostinger/Apache Configuration
+# ================================
+# This file handles SPA routing and optional proxy fallback for WebRTC signaling.
+#
+# REQUIREMENTS:
+# - mod_rewrite must be enabled (standard on Hostinger)
+# - For proxy mode: mod_proxy and mod_proxy_http must be enabled
+#
+# TO USE PROXY MODE:
+# 1. Uncomment the proxy rules below
+# 2. Replace YOUR_GAME_SERVER_URL with your actual game server URL
+# 3. Set VITE_USE_PROXY=true in your environment
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /
+
+    # Proxy signaling to game server (uncomment if using proxy mode)
+    # Requires: mod_proxy, mod_proxy_http
+    # RewriteRule ^\.wrtc/(.*)$ http://YOUR_GAME_SERVER_URL:3000/.wrtc/$1 [P,L]
+
+    # SPA Fallback: if file/directory doesn't exist, serve index.html
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^ index.html [L]
+</IfModule>
+
+# Security Headers
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-Frame-Options "SAMEORIGIN"
+    Header set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
+
+# Caching for static assets
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType text/css "access plus 1 year"
+    ExpiresByType application/javascript "access plus 1 year"
+    ExpiresByType image/png "access plus 1 year"
+    ExpiresByType image/jpeg "access plus 1 year"
+    ExpiresByType image/gif "access plus 1 year"
+    ExpiresByType image/svg+xml "access plus 1 year"
+    ExpiresByType font/woff2 "access plus 1 year"
+</IfModule>
