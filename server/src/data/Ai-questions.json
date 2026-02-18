@@ -1,0 +1,1206 @@
+{
+    "topic": "Indian History",
+    "generatedAt": "2026-02-18T08:50:45.154Z",
+    "questions": [
+        {
+            "id": 1,
+            "text": "Who was the founder of the Vijayanagara Empire in 1336?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Madhava Raya"
+                },
+                {
+                    "id": "B",
+                    "text": "Harihara Raya"
+                },
+                {
+                    "id": "C",
+                    "text": "Bukka Raya"
+                },
+                {
+                    "id": "D",
+                    "text": "Kampana"
+                }
+            ],
+            "correct": "B",
+            "category": "Indian History"
+        },
+        {
+            "id": 2,
+            "text": "The Battle of Plassey took place on which date in 1757?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "August 10"
+                },
+                {
+                    "id": "B",
+                    "text": "June 20"
+                },
+                {
+                    "id": "C",
+                    "text": "June 23"
+                },
+                {
+                    "id": "D",
+                    "text": "July 15"
+                }
+            ],
+            "correct": "C",
+            "category": "Indian History"
+        },
+        {
+            "id": 3,
+            "text": "The Indus Valley Civilization city of Mohenjo-Daro was located in which modern-day country?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Afghanistan"
+                },
+                {
+                    "id": "B",
+                    "text": "Iran"
+                },
+                {
+                    "id": "C",
+                    "text": "Pakistan"
+                },
+                {
+                    "id": "D",
+                    "text": "India"
+                }
+            ],
+            "correct": "C",
+            "category": "Indian History"
+        },
+        {
+            "id": 4,
+            "text": "The Mughal emperor Akbar established the city of Fatehpur Sikri in which year?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "1569"
+                },
+                {
+                    "id": "B",
+                    "text": "1571"
+                },
+                {
+                    "id": "C",
+                    "text": "1575"
+                },
+                {
+                    "id": "D",
+                    "text": "1585"
+                }
+            ],
+            "correct": "A",
+            "category": "Indian History"
+        },
+        {
+            "id": 5,
+            "text": "Who was the leader of the Indian Rebellion of 1857 in Delhi?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Bahadur Shah Zafar"
+                },
+                {
+                    "id": "B",
+                    "text": "Tantia Tope"
+                },
+                {
+                    "id": "C",
+                    "text": "Rani Lakshmibai"
+                },
+                {
+                    "id": "D",
+                    "text": "Mangal Pandey"
+                }
+            ],
+            "correct": "A",
+            "category": "Indian History"
+        },
+        {
+            "id": 6,
+            "text": "The ancient Indian university of Nalanda was founded in which century?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "5th century"
+                },
+                {
+                    "id": "B",
+                    "text": "6th century"
+                },
+                {
+                    "id": "C",
+                    "text": "7th century"
+                },
+                {
+                    "id": "D",
+                    "text": "8th century"
+                }
+            ],
+            "correct": "A",
+            "category": "Indian History"
+        },
+        {
+            "id": 7,
+            "text": "The Treaty of Purandar was signed between the Mughal Empire and which other empire in 1665?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Sikh Empire"
+                },
+                {
+                    "id": "B",
+                    "text": "Maratha Empire"
+                },
+                {
+                    "id": "C",
+                    "text": "Rajput Empire"
+                },
+                {
+                    "id": "D",
+                    "text": "Bengal Sultanate"
+                }
+            ],
+            "correct": "B",
+            "category": "Indian History"
+        },
+        {
+            "id": 8,
+            "text": "Who was the first Indian to become a member of the British Parliament in 1892?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Dadabhai Naoroji"
+                },
+                {
+                    "id": "B",
+                    "text": "Rabindranath Tagore"
+                },
+                {
+                    "id": "C",
+                    "text": "Mahatma Gandhi"
+                },
+                {
+                    "id": "D",
+                    "text": "Jawaharlal Nehru"
+                }
+            ],
+            "correct": "A",
+            "category": "Indian History"
+        },
+        {
+            "id": 9,
+            "text": "The city of Calicut was an important center of trade during the reign of which dynasty in the 14th century?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Chola"
+                },
+                {
+                    "id": "B",
+                    "text": "Pandya"
+                },
+                {
+                    "id": "C",
+                    "text": "Vijayanagara"
+                },
+                {
+                    "id": "D",
+                    "text": "Zamorin"
+                }
+            ],
+            "correct": "D",
+            "category": "Indian History"
+        },
+        {
+            "id": 10,
+            "text": "Who led the Indian independence movement's Non-Cooperation Movement in 1920-1922?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Mahatma Gandhi"
+                },
+                {
+                    "id": "B",
+                    "text": "Sardar Patel"
+                },
+                {
+                    "id": "C",
+                    "text": "Jawaharlal Nehru"
+                },
+                {
+                    "id": "D",
+                    "text": "Subhas Chandra Bose"
+                }
+            ],
+            "correct": "A",
+            "category": "Indian History"
+        },
+        {
+            "id": 11,
+            "text": "The ancient Indian text of the Arthashastra was written by which author?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Panini"
+                },
+                {
+                    "id": "B",
+                    "text": "Chanakya"
+                },
+                {
+                    "id": "C",
+                    "text": "Aryabhata"
+                },
+                {
+                    "id": "D",
+                    "text": "Kautilya"
+                }
+            ],
+            "correct": "D",
+            "category": "Indian History"
+        },
+        {
+            "id": 12,
+            "text": "The Red Fort in Delhi was built by which Mughal emperor in 1648?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Akbar"
+                },
+                {
+                    "id": "B",
+                    "text": "Shah Jahan"
+                },
+                {
+                    "id": "C",
+                    "text": "Aurangzeb"
+                },
+                {
+                    "id": "D",
+                    "text": "Jahangir"
+                }
+            ],
+            "correct": "B",
+            "category": "Indian History"
+        },
+        {
+            "id": 13,
+            "text": "Who was the founder of the Satavahana dynasty in the 1st century BCE?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Gautamiputra"
+                },
+                {
+                    "id": "B",
+                    "text": "Simuka"
+                },
+                {
+                    "id": "C",
+                    "text": "Satakarni"
+                },
+                {
+                    "id": "D",
+                    "text": "Puloman"
+                }
+            ],
+            "correct": "B",
+            "category": "Indian History"
+        },
+        {
+            "id": 14,
+            "text": "The Indian National Congress was founded in which year and by whom?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "1885 by A.O. Hume"
+                },
+                {
+                    "id": "B",
+                    "text": "1890 by Lala Lajpat Rai"
+                },
+                {
+                    "id": "C",
+                    "text": "1910 by Jawaharlal Nehru"
+                },
+                {
+                    "id": "D",
+                    "text": "1900 by Mahatma Gandhi"
+                }
+            ],
+            "correct": "A",
+            "category": "Indian History"
+        },
+        {
+            "id": 15,
+            "text": "Who was the ruler of the kingdom of Mysore during the Anglo-Mysore Wars?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Chamaraja Wadiyar IX"
+                },
+                {
+                    "id": "B",
+                    "text": "Krishna Raja Wadiyar III"
+                },
+                {
+                    "id": "C",
+                    "text": "Hyder Ali"
+                },
+                {
+                    "id": "D",
+                    "text": "Tipu Sultan"
+                }
+            ],
+            "correct": "D",
+            "category": "Indian History"
+        },
+        {
+            "id": 16,
+            "text": "The Kalinga War was fought between which ancient Indian kingdoms in the 3rd century BCE?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Mauryan and Kalinga"
+                },
+                {
+                    "id": "B",
+                    "text": "Chera and Pandya"
+                },
+                {
+                    "id": "C",
+                    "text": "Gupta and Kalinga"
+                },
+                {
+                    "id": "D",
+                    "text": "Pandya and Chola"
+                }
+            ],
+            "correct": "A",
+            "category": "Indian History"
+        },
+        {
+            "id": 17,
+            "text": "Who was the Indian emperor who converted to Buddhism after the Kalinga War?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Kanishka"
+                },
+                {
+                    "id": "B",
+                    "text": "Ashoka the Great"
+                },
+                {
+                    "id": "C",
+                    "text": "Samudragupta"
+                },
+                {
+                    "id": "D",
+                    "text": "Harsha"
+                }
+            ],
+            "correct": "B",
+            "category": "Indian History"
+        },
+        {
+            "id": 18,
+            "text": "The city of Varanasi is also known as which ancient city?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Mathura"
+                },
+                {
+                    "id": "B",
+                    "text": "Ayodhya"
+                },
+                {
+                    "id": "C",
+                    "text": "Prayaga"
+                },
+                {
+                    "id": "D",
+                    "text": "Kashi"
+                }
+            ],
+            "correct": "D",
+            "category": "Indian History"
+        },
+        {
+            "id": 19,
+            "text": "Who was the Mughal emperor who built the Taj Mahal in Agra?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Shah Jahan"
+                },
+                {
+                    "id": "B",
+                    "text": "Aurangzeb"
+                },
+                {
+                    "id": "C",
+                    "text": "Jahangir"
+                },
+                {
+                    "id": "D",
+                    "text": "Akbar"
+                }
+            ],
+            "correct": "A",
+            "category": "Indian History"
+        },
+        {
+            "id": 20,
+            "text": "The Battle of Buxar was fought between the British East India Company and which Indian kingdoms in 1764?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Bengal, Awadh, and Mughal"
+                },
+                {
+                    "id": "B",
+                    "text": "Bengal, Awadh, and Maratha"
+                },
+                {
+                    "id": "C",
+                    "text": "Bengal, Mughal, and Sikh"
+                },
+                {
+                    "id": "D",
+                    "text": "Awadh, Mughal, and Rajput"
+                }
+            ],
+            "correct": "A",
+            "category": "Indian History"
+        },
+        {
+            "id": 21,
+            "text": "Who was the leader of the Maratha Confederacy during the Third Anglo-Maratha War?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Maharaja Daulat Rao Scindia"
+                },
+                {
+                    "id": "B",
+                    "text": "Maharaja Yashwantrao Holkar"
+                },
+                {
+                    "id": "C",
+                    "text": "Peshwa Baji Rao II"
+                },
+                {
+                    "id": "D",
+                    "text": "Maharaja Raghoji II Bhonsle"
+                }
+            ],
+            "correct": "B",
+            "category": "Indian History"
+        },
+        {
+            "id": 22,
+            "text": "The ancient Indian Vedic period is estimated to have lasted from which date to which date?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "800 BCE to 200 CE"
+                },
+                {
+                    "id": "B",
+                    "text": "1000 BCE to 600 CE"
+                },
+                {
+                    "id": "C",
+                    "text": "1200 BCE to 300 BCE"
+                },
+                {
+                    "id": "D",
+                    "text": "1500 BCE to 500 BCE"
+                }
+            ],
+            "correct": "D",
+            "category": "Indian History"
+        },
+        {
+            "id": 23,
+            "text": "The Bhakti movement in medieval India emphasized which aspect of Hinduism?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Rituals and sacrifices"
+                },
+                {
+                    "id": "B",
+                    "text": "Devotional love and personal faith"
+                },
+                {
+                    "id": "C",
+                    "text": "Social hierarchy and caste"
+                },
+                {
+                    "id": "D",
+                    "text": "Philosophical debates and scriptures"
+                }
+            ],
+            "correct": "B",
+            "category": "Indian History"
+        },
+        {
+            "id": 24,
+            "text": "The Delhi Sultanate was founded by which dynasty in 1206?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Tughlaq"
+                },
+                {
+                    "id": "B",
+                    "text": "Slave"
+                },
+                {
+                    "id": "C",
+                    "text": "Ghurid"
+                },
+                {
+                    "id": "D",
+                    "text": "Ghaznavid"
+                }
+            ],
+            "correct": "B",
+            "category": "Indian History"
+        },
+        {
+            "id": 25,
+            "text": "The Mughal emperor Akbar introduced which new system of taxation in the 16th century?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Ryotwari system"
+                },
+                {
+                    "id": "B",
+                    "text": "Zamindari system"
+                },
+                {
+                    "id": "C",
+                    "text": "Jagirdari system"
+                },
+                {
+                    "id": "D",
+                    "text": "Mansabdari system"
+                }
+            ],
+            "correct": "D",
+            "category": "Indian History"
+        },
+        {
+            "id": 26,
+            "text": "The ancient Indian city of Taxila was an important center of learning and which other activity?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Trade and commerce"
+                },
+                {
+                    "id": "B",
+                    "text": " Politics and governance"
+                },
+                {
+                    "id": "C",
+                    "text": "Art and architecture"
+                },
+                {
+                    "id": "D",
+                    "text": "Buddhist pilgrimage"
+                }
+            ],
+            "correct": "A",
+            "category": "Indian History"
+        },
+        {
+            "id": 27,
+            "text": "The Indian independence activist Bhagat Singh was hanged by the British on which date in 1931?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "March 23"
+                },
+                {
+                    "id": "B",
+                    "text": "April 13"
+                },
+                {
+                    "id": "C",
+                    "text": "March 24"
+                },
+                {
+                    "id": "D",
+                    "text": "May 15"
+                }
+            ],
+            "correct": "A",
+            "category": "Indian History"
+        },
+        {
+            "id": 28,
+            "text": "The Chola dynasty ruled over which region of southern India from the 3rd century BCE to the 13th century CE?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Tamil Nadu and Kerala"
+                },
+                {
+                    "id": "B",
+                    "text": "Karnataka and Andhra Pradesh"
+                },
+                {
+                    "id": "C",
+                    "text": "Tamil Nadu and Karnataka"
+                },
+                {
+                    "id": "D",
+                    "text": "Kerala and Andhra Pradesh"
+                }
+            ],
+            "correct": "A",
+            "category": "Indian History"
+        },
+        {
+            "id": 29,
+            "text": "The Quit India Movement was launched by Mahatma Gandhi on which date in 1942?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "August 8"
+                },
+                {
+                    "id": "B",
+                    "text": "October 2"
+                },
+                {
+                    "id": "C",
+                    "text": "August 9"
+                },
+                {
+                    "id": "D",
+                    "text": "September 10"
+                }
+            ],
+            "correct": "C",
+            "category": "Indian History"
+        },
+        {
+            "id": 30,
+            "text": "Who was the last Mughal emperor of India, deposed by the British in 1857?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Bahadur Shah II"
+                },
+                {
+                    "id": "B",
+                    "text": "Akbar II"
+                },
+                {
+                    "id": "C",
+                    "text": "Shah Alam II"
+                },
+                {
+                    "id": "D",
+                    "text": "Shah Jahan III"
+                }
+            ],
+            "correct": "A",
+            "category": "Indian History"
+        },
+        {
+            "id": 31,
+            "text": "Who was the founder of the Vikramashila University in ancient India?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Vasubandhu"
+                },
+                {
+                    "id": "B",
+                    "text": "Nagarjuna"
+                },
+                {
+                    "id": "C",
+                    "text": "Dharmapala"
+                },
+                {
+                    "id": "D",
+                    "text": "Aryabhata"
+                }
+            ],
+            "correct": "C",
+            "category": "Indian History"
+        },
+        {
+            "id": 32,
+            "text": "The Indian Rebellion of 1857 began on which date?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "June 10, 1857"
+                },
+                {
+                    "id": "B",
+                    "text": "May 10, 1857"
+                },
+                {
+                    "id": "C",
+                    "text": "August 10, 1857"
+                },
+                {
+                    "id": "D",
+                    "text": "July 10, 1857"
+                }
+            ],
+            "correct": "B",
+            "category": "Indian History"
+        },
+        {
+            "id": 33,
+            "text": "Which ancient Indian dynasty built the Sanchi Stupa?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Kushan Dynasty"
+                },
+                {
+                    "id": "B",
+                    "text": "Sunga Dynasty"
+                },
+                {
+                    "id": "C",
+                    "text": "Gupta Dynasty"
+                },
+                {
+                    "id": "D",
+                    "text": "Mauryan Dynasty"
+                }
+            ],
+            "correct": "D",
+            "category": "Indian History"
+        },
+        {
+            "id": 34,
+            "text": "Who was the Indian independence activist who founded the Indian National Army?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Sardar Vallabhbhai Patel"
+                },
+                {
+                    "id": "B",
+                    "text": "Chandra Shekhar Azad"
+                },
+                {
+                    "id": "C",
+                    "text": "Bhagat Singh"
+                },
+                {
+                    "id": "D",
+                    "text": "Subhas Chandra Bose"
+                }
+            ],
+            "correct": "D",
+            "category": "Indian History"
+        },
+        {
+            "id": 35,
+            "text": "The ancient Indian city of Lothal was a major center of which industry?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Textile industry"
+                },
+                {
+                    "id": "B",
+                    "text": "Shipbuilding industry"
+                },
+                {
+                    "id": "C",
+                    "text": "Cotton industry"
+                },
+                {
+                    "id": "D",
+                    "text": "Indigo industry"
+                }
+            ],
+            "correct": "B",
+            "category": "Indian History"
+        },
+        {
+            "id": 36,
+            "text": "Who was the Mughal emperor who built the Red Fort in Delhi?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Shah Jahan"
+                },
+                {
+                    "id": "B",
+                    "text": "Jahangir"
+                },
+                {
+                    "id": "C",
+                    "text": "Aurangzeb"
+                },
+                {
+                    "id": "D",
+                    "text": "Akbar"
+                }
+            ],
+            "correct": "A",
+            "category": "Indian History"
+        },
+        {
+            "id": 37,
+            "text": "The Quit India Movement was launched by Mahatma Gandhi on which date?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "September 8, 1942"
+                },
+                {
+                    "id": "B",
+                    "text": "November 8, 1942"
+                },
+                {
+                    "id": "C",
+                    "text": "August 8, 1942"
+                },
+                {
+                    "id": "D",
+                    "text": "October 8, 1942"
+                }
+            ],
+            "correct": "C",
+            "category": "Indian History"
+        },
+        {
+            "id": 38,
+            "text": "Who was the Chola king who built the Brihadeeswarar Temple in Thanjavur?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Rajaraja Chola"
+                },
+                {
+                    "id": "B",
+                    "text": "Rajendra Chola"
+                },
+                {
+                    "id": "C",
+                    "text": "Kulothunga Chola"
+                },
+                {
+                    "id": "D",
+                    "text": "Vijayalaya Chola"
+                }
+            ],
+            "correct": "A",
+            "category": "Indian History"
+        },
+        {
+            "id": 39,
+            "text": "The Indian National Congress was founded in the year?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "1885"
+                },
+                {
+                    "id": "B",
+                    "text": "1895"
+                },
+                {
+                    "id": "C",
+                    "text": "1875"
+                },
+                {
+                    "id": "D",
+                    "text": "1905"
+                }
+            ],
+            "correct": "A",
+            "category": "Indian History"
+        },
+        {
+            "id": 40,
+            "text": "Who was the Maratha king who fought the Battle of Panipat in 1761?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Shivaji"
+                },
+                {
+                    "id": "B",
+                    "text": "Rajaram"
+                },
+                {
+                    "id": "C",
+                    "text": "Sambhaji"
+                },
+                {
+                    "id": "D",
+                    "text": "Sadashivrao Bhau"
+                }
+            ],
+            "correct": "D",
+            "category": "Indian History"
+        },
+        {
+            "id": 41,
+            "text": "The ancient Indian university of Nalanda was destroyed by which Turkish invader?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Iltutmish"
+                },
+                {
+                    "id": "B",
+                    "text": "Qutb-ud-din Aibak"
+                },
+                {
+                    "id": "C",
+                    "text": "Mohammed bin Bakhtiyar Khilji"
+                },
+                {
+                    "id": "D",
+                    "text": "Mahmud of Ghazni"
+                }
+            ],
+            "correct": "C",
+            "category": "Indian History"
+        },
+        {
+            "id": 42,
+            "text": "Who was the Indian freedom fighter who wrote the book 'Gita Rahasya'?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Bhagat Singh"
+                },
+                {
+                    "id": "B",
+                    "text": "Bal Gangadhar Tilak"
+                },
+                {
+                    "id": "C",
+                    "text": "Chandra Shekhar Azad"
+                },
+                {
+                    "id": "D",
+                    "text": "Lala Lajpat Rai"
+                }
+            ],
+            "correct": "B",
+            "category": "Indian History"
+        },
+        {
+            "id": 43,
+            "text": "The Battle of Plassey was fought on which date?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "June 24, 1757"
+                },
+                {
+                    "id": "B",
+                    "text": "June 26, 1757"
+                },
+                {
+                    "id": "C",
+                    "text": "June 25, 1757"
+                },
+                {
+                    "id": "D",
+                    "text": "June 23, 1757"
+                }
+            ],
+            "correct": "A",
+            "category": "Indian History"
+        },
+        {
+            "id": 44,
+            "text": "Who was the Vijayanagara king who built the Virupaksha Temple in Hampi?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Harihara"
+                },
+                {
+                    "id": "B",
+                    "text": "Bukka Raya"
+                },
+                {
+                    "id": "C",
+                    "text": "Deva Raya"
+                },
+                {
+                    "id": "D",
+                    "text": "Krishnadeva Raya"
+                }
+            ],
+            "correct": "D",
+            "category": "Indian History"
+        },
+        {
+            "id": 45,
+            "text": "The Indian independence movement's Non-Cooperation Movement was launched in which year?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "1923"
+                },
+                {
+                    "id": "B",
+                    "text": "1922"
+                },
+                {
+                    "id": "C",
+                    "text": "1921"
+                },
+                {
+                    "id": "D",
+                    "text": "1920"
+                }
+            ],
+            "correct": "D",
+            "category": "Indian History"
+        },
+        {
+            "id": 46,
+            "text": "Who was the Mughal emperor who built the Jama Masjid in Delhi?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Jahangir"
+                },
+                {
+                    "id": "B",
+                    "text": "Akbar"
+                },
+                {
+                    "id": "C",
+                    "text": "Aurangzeb"
+                },
+                {
+                    "id": "D",
+                    "text": "Shah Jahan"
+                }
+            ],
+            "correct": "D",
+            "category": "Indian History"
+        },
+        {
+            "id": 47,
+            "text": "The ancient Indian city of Mohenjo-Daro was discovered by which archaeologist?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "John Marshall"
+                },
+                {
+                    "id": "B",
+                    "text": "Alexander Cunningham"
+                },
+                {
+                    "id": "C",
+                    "text": "Rakhaldas Bandyopadhyay"
+                },
+                {
+                    "id": "D",
+                    "text": "Daya Ram Sahni"
+                }
+            ],
+            "correct": "D",
+            "category": "Indian History"
+        },
+        {
+            "id": 48,
+            "text": "Who was the founder of the Satavahana dynasty?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Gautamiputra Satakarni"
+                },
+                {
+                    "id": "B",
+                    "text": "Kanha"
+                },
+                {
+                    "id": "C",
+                    "text": "Satakarni"
+                },
+                {
+                    "id": "D",
+                    "text": "Simuka"
+                }
+            ],
+            "correct": "D",
+            "category": "Indian History"
+        },
+        {
+            "id": 49,
+            "text": "The Partition of India was carried out on which date?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "September 15, 1947"
+                },
+                {
+                    "id": "B",
+                    "text": "September 14, 1947"
+                },
+                {
+                    "id": "C",
+                    "text": "August 15, 1947"
+                },
+                {
+                    "id": "D",
+                    "text": "August 14, 1947"
+                }
+            ],
+            "correct": "C",
+            "category": "Indian History"
+        },
+        {
+            "id": 50,
+            "text": "Who was the Indian nationalist who wrote the book 'The Discovery of India'?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Maulana Abul Kalam Azad"
+                },
+                {
+                    "id": "B",
+                    "text": "Sardar Vallabhbhai Patel"
+                },
+                {
+                    "id": "C",
+                    "text": "Subhas Chandra Bose"
+                },
+                {
+                    "id": "D",
+                    "text": "Jawaharlal Nehru"
+                }
+            ],
+            "correct": "D",
+            "category": "Indian History"
+        }
+    ]
+}
