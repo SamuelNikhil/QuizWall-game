@@ -88,9 +88,9 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
             broadcastLobbyUpdate(roomManager, roomId);
         });
 
-        channel.on(EVENTS.START_GAME, () => {
+        channel.on(EVENTS.START_GAME, async () => {
             const { roomId, clientId } = channel.userData || {};
-            console.log(`[Game] START_GAME from channel ${channel.id}, clientId: ${clientId?.substring(0, 8)}..., room: ${roomId}`);
+            console.log(`[Game] START_GAME received from channel ${channel.id}, roomId: ${roomId}, clientId: ${clientId?.substring(0, 8)}...`);
             if (!roomId || !clientId) {
                 console.log(`[Game] Start failed: missing roomId/clientId in userData`);
                 return;
@@ -102,9 +102,27 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
                 return;
             }
 
-            console.log(`[Game] Room ${roomId} started!`);
+            console.log(`[Game] Room ${roomId} game started flag set!`);
             const room = roomManager.getRoom(roomId);
-            if (!room) return;
+            if (!room) {
+                console.log(`[Game] Room ${roomId} not found after startGame`);
+                return;
+            }
+
+            // Initialize quiz engine with questions (Gemini or JSON fallback)
+            // This is async to allow Gemini API calls if needed
+            console.log(`[Game] Initializing quiz engine for room ${roomId}...`);
+            try {
+                await room.quizEngine.initialize();
+                console.log(`[Game] Quiz engine initialized with ${room.quizEngine.getTotalQuestions()} questions for room ${roomId}`);
+                
+                // Log the first question for debugging
+                const firstQ = room.quizEngine.getCurrentQuestion();
+                console.log(`[Game] First question text: ${firstQ?.text?.substring(0, 50)}...`);
+            } catch (error) {
+                console.error(`[Game] Failed to initialize quiz engine:`, error);
+                // Continue anyway - fallback questions should still work
+            }
 
             // Set up quiz engine callbacks
             room.quizEngine.setCallbacks(
@@ -135,10 +153,16 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
                 }
             );
 
+            // Set player count for timer logic (1 player = 30s, 2-3 players = 15s)
+            const playerCount = room.controllers.length;
+            room.quizEngine.setPlayerCount(playerCount);
+            console.log(`[Game] Starting with ${playerCount} player(s), timer set to ${playerCount === 1 ? '30s' : '15s'}`);
+
             // Start timer and send first question
             room.quizEngine.startTimer();
             const question = room.quizEngine.getCurrentQuestion();
 
+            console.log(`[Game] Sending GAME_STARTED with question: ${question?.text?.substring(0, 30)}...`);
             const gameStartPayload = { question, timeLeft: room.quizEngine.getTimeLeft() };
             room.screenChannel.emit(EVENTS.GAME_STARTED, gameStartPayload);
             for (const c of room.controllers) {
@@ -192,10 +216,13 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
                     c.channel.emit(EVENTS.SCORE_UPDATE, scorePayload);
                 }
 
-                // If correct, advance to next question
+                // If correct, advance to next question and reset timer
                 if (result.correct) {
-                    setTimeout(() => {
-                        const nextQ = room.quizEngine.nextQuestion();
+                    // Reset timer for next question
+                    room.quizEngine.resetTimer();
+                    
+                    setTimeout(async () => {
+                        const nextQ = await room.quizEngine.nextQuestion();
                         if (nextQ) {
                             room.screenChannel.emit(EVENTS.QUESTION, nextQ);
                             for (const c of room.controllers) {

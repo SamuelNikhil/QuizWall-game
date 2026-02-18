@@ -220,15 +220,18 @@ body {
 /* Orbs */
 .orb {
     position: absolute;
-    width: 110px;
-    height: 110px;
+    width: 130px;
+    height: 130px;
     border-radius: 42%;
     /* Squircle effect */
     display: flex;
     align-items: center;
     justify-content: center;
-    font-weight: 800;
-    font-size: 1.35rem;
+    font-weight: 700;
+    font-size: 0.81rem;
+    text-align: center;
+    padding: 10px;
+    line-height: 1.2;
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
     transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     cursor: pointer;
