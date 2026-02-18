@@ -1,50 +1,50 @@
 {
     "topic": "Indian History",
-    "generatedAt": "2026-02-18T09:49:31.630Z",
+    "generatedAt": "2026-02-18T10:14:16.555Z",
     "questions": [
         {
             "id": 1,
-            "text": "Who was the founder of the Vikramshila University, which was established in the 8th century AD?",
+            "text": "The Indus Valley Civilization is believed to have flourished during which time period?",
             "options": [
                 {
                     "id": "A",
-                    "text": "Gopala"
+                    "text": "3300 BCE - 1300 BCE"
                 },
                 {
                     "id": "B",
-                    "text": "Rajya Vardhana"
+                    "text": "500 BCE - 1000 CE"
                 },
                 {
                     "id": "C",
-                    "text": "Harshavardhana"
+                    "text": "1000 BCE - 500 CE"
                 },
                 {
                     "id": "D",
-                    "text": "Dharmapala"
+                    "text": "1500 BCE - 500 BCE"
                 }
             ],
-            "correct": "D",
+            "correct": "A",
             "category": "Indian History"
         },
         {
             "id": 2,
-            "text": "The Treaty of Purandar was signed between the Mughal Empire and which other empire in 1665?",
+            "text": "Who was the founder of the Mauryan Empire?",
             "options": [
                 {
                     "id": "A",
-                    "text": "Ahom Kingdom"
+                    "text": "Bimbisara"
                 },
                 {
                     "id": "B",
-                    "text": "Bengal Sultanate"
+                    "text": "Samudragupta"
                 },
                 {
                     "id": "C",
-                    "text": "Sikh Empire"
+                    "text": "Ashoka the Great"
                 },
                 {
                     "id": "D",
-                    "text": "Maratha Empire"
+                    "text": "Chandragupta Maurya"
                 }
             ],
             "correct": "D",
@@ -52,23 +52,23 @@
         },
         {
             "id": 3,
-            "text": "The ancient Indian city of Taxila was located in which modern-day country?",
+            "text": "The ancient Indian university of Nalanda was established during the reign of which emperor?",
             "options": [
                 {
                     "id": "A",
-                    "text": "India"
+                    "text": "Kanishka"
                 },
                 {
                     "id": "B",
-                    "text": "Pakistan"
+                    "text": "Gupta Emperor Kumaragupta I"
                 },
                 {
                     "id": "C",
-                    "text": "Nepal"
+                    "text": "Ashoka the Great"
                 },
                 {
                     "id": "D",
-                    "text": "Bangladesh"
+                    "text": "Harshavardhana"
                 }
             ],
             "correct": "B",
@@ -76,119 +76,119 @@
         },
         {
             "id": 4,
-            "text": "The Indian Rebellion of 1857 began with the sepoy mutiny in which city?",
+            "text": "The Battle of Plassey took place on which date?",
             "options": [
                 {
                     "id": "A",
-                    "text": "Kanpur"
+                    "text": "June 24, 1757"
                 },
                 {
                     "id": "B",
-                    "text": "Calcutta"
+                    "text": "June 26, 1757"
                 },
                 {
                     "id": "C",
-                    "text": "Meerut"
+                    "text": "June 25, 1757"
                 },
                 {
                     "id": "D",
-                    "text": "Delhi"
+                    "text": "June 23, 1757"
+                }
+            ],
+            "correct": "A",
+            "category": "Indian History"
+        },
+        {
+            "id": 5,
+            "text": "Who was the leader of the Indian Rebellion of 1857 in Delhi?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Bahadur Shah II"
+                },
+                {
+                    "id": "B",
+                    "text": "Mangal Pandey"
+                },
+                {
+                    "id": "C",
+                    "text": "Tantia Tope"
+                },
+                {
+                    "id": "D",
+                    "text": "Rani Lakshmibai"
+                }
+            ],
+            "correct": "A",
+            "category": "Indian History"
+        },
+        {
+            "id": 6,
+            "text": "The Indian National Congress was founded in which year?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "1884"
+                },
+                {
+                    "id": "B",
+                    "text": "1887"
+                },
+                {
+                    "id": "C",
+                    "text": "1885"
+                },
+                {
+                    "id": "D",
+                    "text": "1886"
                 }
             ],
             "correct": "C",
             "category": "Indian History"
         },
         {
-            "id": 5,
-            "text": "The Vijayanagara Empire was founded by which brothers in 1336?",
-            "options": [
-                {
-                    "id": "A",
-                    "text": "Aliya Rama Raya and Tirumala Raya"
-                },
-                {
-                    "id": "B",
-                    "text": "Krishnadeva Raya and Achyuta Raya"
-                },
-                {
-                    "id": "C",
-                    "text": "Vira Harihara Raya and Vira Bukka Raya"
-                },
-                {
-                    "id": "D",
-                    "text": "Harihara and Bukka Raya"
-                }
-            ],
-            "correct": "D",
-            "category": "Indian History"
-        },
-        {
-            "id": 6,
-            "text": "The ancient Indian text 'Arthashastra' was written by which author?",
-            "options": [
-                {
-                    "id": "A",
-                    "text": "Vishnugupta"
-                },
-                {
-                    "id": "B",
-                    "text": "Chanakya"
-                },
-                {
-                    "id": "C",
-                    "text": "Kamandaka"
-                },
-                {
-                    "id": "D",
-                    "text": "Kautilya"
-                }
-            ],
-            "correct": "D",
-            "category": "Indian History"
-        },
-        {
             "id": 7,
-            "text": "The city of Hampi was the capital of which ancient Indian empire?",
+            "text": "The Quit India Movement was launched by Mahatma Gandhi on which date?",
             "options": [
                 {
                     "id": "A",
-                    "text": "Chola Empire"
+                    "text": "August 9, 1942"
                 },
                 {
                     "id": "B",
-                    "text": "Pandya Empire"
+                    "text": "August 8, 1942"
                 },
                 {
                     "id": "C",
-                    "text": "Hoysala Empire"
+                    "text": "August 7, 1942"
                 },
                 {
                     "id": "D",
-                    "text": "Vijayanagara Empire"
+                    "text": "August 10, 1942"
                 }
             ],
-            "correct": "D",
+            "correct": "B",
             "category": "Indian History"
         },
         {
             "id": 8,
-            "text": "The Battle of Buxar was fought between the British East India Company and which Indian ruler in 1764?",
+            "text": "Who was the first President of India?",
             "options": [
                 {
                     "id": "A",
-                    "text": "Mir Qasim"
+                    "text": "Dr. Rajendra Prasad"
                 },
                 {
                     "id": "B",
-                    "text": "Hyder Ali"
+                    "text": "Dr. Sarvepalli Radhakrishnan"
                 },
                 {
                     "id": "C",
-                    "text": "Shah Alam II"
+                    "text": "C. Rajagopalachari"
                 },
                 {
                     "id": "D",
-                    "text": "Nawab of Awadh"
+                    "text": "Jawaharlal Nehru"
                 }
             ],
             "correct": "A",
@@ -196,127 +196,487 @@
         },
         {
             "id": 9,
-            "text": "The ancient Indian university of Nalanda was established in which century?",
+            "text": "The Mughal Empire was founded by which ruler in 1526?",
             "options": [
                 {
                     "id": "A",
-                    "text": "8th century AD"
+                    "text": "Babur"
                 },
                 {
                     "id": "B",
-                    "text": "5th century AD"
+                    "text": "Humayun"
                 },
                 {
                     "id": "C",
-                    "text": "7th century AD"
+                    "text": "Akbar"
                 },
                 {
                     "id": "D",
-                    "text": "6th century AD"
+                    "text": "Shah Jahan"
+                }
+            ],
+            "correct": "A",
+            "category": "Indian History"
+        },
+        {
+            "id": 10,
+            "text": "The Maratha Empire was founded by which ruler in 1674?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Shivaji"
+                },
+                {
+                    "id": "B",
+                    "text": "Tarabai"
+                },
+                {
+                    "id": "C",
+                    "text": "Sambhaji"
+                },
+                {
+                    "id": "D",
+                    "text": "Rajaram"
+                }
+            ],
+            "correct": "A",
+            "category": "Indian History"
+        },
+        {
+            "id": 11,
+            "text": "The Vijayanagara Empire was founded in which year?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "1360"
+                },
+                {
+                    "id": "B",
+                    "text": "1300"
+                },
+                {
+                    "id": "C",
+                    "text": "1350"
+                },
+                {
+                    "id": "D",
+                    "text": "1336"
+                }
+            ],
+            "correct": "D",
+            "category": "Indian History"
+        },
+        {
+            "id": 12,
+            "text": "Who was the ruler of the Sikh Empire?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Ranjit Singh"
+                },
+                {
+                    "id": "B",
+                    "text": "Guru Gobind Singh"
+                },
+                {
+                    "id": "C",
+                    "text": "Maharaja Duleep Singh"
+                },
+                {
+                    "id": "D",
+                    "text": "Guru Nanak"
+                }
+            ],
+            "correct": "A",
+            "category": "Indian History"
+        },
+        {
+            "id": 13,
+            "text": "The Chola Empire was founded by which ruler in the 3rd century BCE?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Chandra Gupta Maurya"
+                },
+                {
+                    "id": "B",
+                    "text": "Rajendra Chola"
+                },
+                {
+                    "id": "C",
+                    "text": "Rajaraja Chola"
+                },
+                {
+                    "id": "D",
+                    "text": "Karikala Chola"
+                }
+            ],
+            "correct": "D",
+            "category": "Indian History"
+        },
+        {
+            "id": 14,
+            "text": "The Kakatiya dynasty ruled which region of India?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Andhra Pradesh"
+                },
+                {
+                    "id": "B",
+                    "text": "Telangana"
+                },
+                {
+                    "id": "C",
+                    "text": "Karnataka"
+                },
+                {
+                    "id": "D",
+                    "text": "Tamil Nadu"
+                }
+            ],
+            "correct": "A",
+            "category": "Indian History"
+        },
+        {
+            "id": 15,
+            "text": "Who was the founder of the Satavahana dynasty?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Satakarni"
+                },
+                {
+                    "id": "B",
+                    "text": "Pulomavi"
+                },
+                {
+                    "id": "C",
+                    "text": "Kanha"
+                },
+                {
+                    "id": "D",
+                    "text": "Simuka"
+                }
+            ],
+            "correct": "D",
+            "category": "Indian History"
+        },
+        {
+            "id": 16,
+            "text": "The Pallava dynasty ruled which region of India from the 3rd to the 9th century CE?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Karnataka"
+                },
+                {
+                    "id": "B",
+                    "text": "Kerala"
+                },
+                {
+                    "id": "C",
+                    "text": "Tamil Nadu"
+                },
+                {
+                    "id": "D",
+                    "text": "Andhra Pradesh"
+                }
+            ],
+            "correct": "C",
+            "category": "Indian History"
+        },
+        {
+            "id": 17,
+            "text": "The Hoysala Empire was founded in which year?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "1200"
+                },
+                {
+                    "id": "B",
+                    "text": "1100"
+                },
+                {
+                    "id": "C",
+                    "text": "1026"
+                },
+                {
+                    "id": "D",
+                    "text": "1000"
+                }
+            ],
+            "correct": "C",
+            "category": "Indian History"
+        },
+        {
+            "id": 18,
+            "text": "Who was the founder of the Ahom kingdom?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Suhungmung"
+                },
+                {
+                    "id": "B",
+                    "text": "Sukapha"
+                },
+                {
+                    "id": "C",
+                    "text": "Rudra Singh"
+                },
+                {
+                    "id": "D",
+                    "text": "Pratap Singh"
                 }
             ],
             "correct": "B",
             "category": "Indian History"
         },
         {
-            "id": 10,
-            "text": "The Mysore Wars were a series of conflicts between the Kingdom of Mysore and which other power?",
+            "id": 19,
+            "text": "The kingdom of Manipur was founded in which year?",
             "options": [
                 {
                     "id": "A",
-                    "text": "Nizam of Hyderabad"
+                    "text": "33 CE"
                 },
                 {
                     "id": "B",
-                    "text": "Maratha Empire"
+                    "text": "1228 CE"
                 },
                 {
                     "id": "C",
-                    "text": "French East India Company"
+                    "text": "1339 CE"
                 },
                 {
                     "id": "D",
-                    "text": "British East India Company"
+                    "text": "1524 CE"
+                }
+            ],
+            "correct": "C",
+            "category": "Indian History"
+        },
+        {
+            "id": 20,
+            "text": "Who was the last ruler of the Wodeyar dynasty of Mysore?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Krishnaraja Wodeyar IV"
+                },
+                {
+                    "id": "B",
+                    "text": "Nalvadi Krishnaraja Wodeyar"
+                },
+                {
+                    "id": "C",
+                    "text": "Jayachamarajendra Wodeyar"
+                },
+                {
+                    "id": "D",
+                    "text": "Chamarajendra Wodeyar X"
+                }
+            ],
+            "correct": "C",
+            "category": "Indian History"
+        },
+        {
+            "id": 21,
+            "text": "The Jallianwala Bagh massacre took place on which date?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "April 12, 1919"
+                },
+                {
+                    "id": "B",
+                    "text": "April 13, 1919"
+                },
+                {
+                    "id": "C",
+                    "text": "April 14, 1919"
+                },
+                {
+                    "id": "D",
+                    "text": "April 15, 1919"
+                }
+            ],
+            "correct": "B",
+            "category": "Indian History"
+        },
+        {
+            "id": 22,
+            "text": "Who was the founder of the Theosophical Society in India?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Annie Besant"
+                },
+                {
+                    "id": "B",
+                    "text": "Charles Webster Leadbeater"
+                },
+                {
+                    "id": "C",
+                    "text": "Henry Steel Olcott"
+                },
+                {
+                    "id": "D",
+                    "text": "Helena Blavatsky"
                 }
             ],
             "correct": "D",
             "category": "Indian History"
         },
         {
-            "id": 11,
-            "text": "The Indian National Congress was founded in which year?",
+            "id": 23,
+            "text": "The Indian independence movement's Non-Cooperation Movement was launched in which year?",
             "options": [
                 {
                     "id": "A",
-                    "text": "1885"
+                    "text": "1919"
                 },
                 {
                     "id": "B",
-                    "text": "1884"
-                },
-                {
-                    "id": "C",
-                    "text": "1887"
-                },
-                {
-                    "id": "D",
-                    "text": "1886"
-                }
-            ],
-            "correct": "A",
-            "category": "Indian History"
-        },
-        {
-            "id": 12,
-            "text": "The Jallianwala Bagh massacre occurred in which city in 1919?",
-            "options": [
-                {
-                    "id": "A",
-                    "text": "Lahore"
-                },
-                {
-                    "id": "B",
-                    "text": "Delhi"
-                },
-                {
-                    "id": "C",
-                    "text": "Chandigarh"
-                },
-                {
-                    "id": "D",
-                    "text": "Amritsar"
-                }
-            ],
-            "correct": "D",
-            "category": "Indian History"
-        },
-        {
-            "id": 13,
-            "text": "The Non-Cooperation Movement was launched by Mahatma Gandhi in which year?",
-            "options": [
-                {
-                    "id": "A",
                     "text": "1920"
                 },
                 {
-                    "id": "B",
+                    "id": "C",
                     "text": "1921"
                 },
                 {
-                    "id": "C",
+                    "id": "D",
                     "text": "1922"
+                }
+            ],
+            "correct": "B",
+            "category": "Indian History"
+        },
+        {
+            "id": 24,
+            "text": "The Cabinet Mission to India was sent in which year?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "1948"
+                },
+                {
+                    "id": "B",
+                    "text": "1947"
+                },
+                {
+                    "id": "C",
+                    "text": "1946"
                 },
                 {
                     "id": "D",
-                    "text": "1923"
+                    "text": "1945"
+                }
+            ],
+            "correct": "C",
+            "category": "Indian History"
+        },
+        {
+            "id": 25,
+            "text": "Who was the first woman to become the President of the Indian National Congress?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Vijaya Lakshmi Pandit"
+                },
+                {
+                    "id": "B",
+                    "text": "Sarojini Naidu"
+                },
+                {
+                    "id": "C",
+                    "text": "Annie Besant"
+                },
+                {
+                    "id": "D",
+                    "text": "Kamaladevi Chattopadhyay"
+                }
+            ],
+            "correct": "C",
+            "category": "Indian History"
+        },
+        {
+            "id": 26,
+            "text": "The Salt March, led by Mahatma Gandhi, began on which date?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "March 12, 1930"
+                },
+                {
+                    "id": "B",
+                    "text": "March 11, 1930"
+                },
+                {
+                    "id": "C",
+                    "text": "March 21, 1930"
+                },
+                {
+                    "id": "D",
+                    "text": "March 22, 1930"
                 }
             ],
             "correct": "A",
             "category": "Indian History"
         },
         {
-            "id": 14,
-            "text": "The Quit India Movement was launched by Mahatma Gandhi in which year?",
+            "id": 27,
+            "text": "The Government of India Act was passed in which year?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "1947"
+                },
+                {
+                    "id": "B",
+                    "text": "1935"
+                },
+                {
+                    "id": "C",
+                    "text": "1919"
+                },
+                {
+                    "id": "D",
+                    "text": "1909"
+                }
+            ],
+            "correct": "B",
+            "category": "Indian History"
+        },
+        {
+            "id": 28,
+            "text": "Who was the first Indian to become a member of the British Parliament?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "M.K. Gandhi"
+                },
+                {
+                    "id": "B",
+                    "text": "Gopal Krishna Gokhale"
+                },
+                {
+                    "id": "C",
+                    "text": "Lala Lajpat Rai"
+                },
+                {
+                    "id": "D",
+                    "text": "Dadabhai Naoroji"
+                }
+            ],
+            "correct": "D",
+            "category": "Indian History"
+        },
+        {
+            "id": 29,
+            "text": "The Indian National Army was formed in which year?",
             "options": [
                 {
                     "id": "A",
@@ -339,384 +699,24 @@
             "category": "Indian History"
         },
         {
-            "id": 15,
-            "text": "The princely state of Travancore was located in which modern-day state?",
-            "options": [
-                {
-                    "id": "A",
-                    "text": "Karnataka"
-                },
-                {
-                    "id": "B",
-                    "text": "Tamil Nadu"
-                },
-                {
-                    "id": "C",
-                    "text": "Kerala"
-                },
-                {
-                    "id": "D",
-                    "text": "Andhra Pradesh"
-                }
-            ],
-            "correct": "C",
-            "category": "Indian History"
-        },
-        {
-            "id": 16,
-            "text": "The ancient Indian city of Lothal was an important center for which industry?",
-            "options": [
-                {
-                    "id": "A",
-                    "text": "Metallurgy industry"
-                },
-                {
-                    "id": "B",
-                    "text": "Textile industry"
-                },
-                {
-                    "id": "C",
-                    "text": "Ceramic industry"
-                },
-                {
-                    "id": "D",
-                    "text": "Shipbuilding industry"
-                }
-            ],
-            "correct": "D",
-            "category": "Indian History"
-        },
-        {
-            "id": 17,
-            "text": "The Mughal emperor Akbar the Great built his capital city at which location?",
-            "options": [
-                {
-                    "id": "A",
-                    "text": "Delhi"
-                },
-                {
-                    "id": "B",
-                    "text": "Fatehpur Sikri"
-                },
-                {
-                    "id": "C",
-                    "text": "Lahore"
-                },
-                {
-                    "id": "D",
-                    "text": "Agra"
-                }
-            ],
-            "correct": "B",
-            "category": "Indian History"
-        },
-        {
-            "id": 18,
-            "text": "The Chola Empire was founded by which king in the 3rd century BC?",
-            "options": [
-                {
-                    "id": "A",
-                    "text": "Vijayalaya Chola"
-                },
-                {
-                    "id": "B",
-                    "text": "Karikala Chola"
-                },
-                {
-                    "id": "C",
-                    "text": "Rajaraja Chola"
-                },
-                {
-                    "id": "D",
-                    "text": "Kulottunga Chola"
-                }
-            ],
-            "correct": "A",
-            "category": "Indian History"
-        },
-        {
-            "id": 19,
-            "text": "The Satavahana dynasty was a powerful empire that ruled over which region?",
-            "options": [
-                {
-                    "id": "A",
-                    "text": "Eastern India"
-                },
-                {
-                    "id": "B",
-                    "text": "Southern India"
-                },
-                {
-                    "id": "C",
-                    "text": "Northern India"
-                },
-                {
-                    "id": "D",
-                    "text": "Western India"
-                }
-            ],
-            "correct": "B",
-            "category": "Indian History"
-        },
-        {
-            "id": 20,
-            "text": "The Kakatiya dynasty was founded by which ruler in the 12th century?",
-            "options": [
-                {
-                    "id": "A",
-                    "text": "Mahadeva"
-                },
-                {
-                    "id": "B",
-                    "text": "Ganapati Deva"
-                },
-                {
-                    "id": "C",
-                    "text": "Rudra"
-                },
-                {
-                    "id": "D",
-                    "text": "Prataparudra"
-                }
-            ],
-            "correct": "B",
-            "category": "Indian History"
-        },
-        {
-            "id": 21,
-            "text": "The Delhi Sultanate was founded by which ruler in 1206?",
-            "options": [
-                {
-                    "id": "A",
-                    "text": "Alauddin Khalji"
-                },
-                {
-                    "id": "B",
-                    "text": "Qutb-ud-din Aibak"
-                },
-                {
-                    "id": "C",
-                    "text": "Razia Sultan"
-                },
-                {
-                    "id": "D",
-                    "text": "Iltutmish"
-                }
-            ],
-            "correct": "B",
-            "category": "Indian History"
-        },
-        {
-            "id": 22,
-            "text": "The Ahom Kingdom was a powerful empire that ruled over which region?",
-            "options": [
-                {
-                    "id": "A",
-                    "text": "Manipur"
-                },
-                {
-                    "id": "B",
-                    "text": "Orissa"
-                },
-                {
-                    "id": "C",
-                    "text": "Bengal"
-                },
-                {
-                    "id": "D",
-                    "text": "Assam"
-                }
-            ],
-            "correct": "D",
-            "category": "Indian History"
-        },
-        {
-            "id": 23,
-            "text": "The Maratha Confederacy was founded by which leader in the 17th century?",
-            "options": [
-                {
-                    "id": "A",
-                    "text": "Rajaram"
-                },
-                {
-                    "id": "B",
-                    "text": "Shivaji"
-                },
-                {
-                    "id": "C",
-                    "text": "Sambhaji"
-                },
-                {
-                    "id": "D",
-                    "text": "Tarabai"
-                }
-            ],
-            "correct": "B",
-            "category": "Indian History"
-        },
-        {
-            "id": 24,
-            "text": "The Indian National Army was formed by which leader in 1942?",
-            "options": [
-                {
-                    "id": "A",
-                    "text": "Mahatma Gandhi"
-                },
-                {
-                    "id": "B",
-                    "text": "Sardar Patel"
-                },
-                {
-                    "id": "C",
-                    "text": "Jawaharlal Nehru"
-                },
-                {
-                    "id": "D",
-                    "text": "Subhas Chandra Bose"
-                }
-            ],
-            "correct": "D",
-            "category": "Indian History"
-        },
-        {
-            "id": 25,
-            "text": "The ancient Indian city of Mohenjo-Daro was an important center for which civilization?",
-            "options": [
-                {
-                    "id": "A",
-                    "text": "Indus Valley Civilization"
-                },
-                {
-                    "id": "B",
-                    "text": "Vedic Civilization"
-                },
-                {
-                    "id": "C",
-                    "text": "Mauryan Civilization"
-                },
-                {
-                    "id": "D",
-                    "text": "Gupta Civilization"
-                }
-            ],
-            "correct": "A",
-            "category": "Indian History"
-        },
-        {
-            "id": 26,
-            "text": "The Battle of Talikota was fought between the Vijayanagara Empire and which other empire in 1565?",
-            "options": [
-                {
-                    "id": "A",
-                    "text": "Sikh Empire"
-                },
-                {
-                    "id": "B",
-                    "text": "Maratha Empire"
-                },
-                {
-                    "id": "C",
-                    "text": "Mughal Empire"
-                },
-                {
-                    "id": "D",
-                    "text": "Deccan Sultanates"
-                }
-            ],
-            "correct": "D",
-            "category": "Indian History"
-        },
-        {
-            "id": 27,
-            "text": "The ancient Indian text 'Mahabharata' is attributed to which author?",
-            "options": [
-                {
-                    "id": "A",
-                    "text": "Vyasa"
-                },
-                {
-                    "id": "B",
-                    "text": "Valmiki"
-                },
-                {
-                    "id": "C",
-                    "text": "Kalidasa"
-                },
-                {
-                    "id": "D",
-                    "text": "Tulsidas"
-                }
-            ],
-            "correct": "A",
-            "category": "Indian History"
-        },
-        {
-            "id": 28,
-            "text": "The city of Varanasi was an important center for which ancient Indian kingdom?",
-            "options": [
-                {
-                    "id": "A",
-                    "text": "Mauryan Empire"
-                },
-                {
-                    "id": "B",
-                    "text": "Gupta Empire"
-                },
-                {
-                    "id": "C",
-                    "text": "Magadha Kingdom"
-                },
-                {
-                    "id": "D",
-                    "text": "Kashi Kingdom"
-                }
-            ],
-            "correct": "D",
-            "category": "Indian History"
-        },
-        {
-            "id": 29,
-            "text": "The Indian independence movement was led by which organization?",
-            "options": [
-                {
-                    "id": "A",
-                    "text": "Indian National Congress"
-                },
-                {
-                    "id": "B",
-                    "text": "Socialist Party of India"
-                },
-                {
-                    "id": "C",
-                    "text": "All India Muslim League"
-                },
-                {
-                    "id": "D",
-                    "text": "Communist Party of India"
-                }
-            ],
-            "correct": "A",
-            "category": "Indian History"
-        },
-        {
             "id": 30,
-            "text": "The ancient Indian university of Valabhi was established in which century?",
+            "text": "The Bengal Famine occurred in which year?",
             "options": [
                 {
                     "id": "A",
-                    "text": "7th century AD"
+                    "text": "1943"
                 },
                 {
                     "id": "B",
-                    "text": "8th century AD"
+                    "text": "1940"
                 },
                 {
                     "id": "C",
-                    "text": "9th century AD"
+                    "text": "1945"
                 },
                 {
                     "id": "D",
-                    "text": "6th century AD"
+                    "text": "1930"
                 }
             ],
             "correct": "A",
@@ -724,26 +724,26 @@
         },
         {
             "id": 31,
-            "text": "The Chalukya dynasty was founded by which ruler in the 6th century?",
+            "text": "Who was the last Viceroy of India?",
             "options": [
                 {
                     "id": "A",
-                    "text": "Vikramaditya I"
+                    "text": "Lord Louis Mountbatten"
                 },
                 {
                     "id": "B",
-                    "text": "Vikramaditya II"
+                    "text": "Lord Linlithgow"
                 },
                 {
                     "id": "C",
-                    "text": "Pulakeshin I"
+                    "text": "Lord Curzon"
                 },
                 {
                     "id": "D",
-                    "text": "Pulakeshin II"
+                    "text": "Lord Wavell"
                 }
             ],
-            "correct": "C",
+            "correct": "A",
             "category": "Indian History"
         }
     ]
