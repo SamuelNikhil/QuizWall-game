@@ -46,18 +46,22 @@ export class RoomManager {
         const roomId = this.generateRoomId();
         const joinToken = this.generateToken();
 
+        // Create quiz engine with unique session ID
+        const sessionId = `room-${roomId}-${Date.now()}`;
+        const quizEngine = new QuizEngine(sessionId);
+
         const room: Room = {
             roomId,
             joinToken,
             screenChannel,
             controllers: [],
-            quizEngine: new QuizEngine(),
+            quizEngine,
             teamManager: new TeamManager(),
             gameStarted: false,
         };
 
         this.rooms.set(roomId, room);
-        console.log(`[Room] Created: ${roomId}`);
+        console.log(`[Room] Created: ${roomId} with session: ${sessionId}`);
         return { roomId, joinToken };
     }
 
