@@ -311,12 +311,24 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
                 const room = roomManager.deleteRoomByScreen(channel.id);
                 if (room) {
                     console.log(`[Room] Screen for ${room.roomId} disconnected, room deleted`);
+                    
+                    // Save the score before deleting the room (if game was in progress)
+                    if (room.gameStarted) {
+                        const finalScore = room.teamManager.getLiveScore();
+                        const questionsAnswered = room.quizEngine.getQuestionsAnswered();
+                        room.teamManager.saveGameResult(roomId, questionsAnswered);
+                        console.log(`[Room] Saved score ${finalScore} for team "${room.teamManager.getTeamName()}" on disconnect`);
+                    }
+                    
+                    // Get updated leaderboard after saving
+                    const leaderboard = TeamManager.getLeaderboard(10);
+                    
                     // Notify all controllers that the room is gone
                     for (const c of room.controllers) {
                         c.channel.emit(EVENTS.GAME_OVER, {
-                            finalScore: 0,
+                            finalScore: room.teamManager.getLiveScore(),
                             teamName: room.teamManager.getTeamName(),
-                            leaderboard: [],
+                            leaderboard,
                         });
                     }
                 }
