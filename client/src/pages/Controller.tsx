@@ -177,8 +177,10 @@ export default function Controller() {
     }, [gyroEnabled, phase]);
 
     // Gyro orientation handler - uses refs for real-time values, sends crosshair for visual feedback
+    // ONLY works when slingshot is being pulled (isDragging)
     const handleGyroOrientation = useCallback((event: DeviceOrientationEvent) => {
-        if (!gyroEnabledRef.current || phase !== 'playing') return;
+        // Only process gyro when dragging (slingshot pulled), gyro enabled, and playing
+        if (!gyroEnabledRef.current || phase !== 'playing' || !isDraggingRef.current) return;
 
         const beta = event.beta ?? 0;
         const gamma = event.gamma ?? 0;
@@ -196,7 +198,7 @@ export default function Controller() {
         setTargetXPercent(x);
         setTargetYPercent(y);
 
-        // Always send crosshair update for visual feedback on screen
+        // Send crosshair update for visual feedback on screen (only when dragging)
         // Throttle to ~30fps to avoid overwhelming the network
         throttledSendCrosshair(x, y);
     }, [phase, throttledSendCrosshair]); // Only depend on phase and throttled function, use refs for everything else
@@ -342,6 +344,9 @@ export default function Controller() {
 
     const handleEnd = useCallback(() => {
         if (!isDragging) return;
+
+        // Cancel crosshair on screen when not dragging
+        clientRef.current?.sendCancelAiming();
 
         if (power > 10 && phase === 'playing') {
             clientRef.current?.shoot(targetXPercent, targetYPercent, power / 100);
