@@ -118,7 +118,10 @@ docker run -p 3000:3000 slingshot-server
 ```bash
 # On EC2
 docker pull <your-image>
-docker run -d -p 3000:3000 -p 9000-9100:9000-9100/udp slingshot-server
+
+docker build --no-cache -t game-server .
+
+docker run -d   --name quizzzWall-server   -p 3000:3000   -p 9000-9100:9000-9100/udp   --env-file .env slingshot-server
 ```
 
 ## 🛠️ Tech Stack
