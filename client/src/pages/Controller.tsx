@@ -13,7 +13,7 @@ import slingCenterImg from '../assets/sling-center.png';
 import '../index.css';
 import '../animations.css';
 
-type ControllerPhase = 'connecting' | 'lobby' | 'playing' | 'game-over';
+type ControllerPhase = 'connecting' | 'lobby' | 'calibrating' | 'playing' | 'game-over';
 
 export default function Controller() {
     const { roomId, token } = useParams<{ roomId: string; token: string }>();
@@ -51,6 +51,11 @@ export default function Controller() {
     const [targetYPercent, setTargetYPercent] = useState(50);
     const [aimAngle, setAimAngle] = useState(0);
     const [startPos, setStartPos] = useState({ x: 0, y: 0 });
+
+    // ---- Gyro Calibration Tutorial State ----
+    const [calibrationProgress, setCalibrationProgress] = useState(0);
+    const [calibrationTilt, setCalibrationTilt] = useState({ x: 50, y: 50 });
+    const calibrationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // ---- Gyroscope ----
     const [gyroEnabled, setGyroEnabled] = useState(false);
@@ -110,8 +115,26 @@ export default function Controller() {
             });
 
             client.onGameStarted(() => {
-                setPhase('playing');
+                // Show calibration tutorial first, then switch to playing
+                setPhase('calibrating');
+                setCalibrationProgress(0);
                 setTeamScore(0);
+                
+                // Auto-progress calibration and switch to playing after 4 seconds
+                let progress = 0;
+                const interval = setInterval(() => {
+                    progress += 25;
+                    setCalibrationProgress(progress);
+                    if (progress >= 100) {
+                        clearInterval(interval);
+                        setPhase('playing');
+                    }
+                }, 1000);
+                
+                calibrationTimerRef.current = setTimeout(() => {
+                    clearInterval(interval);
+                    setPhase('playing');
+                }, 5000);
             });
 
             client.onTimerSync((data) => {
@@ -153,8 +176,8 @@ export default function Controller() {
     // This keeps the orientation listener attached whenever gyro is enabled, not just during dragging
     // iOS Safari requires the listener to be active to receive any deviceorientation events
     useEffect(() => {
-        if (!gyroEnabled || phase !== 'playing') {
-            // Clean up when not in playing phase or gyro disabled
+        if (!gyroEnabled || (phase !== 'playing' && phase !== 'calibrating')) {
+            // Clean up when not in playing/calibrating phase or gyro disabled
             if (orientationListenerActive.current) {
                 window.removeEventListener('deviceorientation', handleGyroOrientation);
                 orientationListenerActive.current = false;
@@ -162,7 +185,7 @@ export default function Controller() {
             return;
         }
 
-        // Attach listener when gyro is enabled and playing
+        // Attach listener when gyro is enabled and in playing or calibrating phase
         if (!orientationListenerActive.current) {
             window.addEventListener('deviceorientation', handleGyroOrientation, true);
             orientationListenerActive.current = true;
@@ -176,11 +199,22 @@ export default function Controller() {
         };
     }, [gyroEnabled, phase]);
 
+    // Cleanup calibration timer on unmount
+    useEffect(() => {
+        return () => {
+            if (calibrationTimerRef.current) {
+                clearTimeout(calibrationTimerRef.current);
+            }
+        };
+    }, []);
+
     // Gyro orientation handler - uses refs for real-time values, sends crosshair for visual feedback
-    // ONLY works when slingshot is being pulled (isDragging)
+    // Works during calibration (always) and playing (only when dragging)
     const handleGyroOrientation = useCallback((event: DeviceOrientationEvent) => {
-        // Only process gyro when dragging (slingshot pulled), gyro enabled, and playing
-        if (!gyroEnabledRef.current || phase !== 'playing' || !isDraggingRef.current) return;
+        if (!gyroEnabledRef.current || (phase !== 'playing' && phase !== 'calibrating')) return;
+        
+        // During playing phase, only process when dragging (slingshot pulled)
+        if (phase === 'playing' && !isDraggingRef.current) return;
 
         const beta = event.beta ?? 0;
         const gamma = event.gamma ?? 0;
@@ -195,10 +229,17 @@ export default function Controller() {
         const x = Math.max(0, Math.min(100, 50 + relGamma * 1.0));
         const y = Math.max(0, Math.min(100, 50 - relBeta * 0.8));
 
+        // During calibration, update calibration tilt for visual feedback
+        if (phase === 'calibrating') {
+            setCalibrationTilt({ x, y });
+            return; // Don't send crosshair during calibration
+        }
+
+        // During playing, update target and send crosshair (only when dragging)
         setTargetXPercent(x);
         setTargetYPercent(y);
 
-        // Send crosshair update for visual feedback on screen (only when dragging)
+        // Send crosshair update for visual feedback on screen
         // Throttle to ~30fps to avoid overwhelming the network
         throttledSendCrosshair(x, y);
     }, [phase, throttledSendCrosshair]); // Only depend on phase and throttled function, use refs for everything else
@@ -401,6 +442,127 @@ export default function Controller() {
                 gyroCalibrated={gyroCalibrated}
                 onRequestGyro={requestGyroPermission}
             />
+        );
+    }
+
+    // ---- Calibration Tutorial ----
+    if (phase === 'calibrating') {
+        const myColor = CROSSHAIR_COLORS[colorIndex];
+        return (
+            <div className="controller-container" style={{ justifyContent: 'center', alignItems: 'center', padding: '2rem' }}>
+                <div style={{
+                    maxWidth: '360px',
+                    width: '100%',
+                    textAlign: 'center',
+                }}>
+                    {/* Crosshair Visualization */}
+                    <div style={{
+                        width: '200px',
+                        height: '200px',
+                        margin: '0 auto 2rem',
+                        position: 'relative',
+                        background: 'rgba(255,255,255,0.05)',
+                        borderRadius: '50%',
+                        border: `2px solid ${myColor}`,
+                        boxShadow: `0 0 30px ${myColor}40`,
+                    }}>
+                        {/* Target marker that moves with gyro */}
+                        <div style={{
+                            position: 'absolute',
+                            width: '20px',
+                            height: '20px',
+                            borderRadius: '50%',
+                            background: myColor,
+                            boxShadow: `0 0 20px ${myColor}`,
+                            left: `${calibrationTilt.x}%`,
+                            top: `${calibrationTilt.y}%`,
+                            transform: 'translate(-50%, -50%)',
+                            transition: 'all 0.1s ease-out',
+                        }} />
+                        {/* Center marker */}
+                        <div style={{
+                            position: 'absolute',
+                            width: '8px',
+                            height: '8px',
+                            borderRadius: '50%',
+                            background: 'rgba(255,255,255,0.5)',
+                            left: '50%',
+                            top: '50%',
+                            transform: 'translate(-50%, -50%)',
+                        }} />
+                    </div>
+
+                    <h2 style={{
+                        fontSize: '1.5rem',
+                        fontWeight: 900,
+                        color: '#fff',
+                        marginBottom: '0.5rem',
+                    }}>
+                        📱 Calibrate Your Aim
+                    </h2>
+
+                    <p style={{
+                        color: 'var(--text-secondary)',
+                        fontSize: '0.95rem',
+                        marginBottom: '2rem',
+                        lineHeight: 1.5,
+                    }}>
+                        {gyroEnabled
+                            ? 'Tilt your phone to move the crosshair. Try aiming to the corners!'
+                            : 'Touch and drag to aim. Game starts in a moment...'}
+                    </p>
+
+                    {/* Progress Bar */}
+                    <div style={{
+                        width: '100%',
+                        height: '8px',
+                        background: 'rgba(255,255,255,0.1)',
+                        borderRadius: '4px',
+                        overflow: 'hidden',
+                        marginBottom: '1rem',
+                    }}>
+                        <div style={{
+                            width: `${calibrationProgress}%`,
+                            height: '100%',
+                            background: `linear-gradient(90deg, ${myColor}, #fff)`,
+                            borderRadius: '4px',
+                            transition: 'width 0.3s ease',
+                            boxShadow: `0 0 10px ${myColor}`,
+                        }} />
+                    </div>
+
+                    <p style={{
+                        color: myColor,
+                        fontSize: '0.9rem',
+                        fontWeight: 700,
+                    }}>
+                        Game starting in {Math.ceil((100 - calibrationProgress) / 25)}...
+                    </p>
+
+                    {/* Color indicator */}
+                    <div style={{
+                        marginTop: '2rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '0.5rem',
+                    }}>
+                        <div style={{
+                            width: '12px',
+                            height: '12px',
+                            borderRadius: '50%',
+                            background: myColor,
+                            boxShadow: `0 0 8px ${myColor}`,
+                        }} />
+                        <span style={{
+                            color: 'var(--text-secondary)',
+                            fontSize: '0.8rem',
+                        }}>
+                            Your crosshair color
+                        </span>
+                    </div>
+                </div>
+            </div>
         );
     }
 
