@@ -147,14 +147,16 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
                 // Game over
                 () => {
                     const finalScore = room.teamManager.getLiveScore();
-                    const questionsAnswered = room.quizEngine.getQuestionsAnswered();
-                    room.teamManager.saveGameResult(roomId, questionsAnswered);
+                    const questionsAnswered = room.quizEngine.getSessionQuestionsAnswered(); // Use session total
+                    room.teamManager.saveGameResult(roomId, room.quizEngine.getQuestionsAnswered()); // Save round count
 
                     const leaderboard = TeamManager.getLeaderboard(10);
                     const gameOverPayload = {
                         finalScore,
                         teamName: room.teamManager.getTeamName(),
                         leaderboard,
+                        reason: room.quizEngine.isAllQuestionsCompleted() ? 'completed' : 'time',
+                        questionsAnswered,
                     };
 
                     room.screenChannel.emit(EVENTS.GAME_OVER, gameOverPayload);
@@ -293,7 +295,8 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
             if (!controller || controller.role !== 'leader') return;
 
             room.quizEngine.reset();
-            room.teamManager.resetScore();
+            // NOTE: We do NOT reset the score - it accumulates across restarts
+            // room.teamManager.resetScore(); // REMOVED - score persists
             room.gameStarted = false;
 
             // Reset ready states for members
@@ -340,6 +343,8 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
                             finalScore: room.teamManager.getLiveScore(),
                             teamName: room.teamManager.getTeamName(),
                             leaderboard,
+                            reason: 'time',
+                            questionsAnswered: room.quizEngine.getSessionQuestionsAnswered(),
                         });
                     }
                 }

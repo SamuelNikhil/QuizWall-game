@@ -41,6 +41,7 @@ export default function Controller() {
     const [teamScore, setTeamScore] = useState(0);
     const [timeLeft, setTimeLeft] = useState(30);
     const [finalScore, setFinalScore] = useState(0);
+    const [gameOverReason, setGameOverReason] = useState<'time' | 'completed'>('time');
     const [lastHit, setLastHit] = useState<{ correct: boolean } | null>(null);
 
     // ---- Slingshot state ----
@@ -167,6 +168,7 @@ export default function Controller() {
 
             client.onGameOver((data) => {
                 setFinalScore(data.finalScore);
+                setGameOverReason(data.reason || 'time');
                 setPhase('game-over');
             });
 
@@ -582,6 +584,7 @@ export default function Controller() {
 
     // ---- Game Over ----
     if (phase === 'game-over') {
+        const isCompleted = gameOverReason === 'completed';
         return (
             <div className="controller-container" style={{ justifyContent: 'center', alignItems: 'center', padding: '2rem', position: 'relative' }}>
                 {/* Header with Close Button */}
@@ -606,19 +609,61 @@ export default function Controller() {
                 </div>
 
                 <div style={{ textAlign: 'center', animation: 'bounceIn 0.8s cubic-bezier(0.34, 1.56, 0.64, 1)' }}>
-                    <h1 style={{ fontSize: '2.5rem', fontWeight: 900, color: '#ff4444' }}>TIME'S UP!</h1>
+                    <h1 style={{ 
+                        fontSize: isCompleted ? '2rem' : '2.5rem', 
+                        fontWeight: 900, 
+                        color: isCompleted ? '#10b981' : '#ff4444',
+                        lineHeight: 1.2,
+                    }}>
+                        {isCompleted ? 'ALL QUESTIONS COMPLETED!' : "TIME'S UP!"}
+                    </h1>
+                    
+                    {isCompleted && (
+                        <p style={{ fontSize: '1rem', color: '#90e0ef', margin: '0.5rem 0 1rem' }}>
+                            Great job! You answered all 10 questions.
+                        </p>
+                    )}
+                    
                     <div style={{ background: 'var(--glass-bg)', padding: '2rem', borderRadius: 'var(--radius-lg)', border: '1px solid var(--glass-border)', margin: '1.5rem 0' }}>
                         <p style={{ color: 'var(--text-secondary)', fontWeight: 600, marginBottom: '0.5rem' }}>Team Score</p>
                         <p style={{ fontSize: '3.5rem', fontWeight: 900, color: '#90e0ef' }}>{finalScore}</p>
                     </div>
+
+                    {/* Leader Actions - Only Play Again button */}
                     {role === 'leader' && (
-                        <button
-                            onClick={() => clientRef.current?.restartGame()}
-                            style={{ padding: '1rem 3rem', fontSize: '1.2rem', fontWeight: 800, background: 'var(--accent-primary)', border: 'none', borderRadius: 'var(--radius-md)', color: 'white', cursor: 'pointer', boxShadow: '0 8px 25px rgba(103, 80, 164, 0.5)' }}
-                        >
-                            🔄 Play Again
-                        </button>
+                        <div style={{ display: 'flex', gap: '1rem', flexDirection: 'column', alignItems: 'center' }}>
+                            <button
+                                onClick={() => clientRef.current?.restartGame()}
+                                style={{ 
+                                    padding: '1rem 3rem', 
+                                    fontSize: '1.2rem', 
+                                    fontWeight: 800, 
+                                    background: 'var(--accent-primary)', 
+                                    border: 'none', 
+                                    borderRadius: 'var(--radius-md)', 
+                                    color: 'white', 
+                                    cursor: 'pointer', 
+                                    boxShadow: '0 8px 25px rgba(103, 80, 164, 0.5)',
+                                    transition: 'all 0.2s ease',
+                                }}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.transform = 'scale(1.05)';
+                                    e.currentTarget.style.boxShadow = '0 12px 30px rgba(103, 80, 164, 0.6)';
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.transform = 'scale(1)';
+                                    e.currentTarget.style.boxShadow = '0 8px 25px rgba(103, 80, 164, 0.5)';
+                                }}
+                            >
+                                🔄 Play Again
+                            </button>
+                            
+                            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginTop: '0.5rem' }}>
+                                Use ✕ in top-right to close
+                            </p>
+                        </div>
                     )}
+                    
                     {role !== 'leader' && (
                         <p style={{ color: 'var(--text-secondary)', fontStyle: 'italic' }}>Waiting for leader to restart...</p>
                     )}
