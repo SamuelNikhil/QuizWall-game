@@ -17,7 +17,7 @@ import type {
 } from '../shared/types';
 import '../animations.css';
 
-type GamePhase = 'connecting' | 'qr-lobby' | 'team-lobby' | 'playing' | 'game-over' | 'exit-scores';
+type GamePhase = 'connecting' | 'qr-lobby' | 'team-lobby' | 'tutorial' | 'playing' | 'game-over' | 'exit-scores';
 
 interface Particle { id: string; x: number; y: number; size: number; color: string; '--tx': string; '--ty': string; }
 interface ScorePopup { id: string; x: number; y: number; text: string; type: string; }
@@ -201,6 +201,16 @@ export default function Screen() {
                     // Lobby update will handle the rest
                 }
                 console.log('Controller left:', data.controllerId);
+            });
+
+            client.onTutorialStart((data) => {
+                console.log('[Screen] Tutorial started, duration:', data.duration);
+                setPhase('tutorial');
+            });
+
+            client.onTutorialEnd(() => {
+                console.log('[Screen] Tutorial ended, waiting for game data...');
+                // Phase will change to 'playing' when GAME_STARTED arrives
             });
 
             client.onGameStarted((data) => {
@@ -539,6 +549,51 @@ export default function Screen() {
                                 {lobby?.canStart ? '🚀 Ready to Start!' : '⏳ Waiting for players...'}
                             </p>
                         </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // ---- Tutorial Phase ----
+    if (phase === 'tutorial') {
+        return (
+            <div className="screen-container" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', background: 'linear-gradient(135deg, #1C1B1F 0%, #2D2C31 100%)' }}>
+                <div style={{ textAlign: 'center', maxWidth: '800px', padding: '3rem', animation: 'fadeIn 0.5s ease-out' }}>
+                    <h1 style={{ fontSize: '4rem', marginBottom: '2rem', color: '#fff', fontWeight: '900', textShadow: '0 0 50px rgba(103, 80, 164, 0.6)', fontFamily: 'var(--font-main)' }}>
+                        Get Ready!
+                    </h1>
+                    
+                    <div style={{ background: 'var(--glass-bg)', padding: '2.5rem', borderRadius: 'var(--radius-lg)', border: '1px solid var(--glass-border)', backdropFilter: 'blur(20px)', boxShadow: 'var(--glass-glow)', marginBottom: '2rem' }}>
+                        <h2 style={{ fontSize: '2rem', color: 'var(--accent-secondary)', marginBottom: '1.5rem', fontWeight: '800' }}>
+                            How to Play
+                        </h2>
+                        
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', textAlign: 'left', fontSize: '1.3rem', color: 'var(--text-primary)', lineHeight: '1.6' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                <span style={{ fontSize: '2rem' }}>📱</span>
+                                <span><strong>Pull back</strong> on your slingshot to aim</span>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                <span style={{ fontSize: '2rem' }}>🎯</span>
+                                <span><strong>Tilt your phone</strong> to fine-tune your aim</span>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                <span style={{ fontSize: '2rem' }}>💥</span>
+                                <span><strong>Release</strong> to shoot at the answer orbs</span>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                <span style={{ fontSize: '2rem' }}>⏱️</span>
+                                <span>You have <strong>30 seconds</strong> per question</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1rem', marginTop: '2rem' }}>
+                        <div className="loading-spinner" style={{ width: '40px', height: '40px', border: '4px solid rgba(103, 80, 164, 0.3)', borderTop: '4px solid var(--accent-primary)', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+                        <span style={{ fontSize: '1.5rem', color: 'var(--text-secondary)', fontWeight: '600' }}>
+                            Game starting soon...
+                        </span>
                     </div>
                 </div>
             </div>

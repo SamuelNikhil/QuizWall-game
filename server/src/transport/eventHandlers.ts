@@ -109,22 +109,33 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
                 return;
             }
 
-            // Initialize quiz engine with questions (Gemini or JSON fallback)
-            // This is async to allow Gemini API calls if needed
-            console.log(`[Game] Initializing quiz engine for room ${roomId}...`);
+            // Step 1: Send TUTORIAL_START to all clients and screen immediately
+            console.log(`[Game] Sending TUTORIAL_START to all clients and screen`);
+            room.screenChannel.emit(EVENTS.TUTORIAL_START, { duration: 5000 });
+            for (const c of room.controllers) {
+                c.channel.emit(EVENTS.TUTORIAL_START, { duration: 5000 });
+            }
+
+            // Step 2: Initialize quiz engine in background during tutorial
+            console.log(`[Game] Initializing quiz engine for room ${roomId} during tutorial...`);
             try {
                 await room.quizEngine.initialize();
                 console.log(`[Game] Quiz engine initialized with ${room.quizEngine.getTotalQuestions()} questions for room ${roomId}`);
-                
-                // Log the first question for debugging
-                const firstQ = room.quizEngine.getCurrentQuestion();
-                console.log(`[Game] First question text: ${firstQ?.text?.substring(0, 50)}...`);
             } catch (error) {
                 console.error(`[Game] Failed to initialize quiz engine:`, error);
-                // Continue anyway - fallback questions should still work
             }
 
-            // Set up quiz engine callbacks
+            // Step 3: Wait for tutorial to complete (5 seconds)
+            await new Promise(resolve => setTimeout(resolve, 5000));
+
+            // Step 4: Send TUTORIAL_END
+            console.log(`[Game] Sending TUTORIAL_END to all clients and screen`);
+            room.screenChannel.emit(EVENTS.TUTORIAL_END, {});
+            for (const c of room.controllers) {
+                c.channel.emit(EVENTS.TUTORIAL_END, {});
+            }
+
+            // Step 5: Set up quiz engine callbacks
             room.quizEngine.setCallbacks(
                 // Timer tick
                 (timeLeft: number) => {

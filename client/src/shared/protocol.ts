@@ -42,6 +42,10 @@ export const EVENTS = {
 
     // --- Leaderboard ---
     LEADERBOARD: 'leaderboard',
+
+    // --- Tutorial ---
+    TUTORIAL_START: 'tutorialStart',
+    TUTORIAL_END: 'tutorialEnd',
 } as const;
 
 export type EventName = (typeof EVENTS)[keyof typeof EVENTS];
