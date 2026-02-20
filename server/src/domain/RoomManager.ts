@@ -127,10 +127,10 @@ export class RoomManager {
         };
 
         room.controllers.push(controller);
-        console.log(`[Room] ${role.toUpperCase()} joined ${roomId}. ID: ${channel.id}, Role: ${role}`);
-        console.log(`[Room] Controllers in ${roomId} after join:`, room.controllers.map(c => `${c.role}:${c.id}`));
+        console.log(`[Room] ${role.toUpperCase()} joined ${roomId}. ID: ${channel.id}, Role: ${role}, Color: ${colorIndex}`);
+        console.log(`[Room] Controllers in ${roomId} after join:`, room.controllers.map(c => `${c.role}:${c.id}(color:${c.colorIndex})`));
 
-        return { success: true, role };
+        return { success: true, role, colorIndex };
     }
 
     /** Set team name (leader only). Uses clientId for lookup. */
@@ -215,6 +215,7 @@ export class RoomManager {
             id: c.id,
             role: c.role,
             isReady: c.isReady,
+            colorIndex: c.colorIndex,
         }));
 
         return {

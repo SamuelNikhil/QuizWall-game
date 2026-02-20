@@ -29,6 +29,7 @@ export interface PlayerInfo {
     id: string;        // channel id
     role: PlayerRole;
     isReady: boolean;
+    colorIndex?: number; // For crosshair color indicator
 }
 
 export interface TeamInfo {
