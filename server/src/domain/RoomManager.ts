@@ -13,6 +13,7 @@ export interface RoomController {
     clientId: string; // Persistent device ID
     role: PlayerRole;
     isReady: boolean;
+    colorIndex: number; // For crosshair color assignment (0, 1, 2)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     channel: any; // Geckos.io ServerChannel
 }
@@ -71,7 +72,7 @@ export class RoomManager {
         token: string,
         channel: any,
         clientId: string
-    ): { success: boolean; error?: string; role?: PlayerRole } {
+    ): { success: boolean; error?: string; role?: PlayerRole; colorIndex?: number } {
         const room = this.rooms.get(roomId);
 
         if (!room) {
@@ -90,11 +91,11 @@ export class RoomManager {
             const existing = room.controllers[existingIdx];
             console.log(`[Room] Client ${clientId.substring(0, 8)}... re-joining room ${roomId}. Updating ID: ${existing.id} -> ${channel.id}`);
 
-            // Re-bind to the new connection but keep role and state
+            // Re-bind to the new connection but keep role, state, AND colorIndex
             existing.id = channel.id;
             existing.channel = channel;
 
-            return { success: true, role: existing.role };
+            return { success: true, role: existing.role, colorIndex: existing.colorIndex };
         }
 
         // 2. Also check if this CHANNEL (connection) is in ANY other room and clean up
@@ -112,12 +113,16 @@ export class RoomManager {
 
         // First controller = leader, rest = members
         const role: PlayerRole = room.controllers.length === 0 ? 'leader' : 'member';
+        
+        // Assign color index based on position (0, 1, 2 for up to 3 players)
+        const colorIndex = room.controllers.length;
 
         const controller: RoomController = {
             id: channel.id,
             clientId,
             role,
             isReady: role === 'leader', // Leader is always "ready"
+            colorIndex,
             channel,
         };
 

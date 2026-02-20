@@ -183,11 +183,11 @@ export class GameClient {
         this.channel?.on(EVENTS.ROOM_CREATED, cb);
     }
 
-    onJoinedRoom(cb: (data: { roomId: string; success: boolean; error?: string; role?: PlayerRole }) => void): void {
+    onJoinedRoom(cb: (data: { roomId: string; success: boolean; error?: string; role?: PlayerRole; colorIndex?: number }) => void): void {
         this.channel?.on(EVENTS.JOINED_ROOM, cb);
     }
 
-    onControllerJoined(cb: (data: { controllerId: string; role: PlayerRole }) => void): void {
+    onControllerJoined(cb: (data: { controllerId: string; role: PlayerRole; colorIndex?: number }) => void): void {
         this.channel?.on(EVENTS.CONTROLLER_JOINED, cb);
     }
 

@@ -29,7 +29,11 @@ export interface PlayerInfo {
     id: string;        // channel id
     role: PlayerRole;
     isReady: boolean;
+    colorIndex?: number; // 0, 1, 2 for crosshair color
 }
+
+// Crosshair colors for each player index
+export const CROSSHAIR_COLORS = ['#00f2ff', '#ff6b6b', '#7cff6b'] as const;
 
 export interface TeamInfo {
     name: string;

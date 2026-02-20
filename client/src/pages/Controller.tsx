@@ -8,6 +8,7 @@ import { useParams } from 'react-router-dom';
 import { GameClient } from '../transport/GameClient';
 import Lobby from './Lobby';
 import type { LobbyState, PlayerRole, ScoreUpdate } from '../shared/types';
+import { CROSSHAIR_COLORS } from '../shared/types';
 import slingCenterImg from '../assets/sling-center.png';
 import '../index.css';
 import '../animations.css';
@@ -20,6 +21,7 @@ export default function Controller() {
     // ---- Connection ----
     const [phase, setPhase] = useState<ControllerPhase>('connecting');
     const [role, setRole] = useState<PlayerRole>('member');
+    const [colorIndex, setColorIndex] = useState<number>(0);
     const [lobby, setLobby] = useState<LobbyState | null>(null);
     const [error, setError] = useState<string | null>(null);
 
@@ -57,8 +59,28 @@ export default function Controller() {
     const gyroPermissionRequested = useRef(false);
     const orientationListenerActive = useRef(false);
 
+    // Use refs for real-time values to avoid stale closures in gyro handler
+    const isDraggingRef = useRef(false);
+    const gyroCalibrationRef = useRef({ alpha: 0, beta: 0, gamma: 0 });
+    const gyroEnabledRef = useRef(false);
+
+    // Sync refs with state
+    useEffect(() => { isDraggingRef.current = isDragging; }, [isDragging]);
+    useEffect(() => { gyroCalibrationRef.current = gyroCalibration; }, [gyroCalibration]);
+    useEffect(() => { gyroEnabledRef.current = gyroEnabled; }, [gyroEnabled]);
+
     const clientRef = useRef<GameClient | null>(null);
     const containerRef = useRef<HTMLDivElement>(null);
+    
+    // Throttle crosshair updates to ~30fps
+    const lastCrosshairSend = useRef<number>(0);
+    const throttledSendCrosshair = useCallback((x: number, y: number) => {
+        const now = Date.now();
+        if (now - lastCrosshairSend.current >= 33) { // ~30fps
+            lastCrosshairSend.current = now;
+            clientRef.current?.sendCrosshair(x, y);
+        }
+    }, []);
 
     // ---- Connect and wire events ----
     useEffect(() => {
@@ -77,8 +99,9 @@ export default function Controller() {
                     setError(data.error || 'Failed to join room');
                     return;
                 }
-                console.log(`[Room] Role assigned: ${data.role}`);
+                console.log(`[Room] Role assigned: ${data.role}, Color: ${data.colorIndex}`);
                 setRole(data.role!);
+                setColorIndex(data.colorIndex ?? 0);
                 setPhase('lobby');
             });
 
@@ -153,16 +176,16 @@ export default function Controller() {
         };
     }, [gyroEnabled, phase]);
 
-    // Gyro orientation handler - separate function for stable reference
+    // Gyro orientation handler - uses refs for real-time values, sends crosshair for visual feedback
     const handleGyroOrientation = useCallback((event: DeviceOrientationEvent) => {
-        if (!gyroEnabled || phase !== 'playing') return;
+        if (!gyroEnabledRef.current || phase !== 'playing') return;
 
         const beta = event.beta ?? 0;
         const gamma = event.gamma ?? 0;
 
-        // Apply calibration offset
-        const relGamma = gamma - gyroCalibration.gamma;
-        const relBeta = beta - gyroCalibration.beta;
+        // Apply calibration offset from ref (real-time)
+        const relGamma = gamma - gyroCalibrationRef.current.gamma;
+        const relBeta = beta - gyroCalibrationRef.current.beta;
 
         // Map to screen percentage
         // - X: Tilting phone RIGHT (gamma+) moves target RIGHT (x+)
@@ -173,11 +196,10 @@ export default function Controller() {
         setTargetXPercent(x);
         setTargetYPercent(y);
 
-        // Send crosshair update when dragging (aiming)
-        if (isDragging) {
-            clientRef.current?.sendCrosshair(x, y);
-        }
-    }, [gyroEnabled, phase, gyroCalibration, isDragging]);
+        // Always send crosshair update for visual feedback on screen
+        // Throttle to ~30fps to avoid overwhelming the network
+        throttledSendCrosshair(x, y);
+    }, [phase, throttledSendCrosshair]); // Only depend on phase and throttled function, use refs for everything else
 
     // ---- Unified Gyro permission request (iOS + Android) ----
     const requestGyroPermission = useCallback(async () => {
@@ -466,6 +488,18 @@ export default function Controller() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', background: 'rgba(255,255,255,0.05)', padding: '0.6rem 1rem', borderRadius: 'var(--radius-md)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.1)' }}>
                     <span style={{ fontSize: '1.4rem' }}>{role === 'leader' ? '👑' : '🎮'}</span>
                     <span style={{ fontWeight: 800, color: '#fff', fontSize: '1rem', letterSpacing: '0.5px' }}>Score: {teamScore}</span>
+                    {/* Crosshair Color Indicator */}
+                    <div 
+                        style={{ 
+                            width: '12px', 
+                            height: '12px', 
+                            borderRadius: '50%', 
+                            background: CROSSHAIR_COLORS[colorIndex],
+                            boxShadow: `0 0 8px ${CROSSHAIR_COLORS[colorIndex]}`,
+                            marginLeft: '4px'
+                        }} 
+                        title="Your crosshair color"
+                    />
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                     <div style={{ background: 'rgba(255,255,255,0.05)', padding: '0.6rem 1rem', borderRadius: 'var(--radius-md)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.1)' }}>
