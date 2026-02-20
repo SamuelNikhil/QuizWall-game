@@ -51,7 +51,6 @@ export default function Lobby({
     // If local nameSubmitted is false but the lobby already has a team name 
     // (e.g. on re-join/refresh), we should skip the entry dialog.
     const effectiveNameSubmitted = nameSubmitted || (lobby?.team.name && lobby.team.name.length >= 2);
-    const myColor = CROSSHAIR_COLORS[colorIndex] || CROSSHAIR_COLORS[0];
 
     // ---- Leader: Team Name Dialog ----
     if (role === 'leader' && !effectiveNameSubmitted) {

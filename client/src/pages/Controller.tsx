@@ -115,12 +115,11 @@ export default function Controller() {
             });
 
             client.onGameStarted(() => {
-                // Show calibration tutorial first, then switch to playing
-                setPhase('calibrating');
-                setCalibrationProgress(0);
+                // Calibration screen is already showing (set optimistically on button click)
+                // Just start the progress timer and then switch to playing
                 setTeamScore(0);
                 
-                // Auto-progress calibration and switch to playing after 4 seconds
+                // Auto-progress calibration and switch to playing after ~4 seconds
                 let progress = 0;
                 const interval = setInterval(() => {
                     progress += 25;
@@ -432,10 +431,15 @@ export default function Controller() {
             <Lobby
                 role={role}
                 lobby={lobby}
+                colorIndex={colorIndex}
                 onSetTeamName={(name) => clientRef.current?.setTeamName(name)}
                 onReady={() => clientRef.current?.playerReady()}
                 onStartGame={() => {
-                    console.log('[Lobby] Leader clicked Start Game');
+                    console.log('[Lobby] Leader clicked Start Game - showing calibration immediately');
+                    // Show calibration IMMEDIATELY (optimistic UI)
+                    setPhase('calibrating');
+                    setCalibrationProgress(0);
+                    // Then tell server to start
                     clientRef.current?.startGame();
                 }}
                 gyroEnabled={gyroEnabled}
