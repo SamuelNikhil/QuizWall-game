@@ -1,5 +1,8 @@
+# Ignore these
 .git
-.env
 dist
 *.log
 node_modules
+
+# NOTE: .env is NOT ignored - it will be copied into the image
+# Alternatively, pass --env-file .env when running the container

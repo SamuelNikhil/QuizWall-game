@@ -15,6 +15,7 @@ interface LobbyProps {
     onReady: () => void;
     onStartGame: () => void;
     gyroEnabled: boolean;
+    gyroCalibrated?: boolean;
     onRequestGyro: () => void;
 }
 
@@ -25,6 +26,7 @@ export default function Lobby({
     onReady,
     onStartGame,
     gyroEnabled,
+    gyroCalibrated = false,
     onRequestGyro
 }: LobbyProps) {
     const [teamName, setTeamName] = useState('');
@@ -175,7 +177,7 @@ export default function Lobby({
                     {/* Gyro Setup */}
                     <div style={{ marginBottom: '1.5rem' }}>
                         <button
-                            onClick={onRequestGyro}
+                            onClick={gyroEnabled ? undefined : onRequestGyro}
                             style={{
                                 width: '100%',
                                 padding: '0.75rem',
@@ -185,7 +187,7 @@ export default function Lobby({
                                 borderRadius: 'var(--radius-md)',
                                 fontSize: '0.9rem',
                                 fontWeight: 700,
-                                cursor: 'pointer',
+                                cursor: gyroEnabled ? 'default' : 'pointer',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
@@ -193,11 +195,11 @@ export default function Lobby({
                                 transition: 'all 0.2s ease'
                             }}
                         >
-                            {gyroEnabled ? '✅ Gyro Ready' : '🎯 Setup Gyro Aim'}
+                            {gyroEnabled ? (gyroCalibrated ? '✅ Gyro Ready' : '⏳ Calibrating...') : '📱 Enable Motion Controls'}
                         </button>
                         {!gyroEnabled && (
                             <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '0.4rem' }}>
-                                (Required for motion controls)
+                                Tap to enable gyro aiming (recommended)
                             </p>
                         )}
                     </div>
@@ -292,7 +294,7 @@ export default function Lobby({
                 {/* Gyro Setup */}
                 <div style={{ marginBottom: '1.5rem' }}>
                     <button
-                        onClick={onRequestGyro}
+                        onClick={gyroEnabled ? undefined : onRequestGyro}
                         style={{
                             width: '100%',
                             padding: '0.75rem',
@@ -302,7 +304,7 @@ export default function Lobby({
                             borderRadius: 'var(--radius-md)',
                             fontSize: '0.9rem',
                             fontWeight: 700,
-                            cursor: 'pointer',
+                            cursor: gyroEnabled ? 'default' : 'pointer',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
@@ -310,8 +312,13 @@ export default function Lobby({
                             transition: 'all 0.2s ease'
                         }}
                     >
-                        {gyroEnabled ? '✅ Gyro Ready' : '🎯 Setup Gyro Aim'}
+                        {gyroEnabled ? (gyroCalibrated ? '✅ Gyro Ready' : '⏳ Calibrating...') : '📱 Enable Motion Controls'}
                     </button>
+                    {!gyroEnabled && (
+                        <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '0.4rem' }}>
+                            Tap to enable gyro aiming (recommended)
+                        </p>
+                    )}
                 </div>
 
                 {/* Members list */}

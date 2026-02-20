@@ -52,7 +52,10 @@ export default function Controller() {
 
     // ---- Gyroscope ----
     const [gyroEnabled, setGyroEnabled] = useState(false);
+    const [gyroCalibrated, setGyroCalibrated] = useState(false);
     const [gyroCalibration, setGyroCalibration] = useState({ alpha: 0, beta: 0, gamma: 0 });
+    const gyroPermissionRequested = useRef(false);
+    const orientationListenerActive = useRef(false);
 
     const clientRef = useRef<GameClient | null>(null);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -123,69 +126,149 @@ export default function Controller() {
         return () => { client.close(); };
     }, [roomId, token]);
 
-    // ---- Gyroscope handler ----
+    // ---- Gyroscope handler - ACTIVE LISTENER (works for both iOS and Android) ----
+    // This keeps the orientation listener attached whenever gyro is enabled, not just during dragging
+    // iOS Safari requires the listener to be active to receive any deviceorientation events
     useEffect(() => {
-        if (!isDragging || !gyroEnabled || phase !== 'playing') return;
+        if (!gyroEnabled || phase !== 'playing') {
+            // Clean up when not in playing phase or gyro disabled
+            if (orientationListenerActive.current) {
+                window.removeEventListener('deviceorientation', handleGyroOrientation);
+                orientationListenerActive.current = false;
+            }
+            return;
+        }
 
-        const handleOrientation = (event: DeviceOrientationEvent) => {
-            const beta = event.beta ?? 0;
-            const gamma = event.gamma ?? 0;
+        // Attach listener when gyro is enabled and playing
+        if (!orientationListenerActive.current) {
+            window.addEventListener('deviceorientation', handleGyroOrientation, true);
+            orientationListenerActive.current = true;
+            console.log('[Gyro] Orientation listener attached');
+        }
 
-            const relGamma = gamma - gyroCalibration.gamma;
-            const relBeta = beta - gyroCalibration.beta;
-
-            // Map to screen percentage
-            // - X: Tilting phone RIGHT (gamma+) moves target RIGHT (x+)
-            // - Y: Tilting phone FORWARD/AWAY (beta+) moves target UP (y-)
-            // Increased sensitivity slightly: X: 1.0, Y: 0.8
-            const x = Math.max(0, Math.min(100, 50 + relGamma * 1.0));
-            const y = Math.max(0, Math.min(100, 50 - relBeta * 0.8));
-
-            setTargetXPercent(x);
-            setTargetYPercent(y);
-
-            clientRef.current?.sendCrosshair(x, y);
+        return () => {
+            window.removeEventListener('deviceorientation', handleGyroOrientation);
+            orientationListenerActive.current = false;
+            console.log('[Gyro] Orientation listener detached');
         };
+    }, [gyroEnabled, phase]);
 
-        window.addEventListener('deviceorientation', handleOrientation);
-        return () => window.removeEventListener('deviceorientation', handleOrientation);
-    }, [isDragging, gyroEnabled, gyroCalibration, phase]);
+    // Gyro orientation handler - separate function for stable reference
+    const handleGyroOrientation = useCallback((event: DeviceOrientationEvent) => {
+        if (!gyroEnabled || phase !== 'playing') return;
 
-    // ---- Gyro permission request ----
+        const beta = event.beta ?? 0;
+        const gamma = event.gamma ?? 0;
+
+        // Apply calibration offset
+        const relGamma = gamma - gyroCalibration.gamma;
+        const relBeta = beta - gyroCalibration.beta;
+
+        // Map to screen percentage
+        // - X: Tilting phone RIGHT (gamma+) moves target RIGHT (x+)
+        // - Y: Tilting phone FORWARD/AWAY (beta+) moves target UP (y-)
+        const x = Math.max(0, Math.min(100, 50 + relGamma * 1.0));
+        const y = Math.max(0, Math.min(100, 50 - relBeta * 0.8));
+
+        setTargetXPercent(x);
+        setTargetYPercent(y);
+
+        // Send crosshair update when dragging (aiming)
+        if (isDragging) {
+            clientRef.current?.sendCrosshair(x, y);
+        }
+    }, [gyroEnabled, phase, gyroCalibration, isDragging]);
+
+    // ---- Unified Gyro permission request (iOS + Android) ----
     const requestGyroPermission = useCallback(async () => {
+        // Prevent double requests
+        if (gyroPermissionRequested.current) return;
+        gyroPermissionRequested.current = true;
+
+        console.log('[Gyro] Requesting permission...');
+
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const DeviceOrientationEvent_ = DeviceOrientationEvent as any;
+        
+        // iOS 13+ requires explicit permission request
         if (typeof DeviceOrientationEvent_.requestPermission === 'function') {
             try {
                 const permission = await DeviceOrientationEvent_.requestPermission();
+                console.log('[Gyro] iOS permission result:', permission);
+                
                 if (permission === 'granted') {
                     setGyroEnabled(true);
-                    // Calibrate on next reading
-                    const onCalibrate = (e: DeviceOrientationEvent) => {
-                        setGyroCalibration({ alpha: e.alpha ?? 0, beta: e.beta ?? 0, gamma: e.gamma ?? 0 });
-                        window.removeEventListener('deviceorientation', onCalibrate);
-                    };
-                    window.addEventListener('deviceorientation', onCalibrate);
+                    // iOS needs a moment to start sending events after permission grant
+                    setTimeout(() => {
+                        calibrateGyro();
+                    }, 100);
+                } else {
+                    console.log('[Gyro] Permission denied by user');
+                    alert('Motion access denied. Please enable in Settings > Safari > Motion & Orientation Access.');
                 }
-            } catch {
-                console.log('Gyro permission denied');
+            } catch (err) {
+                console.error('[Gyro] Permission request failed:', err);
             }
         } else {
+            // Android/Desktop - no explicit permission needed
+            console.log('[Gyro] Android/Desktop - enabling without explicit permission');
             setGyroEnabled(true);
-            const onCalibrate = (e: DeviceOrientationEvent) => {
-                setGyroCalibration({ alpha: e.alpha ?? 0, beta: e.beta ?? 0, gamma: e.gamma ?? 0 });
-                window.removeEventListener('deviceorientation', onCalibrate);
-            };
-            window.addEventListener('deviceorientation', onCalibrate);
+            // Small delay to ensure sensor is ready
+            setTimeout(() => {
+                calibrateGyro();
+            }, 100);
         }
     }, []);
 
-    // Auto-request gyro on HTTPS mount
-    useEffect(() => {
-        if (window.location.protocol === 'https:' && phase === 'lobby') {
-            requestGyroPermission();
+    // Calibrate gyro - capture current position as "center"
+    const calibrateGyro = useCallback(() => {
+        if (!gyroEnabled && !orientationListenerActive.current) {
+            console.log('[Gyro] Cannot calibrate - not enabled yet');
+            return;
         }
-    }, [requestGyroPermission, phase]);
+
+        // Create a one-time calibration listener
+        const calibrateOnce = (e: DeviceOrientationEvent) => {
+            const calibration = { 
+                alpha: e.alpha ?? 0, 
+                beta: e.beta ?? 0, 
+                gamma: e.gamma ?? 0 
+            };
+            setGyroCalibration(calibration);
+            setGyroCalibrated(true);
+            console.log('[Gyro] Calibrated:', calibration);
+            window.removeEventListener('deviceorientation', calibrateOnce);
+        };
+
+        // Try to get immediate reading
+        window.addEventListener('deviceorientation', calibrateOnce, { once: true });
+        
+        // Also try to force a reading by temporarily attaching a listener if not already active
+        if (!orientationListenerActive.current) {
+            const tempListener = (e: DeviceOrientationEvent) => {
+                setGyroCalibration({ 
+                    alpha: e.alpha ?? 0, 
+                    beta: e.beta ?? 0, 
+                    gamma: e.gamma ?? 0 
+                });
+                setGyroCalibrated(true);
+                console.log('[Gyro] Calibrated via temp listener:', e.gamma);
+                window.removeEventListener('deviceorientation', tempListener);
+            };
+            window.addEventListener('deviceorientation', tempListener);
+            // Remove after short delay if no event received
+            setTimeout(() => {
+                window.removeEventListener('deviceorientation', tempListener);
+            }, 500);
+        }
+    }, [gyroEnabled]);
+
+    // Recalibrate when gyro is enabled
+    useEffect(() => {
+        if (gyroEnabled && !gyroCalibrated) {
+            calibrateGyro();
+        }
+    }, [gyroEnabled, gyroCalibrated, calibrateGyro]);
 
     // ---- Slingshot touch handlers ----
 
@@ -288,6 +371,7 @@ export default function Controller() {
                     clientRef.current?.startGame();
                 }}
                 gyroEnabled={gyroEnabled}
+                gyroCalibrated={gyroCalibrated}
                 onRequestGyro={requestGyroPermission}
             />
         );
