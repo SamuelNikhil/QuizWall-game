@@ -47,8 +47,8 @@ export const CONFIG = {
     /** Quiz topic for question generation */
     QUIZ_TOPIC: process.env.QUIZ_TOPIC || 'General Knowledge',
 
-    /** Number of questions to generate per session */
-    QUESTIONS_PER_SESSION: parseInt(process.env.QUESTIONS_PER_SESSION || '10', 10),
+    /** Number of questions to generate per session (capped at 10) */
+    QUESTIONS_PER_SESSION: Math.min(parseInt(process.env.QUESTIONS_PER_SESSION || '10', 10), 10),
 
     /** Enable AI question generation */
     AI_ENABLED: Boolean(process.env.GROQ_API_KEY && process.env.GROQ_API_KEY.length > 0),

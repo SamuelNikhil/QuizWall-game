@@ -14,13 +14,14 @@ export class QuizEngine {
     private currentIndex: number = 0;
     private timeLeft: number = CONFIG.TIMER_DURATION;
     private timerInterval: ReturnType<typeof setInterval> | null = null;
-    private questionsAnswered: number = 0;
+    private questionsAnswered: number = 0; // Questions answered in current round
+    private sessionQuestionsAnswered: number = 0; // Accumulated across restarts
     private initialized: boolean = false;
     private playerCount: number = 1; // Track number of players for timer logic
     private usedQuestionTexts: Set<string> = new Set(); // Track used question TEXTS to avoid repetition (more reliable than IDs)
-    private sessionQuestionLimit: number; // Dynamic limit that increases as player progresses
-    private readonly QUESTION_INCREMENT = 20; // How many questions to add when limit reached
-    private readonly QUESTION_THRESHOLD = 5; // How many questions remaining before increasing limit
+    private sessionQuestionLimit: number; // Fixed limit of 10 questions per session
+    private readonly MAX_QUESTIONS = 10; // Maximum questions per session
+    private allQuestionsCompleted: boolean = false; // Track if all questions have been answered
 
     // Callbacks
     private onTimerTick?: (timeLeft: number) => void;
@@ -29,9 +30,9 @@ export class QuizEngine {
     constructor(sessionId?: string) {
         // Generate unique session ID if not provided
         this.sessionId = sessionId || `session-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
-        // Initialize session limit from config
-        this.sessionQuestionLimit = CONFIG.QUESTIONS_PER_SESSION || 30;
-        console.log(`[QuizEngine] Created with sessionId: ${this.sessionId}, initial limit: ${this.sessionQuestionLimit}`);
+        // Initialize session limit - capped at 10 questions
+        this.sessionQuestionLimit = Math.min(CONFIG.QUESTIONS_PER_SESSION || 10, this.MAX_QUESTIONS);
+        console.log(`[QuizEngine] Created with sessionId: ${this.sessionId}, limit: ${this.sessionQuestionLimit} (capped at ${this.MAX_QUESTIONS})`);
     }
 
     /**
@@ -145,12 +146,14 @@ export class QuizEngine {
         }
     }
 
-    /** Reset for a new game (keeps same questions, reshuffles, clears used) */
+    /** Reset for a new game (keeps same questions, reshuffles, clears used, preserves session totals) */
     reset(): void {
         this.stopTimer();
         this.timeLeft = CONFIG.TIMER_DURATION;
         this.currentIndex = 0;
-        this.questionsAnswered = 0;
+        this.questionsAnswered = 0; // Reset round counter only
+        // NOTE: sessionQuestionsAnswered is NOT reset - it accumulates across restarts
+        this.allQuestionsCompleted = false; // Reset completion flag for new game
         this.usedQuestionTexts.clear(); // Clear used questions for new game
         this.shuffleQuestions();
     }
@@ -220,6 +223,7 @@ export class QuizEngine {
 
         if (isCorrect) {
             this.questionsAnswered++;
+            this.sessionQuestionsAnswered++; // Track total across restarts
         }
 
         return { correct: isCorrect, points };
@@ -229,25 +233,13 @@ export class QuizEngine {
     async nextQuestion(): Promise<ClientQuestion | null> {
         this.currentIndex++;
         
-        // Check if player is approaching the session limit and increase it
-        const questionsRemaining = this.sessionQuestionLimit - this.questionsAnswered;
-        if (questionsRemaining <= this.QUESTION_THRESHOLD && questionsRemaining > 0) {
-            // Increase the session limit by 20 questions
-            const oldLimit = this.sessionQuestionLimit;
-            this.sessionQuestionLimit += this.QUESTION_INCREMENT;
-            console.log(`[QuizEngine] Session limit increased: ${oldLimit} -> ${this.sessionQuestionLimit} (answered: ${this.questionsAnswered})`);
-            
-            // Trigger background generation for more questions
-            console.log(`[QuizEngine] Triggering background generation for +${this.QUESTION_INCREMENT} questions...`);
-            try {
-                const updatedQuestions = await getSessionQuestions(this.sessionId, this.QUESTION_INCREMENT);
-                if (updatedQuestions.length > this.questions.length) {
-                    console.log(`[QuizEngine] Added ${updatedQuestions.length - this.questions.length} new questions. Total: ${updatedQuestions.length}`);
-                    this.questions = updatedQuestions;
-                }
-            } catch (error) {
-                console.error('[QuizEngine] Failed to generate more questions:', error);
-            }
+        // Check if all questions have been answered
+        if (this.questionsAnswered >= this.sessionQuestionLimit) {
+            console.log(`[QuizEngine] All ${this.sessionQuestionLimit} questions completed! Triggering game over.`);
+            this.allQuestionsCompleted = true;
+            this.stopTimer();
+            this.onGameOver?.();
+            return null;
         }
         
         // Check if we need more questions (less than 3 remaining)
@@ -270,9 +262,19 @@ export class QuizEngine {
         return this.getCurrentQuestion();
     }
 
-    /** Get the number of questions answered correctly */
+    /** Get the number of questions answered correctly (current round only) */
     getQuestionsAnswered(): number {
         return this.questionsAnswered;
+    }
+
+    /** Get total questions answered across all restarts in this session */
+    getSessionQuestionsAnswered(): number {
+        return this.sessionQuestionsAnswered;
+    }
+
+    /** Check if all questions were completed (vs time ran out) */
+    isAllQuestionsCompleted(): boolean {
+        return this.allQuestionsCompleted;
     }
 
     /** Get current time left */

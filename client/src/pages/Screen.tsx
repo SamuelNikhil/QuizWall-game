@@ -403,6 +403,7 @@ export default function Screen() {
 
     // ---- Game Over ----
     if (phase === 'game-over' && gameOverData) {
+        const isCompleted = gameOverData.reason === 'completed';
         return (
             <div className="screen-container">
                 <div
@@ -414,13 +415,30 @@ export default function Screen() {
                         position: 'relative', scale: '0.8',
                     }}
                 >
-                    <h1 style={{ fontSize: '5rem', fontWeight: '900', color: '#ff4444', textShadow: '0 0 40px rgba(255, 0, 0, 0.5)', marginBottom: '0.5rem' }}>
-                        TIME'S UP!
+                    <h1 style={{
+                        fontSize: isCompleted ? '3.5rem' : '5rem',
+                        fontWeight: '900',
+                        color: isCompleted ? '#10b981' : '#ff4444',
+                        textShadow: isCompleted ? '0 0 40px rgba(16, 185, 129, 0.5)' : '0 0 40px rgba(255, 0, 0, 0.5)',
+                        marginBottom: '0.5rem',
+                        lineHeight: 1.2,
+                    }}>
+                        {isCompleted ? 'ALL QUESTIONS COMPLETED!' : "TIME'S UP!"}
                     </h1>
+                    
+                    {isCompleted && (
+                        <p style={{ fontSize: '1.2rem', color: '#90e0ef', marginBottom: '1rem' }}>
+                            Great job! You answered all 10 questions.
+                        </p>
+                    )}
+                    
                     <div style={{ background: 'rgba(255, 255, 255, 0.05)', padding: '2.5rem', borderRadius: '30px', border: '1px solid rgba(255, 255, 255, 0.1)', backdropFilter: 'blur(20px)', minWidth: '350px', marginBottom: '1.5rem' }}>
                         <p style={{ fontSize: '1.2rem', color: 'var(--accent-secondary)', fontWeight: 700, marginBottom: '0.5rem' }}>{gameOverData.teamName}</p>
                         <h2 style={{ fontSize: '1.5rem', marginBottom: '0.5rem', color: 'rgba(255, 255, 255, 0.8)', fontWeight: '600' }}>Final Score</h2>
                         <p style={{ fontSize: '4.5rem', fontWeight: '900', color: '#90e0ef', margin: 0 }}>{gameOverData.finalScore}</p>
+                        <p style={{ fontSize: '1rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
+                            Questions answered: {gameOverData.questionsAnswered}/10
+                        </p>
                     </div>
 
                     {/* Leaderboard */}
@@ -436,30 +454,18 @@ export default function Screen() {
                         </div>
                     )}
 
-                    <div style={{ marginTop: '1rem', padding: '1rem 3rem', background: '#6750a4', borderRadius: '20px', boxShadow: '0 0 30px rgba(103, 80, 164, 0.6)', border: '2px solid rgba(255, 255, 255, 0.1)', animation: 'pulse 2s ease-in-out infinite' }}>
-                        <h2 style={{ color: '#fff', margin: 0, fontSize: '1.8rem', fontWeight: '900', letterSpacing: '1.5px' }}>
-                            WAITING FOR LEADER...
-                        </h2>
+                    {/* Controller Actions Indicator */}
+                    <div style={{ 
+                        background: 'var(--glass-bg)', 
+                        padding: '1rem 2rem', 
+                        borderRadius: 'var(--radius-md)', 
+                        border: '1px solid var(--glass-border)',
+                        marginTop: '1rem'
+                    }}>
+                        <p style={{ color: 'var(--text-secondary)', fontSize: '1rem', fontWeight: 600 }}>
+                            📱 Use your controller to <span style={{ color: 'var(--accent-primary)' }}>Play Again</span> or <span style={{ color: 'var(--accent-secondary)' }}>Close</span>
+                        </p>
                     </div>
-
-                    {/* Crosshairs visible during Game Over */}
-                    {Array.from(crosshairs.entries()).map(([cid, pos]) => {
-                        const color = getPlayerColor(cid);
-                        return (
-                            <div key={cid} style={{ position: 'absolute', left: `${pos.x}%`, top: `${pos.y}%`, transform: 'translate(-50%, -50%)', width: '50px', height: '50px', pointerEvents: 'none', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'left 0.08s linear, top 0.08s linear' }}>
-                                <div style={{ position: 'absolute', width: '100%', height: '100%', borderRadius: '50%', border: `2px dashed ${color}55`, boxShadow: `0 0 20px ${color}40, inset 0 0 15px ${color}15` }} />
-                                {[0, 90, 180, 270].map((deg) => (
-                                    <div key={deg} style={{ position: 'absolute', width: '2px', height: '10px', background: color, transform: `rotate(${deg}deg) translateY(-22px)`, boxShadow: `0 0 10px ${color}` }} />
-                                ))}
-                                <div style={{ width: '6px', height: '6px', background: '#fff', borderRadius: '50%', boxShadow: `0 0 12px #fff, 0 0 24px ${color}` }} />
-                            </div>
-                        );
-                    })}
-
-                    {/* Particles during game over */}
-                    {particles.map((p) => (
-                        <div key={p.id} className="particle particle-explode" style={{ left: p.x, top: p.y, width: p.size, height: p.size, backgroundColor: p.color, '--tx': p['--tx'], '--ty': p['--ty'] } as React.CSSProperties} />
-                    ))}
                 </div>
             </div>
         );

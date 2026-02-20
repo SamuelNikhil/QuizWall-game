@@ -76,6 +76,8 @@ export interface GameOverPayload {
     finalScore: number;
     teamName: string;
     leaderboard: LeaderboardEntry[];
+    reason: 'time' | 'completed'; // Why the game ended
+    questionsAnswered: number; // Questions answered in this session (accumulated across restarts)
 }
 
 export interface LeaderboardEntry {
