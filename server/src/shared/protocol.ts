@@ -18,6 +18,8 @@ export const EVENTS = {
     LOBBY_UPDATE: 'lobbyUpdate',
     PLAYER_READY: 'playerReady',
     START_GAME: 'startGame',
+    TUTORIAL_START: 'tutorialStart',
+    TUTORIAL_END: 'tutorialEnd',
     GAME_STARTED: 'gameStarted',
 
     // --- Game flow (server → clients) ---

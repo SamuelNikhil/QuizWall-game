@@ -246,4 +246,12 @@ export class GameClient {
     onTargeting(cb: (data: TargetingPayload) => void): void {
         this.channel?.on(EVENTS.TARGETING, cb);
     }
+
+    onTutorialStart(cb: (data: { duration: number }) => void): void {
+        this.channel?.on(EVENTS.TUTORIAL_START, cb);
+    }
+
+    onTutorialEnd(cb: () => void): void {
+        this.channel?.on(EVENTS.TUTORIAL_END, cb);
+    }
 }
