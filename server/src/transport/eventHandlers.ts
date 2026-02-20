@@ -58,12 +58,12 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
 
             // Store clientId in userData so ALL future events can use it
             channel.userData = { role: 'controller', roomId, clientId };
-            channel.emit(EVENTS.JOINED_ROOM, { roomId, success: true, role: result.role });
+            channel.emit(EVENTS.JOINED_ROOM, { roomId, success: true, role: result.role, colorIndex: result.colorIndex });
 
-            // Notify screen
+            // Notify screen with color index so it can assign consistent crosshair color
             const room = roomManager.getRoom(roomId);
             if (room) {
-                room.screenChannel.emit(EVENTS.CONTROLLER_JOINED, { controllerId: clientId, role: result.role });
+                room.screenChannel.emit(EVENTS.CONTROLLER_JOINED, { controllerId: clientId, role: result.role, colorIndex: result.colorIndex });
                 broadcastLobbyUpdate(roomManager, roomId);
             }
         });

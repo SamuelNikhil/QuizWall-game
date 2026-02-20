@@ -6,11 +6,13 @@
 
 import { useState } from 'react';
 import type { LobbyState, PlayerRole } from '../shared/types';
+import { CROSSHAIR_COLORS } from '../shared/types';
 import '../index.css';
 
 interface LobbyProps {
     role: PlayerRole;
     lobby: LobbyState | null;
+    colorIndex: number;
     onSetTeamName: (name: string) => void;
     onReady: () => void;
     onStartGame: () => void;
@@ -22,6 +24,7 @@ interface LobbyProps {
 export default function Lobby({
     role,
     lobby,
+    colorIndex,
     onSetTeamName,
     onReady,
     onStartGame,
@@ -48,6 +51,7 @@ export default function Lobby({
     // If local nameSubmitted is false but the lobby already has a team name 
     // (e.g. on re-join/refresh), we should skip the entry dialog.
     const effectiveNameSubmitted = nameSubmitted || (lobby?.team.name && lobby.team.name.length >= 2);
+    const myColor = CROSSHAIR_COLORS[colorIndex] || CROSSHAIR_COLORS[0];
 
     // ---- Leader: Team Name Dialog ----
     if (role === 'leader' && !effectiveNameSubmitted) {
@@ -220,8 +224,18 @@ export default function Lobby({
                                     border: `1px solid ${m.isReady ? 'rgba(16,185,129,0.3)' : 'var(--glass-border)'}`,
                                 }}
                             >
-                                <span style={{ fontWeight: 700, color: '#fff' }}>
+                                <span style={{ fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                     {m.role === 'leader' ? '👑' : '🎮'} Player {m.role === 'leader' ? '(You)' : ''}
+                                    <span 
+                                        style={{
+                                            width: '10px',
+                                            height: '10px',
+                                            borderRadius: '50%',
+                                            background: CROSSHAIR_COLORS[m.colorIndex ?? 0] || CROSSHAIR_COLORS[0],
+                                            boxShadow: `0 0 6px ${CROSSHAIR_COLORS[m.colorIndex ?? 0] || CROSSHAIR_COLORS[0]}`,
+                                        }}
+                                        title="Crosshair color"
+                                    />
                                 </span>
                                 <span
                                     style={{
@@ -337,8 +351,18 @@ export default function Lobby({
                                 border: `1px solid ${m.isReady ? 'rgba(16,185,129,0.3)' : 'var(--glass-border)'}`,
                             }}
                         >
-                            <span style={{ fontWeight: 700, color: '#fff' }}>
+                            <span style={{ fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                 {m.role === 'leader' ? '👑 Leader' : '🎮 Player'}
+                                <span 
+                                    style={{
+                                        width: '10px',
+                                        height: '10px',
+                                        borderRadius: '50%',
+                                        background: CROSSHAIR_COLORS[m.colorIndex ?? 0] || CROSSHAIR_COLORS[0],
+                                        boxShadow: `0 0 6px ${CROSSHAIR_COLORS[m.colorIndex ?? 0] || CROSSHAIR_COLORS[0]}`,
+                                    }}
+                                    title="Crosshair color"
+                                />
                             </span>
                             <span
                                 style={{

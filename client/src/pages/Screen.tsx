@@ -48,15 +48,13 @@ export default function Screen() {
     const [crosshairs, setCrosshairs] = useState<Map<string, { x: number; y: number }>>(new Map());
     const [targetedOrbId, setTargetedOrbId] = useState<string | null>(null);
 
-    // Per-player crosshair colors
+    // Per-player crosshair colors - must match types.ts CROSSHAIR_COLORS
     const CROSSHAIR_COLORS = ['#00f2ff', '#ff6b6b', '#7cff6b'];
-    const crosshairColorMap = useRef<Map<string, string>>(new Map());
+    // Store color index from server when controller joins
+    const crosshairColorMap = useRef<Map<string, number>>(new Map());
     const getPlayerColor = useCallback((controllerId: string): string => {
-        if (!crosshairColorMap.current.has(controllerId)) {
-            const idx = crosshairColorMap.current.size % CROSSHAIR_COLORS.length;
-            crosshairColorMap.current.set(controllerId, CROSSHAIR_COLORS[idx]);
-        }
-        return crosshairColorMap.current.get(controllerId)!;
+        const colorIndex = crosshairColorMap.current.get(controllerId) ?? 0;
+        return CROSSHAIR_COLORS[colorIndex] || CROSSHAIR_COLORS[0];
     }, []);
     const [isTransitioning, setIsTransitioning] = useState(false);
     const [controllerCount, setControllerCount] = useState(0);
@@ -189,8 +187,10 @@ export default function Screen() {
                 }
             });
 
-            client.onControllerJoined(() => {
+            client.onControllerJoined((data) => {
                 setControllerCount((prev) => prev + 1);
+                // Store the color index from server for this controller
+                crosshairColorMap.current.set(data.controllerId, data.colorIndex ?? 0);
             });
 
             client.onControllerLeft((data) => {
