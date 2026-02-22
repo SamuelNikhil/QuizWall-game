@@ -12,6 +12,7 @@ import '../index.css';
 interface LobbyProps {
     role: PlayerRole;
     lobby: LobbyState | null;
+    colorIndex: number;
     onSetTeamName: (name: string) => void;
     onReady: () => void;
     onStartGame: () => void;
