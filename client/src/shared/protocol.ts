@@ -40,6 +40,11 @@ export const EVENTS = {
     HIT_RESULT: 'hitResult',
     PROJECTILE: 'projectile',
 
+    // --- Phase-based multiplayer ---
+    PHASE_CHANGE: 'phaseChange',
+    PLAYER_SELECTION: 'playerSelection',
+    REVEAL_RESULT: 'revealResult',
+
     // --- Leaderboard ---
     LEADERBOARD: 'leaderboard',
 

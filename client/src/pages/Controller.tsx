@@ -7,7 +7,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { GameClient } from '../transport/GameClient';
 import Lobby from './Lobby';
-import type { LobbyState, PlayerRole, ScoreUpdate } from '../shared/types';
+import type { LobbyState, PlayerRole, ScoreUpdate, QuestionPhase, PlayerSelectionPayload, RevealResultPayload } from '../shared/types';
 import { CROSSHAIR_COLORS } from '../shared/types';
 import slingCenterImg from '../assets/sling-center.png';
 import '../index.css';
@@ -41,8 +41,16 @@ export default function Controller() {
     const [teamScore, setTeamScore] = useState(0);
     const [timeLeft, setTimeLeft] = useState(30);
     const [finalScore, setFinalScore] = useState(0);
-    const [gameOverReason, setGameOverReason] = useState<'time' | 'completed'>('time');
+    const [gameOverReason, setGameOverReason] = useState<'time' | 'completed' | 'all_wrong'>('time');
     const [lastHit, setLastHit] = useState<{ correct: boolean } | null>(null);
+
+    // Phase-based multiplayer state
+    const [currentPhase, setCurrentPhase] = useState<QuestionPhase | null>(null);
+    const [phaseTimeLeft, setPhaseTimeLeft] = useState(0);
+    const [hasSelectedThisRound, setHasSelectedThisRound] = useState(false);
+    const [isMultiplayer, setIsMultiplayer] = useState(false);
+    const currentPhaseRef = useRef<QuestionPhase | null>(null);
+    const hasSelectedRef = useRef(false);
 
     // ---- Slingshot state ----
     const [isDragging, setIsDragging] = useState(false);
@@ -77,7 +85,7 @@ export default function Controller() {
 
     const clientRef = useRef<GameClient | null>(null);
     const containerRef = useRef<HTMLDivElement>(null);
-    
+
     // Throttle crosshair updates to ~30fps
     const lastCrosshairSend = useRef<number>(0);
     const throttledSendCrosshair = useCallback((x: number, y: number) => {
@@ -119,7 +127,7 @@ export default function Controller() {
                 console.log('[Controller] Tutorial started, duration:', data.duration);
                 setPhase('calibrating');
                 setCalibrationProgress(0);
-                
+
                 // Auto-progress calibration animation
                 let progress = 0;
                 const interval = setInterval(() => {
@@ -129,7 +137,7 @@ export default function Controller() {
                         clearInterval(interval);
                     }
                 }, 1000);
-                
+
                 calibrationTimerRef.current = setTimeout(() => {
                     clearInterval(interval);
                 }, data.duration);
@@ -172,10 +180,44 @@ export default function Controller() {
                 setPhase('game-over');
             });
 
+            // Phase-based multiplayer events
+            client.onPhaseChange((data) => {
+                setCurrentPhase(data.phase);
+                currentPhaseRef.current = data.phase;
+                setPhaseTimeLeft(data.timeLeft);
+                setIsMultiplayer(true);
+                // Reset selection lock when entering analysis phase (new question)
+                if (data.phase === 'analysis' && data.timeLeft === 10) {
+                    setHasSelectedThisRound(false);
+                    hasSelectedRef.current = false;
+                }
+            });
+
+            client.onPlayerSelection((_data: PlayerSelectionPayload) => {
+                // Could show other players' selections, but for now just acknowledge
+                console.log('[Controller] Player selection:', _data.controllerId.substring(0, 8));
+            });
+
+            client.onRevealResult((data: RevealResultPayload) => {
+                console.log('[Controller] Reveal result:', data.anyCorrect ? 'correct!' : 'wrong');
+                // Haptic feedback on reveal
+                if ('vibrate' in navigator) {
+                    navigator.vibrate(data.anyCorrect ? [50, 50, 50] : [200]);
+                }
+                // Show visual hit feedback
+                setLastHit({ correct: data.anyCorrect });
+                setTimeout(() => setLastHit(null), 1500);
+            });
+
             client.onGameRestarted(() => {
                 setPhase('lobby');
                 setTeamScore(0);
                 setTimeLeft(30);
+                setCurrentPhase(null);
+                currentPhaseRef.current = null;
+                setHasSelectedThisRound(false);
+                hasSelectedRef.current = false;
+                setIsMultiplayer(false);
             });
         }).catch((err) => {
             console.error('Connection failed:', err);
@@ -225,7 +267,7 @@ export default function Controller() {
     // Works during calibration (always) and playing (only when dragging)
     const handleGyroOrientation = useCallback((event: DeviceOrientationEvent) => {
         if (!gyroEnabledRef.current || (phase !== 'playing' && phase !== 'calibrating')) return;
-        
+
         // During playing phase, only process when dragging (slingshot pulled)
         if (phase === 'playing' && !isDraggingRef.current) return;
 
@@ -267,13 +309,13 @@ export default function Controller() {
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const DeviceOrientationEvent_ = DeviceOrientationEvent as any;
-        
+
         // iOS 13+ requires explicit permission request
         if (typeof DeviceOrientationEvent_.requestPermission === 'function') {
             try {
                 const permission = await DeviceOrientationEvent_.requestPermission();
                 console.log('[Gyro] iOS permission result:', permission);
-                
+
                 if (permission === 'granted') {
                     setGyroEnabled(true);
                     // iOS needs a moment to start sending events after permission grant
@@ -307,10 +349,10 @@ export default function Controller() {
 
         // Create a one-time calibration listener
         const calibrateOnce = (e: DeviceOrientationEvent) => {
-            const calibration = { 
-                alpha: e.alpha ?? 0, 
-                beta: e.beta ?? 0, 
-                gamma: e.gamma ?? 0 
+            const calibration = {
+                alpha: e.alpha ?? 0,
+                beta: e.beta ?? 0,
+                gamma: e.gamma ?? 0
             };
             setGyroCalibration(calibration);
             setGyroCalibrated(true);
@@ -320,14 +362,14 @@ export default function Controller() {
 
         // Try to get immediate reading
         window.addEventListener('deviceorientation', calibrateOnce, { once: true });
-        
+
         // Also try to force a reading by temporarily attaching a listener if not already active
         if (!orientationListenerActive.current) {
             const tempListener = (e: DeviceOrientationEvent) => {
-                setGyroCalibration({ 
-                    alpha: e.alpha ?? 0, 
-                    beta: e.beta ?? 0, 
-                    gamma: e.gamma ?? 0 
+                setGyroCalibration({
+                    alpha: e.alpha ?? 0,
+                    beta: e.beta ?? 0,
+                    gamma: e.gamma ?? 0
                 });
                 setGyroCalibrated(true);
                 console.log('[Gyro] Calibrated via temp listener:', e.gamma);
@@ -352,6 +394,8 @@ export default function Controller() {
 
     const handleStart = useCallback(() => {
         if (phase !== 'playing') return;
+        // In multiplayer, only allow slingshot during selection phase and if not already selected
+        if (isMultiplayer && (currentPhaseRef.current !== 'selection' || hasSelectedRef.current)) return;
 
         const rect = containerRef.current?.getBoundingClientRect();
         if (!rect) return;
@@ -363,7 +407,7 @@ export default function Controller() {
         setPower(0);
 
         clientRef.current?.sendStartAiming(gyroEnabled);
-    }, [phase, gyroEnabled]);
+    }, [phase, gyroEnabled, isMultiplayer]);
 
     const handleMove = useCallback((e: React.TouchEvent | React.MouseEvent) => {
         if (!isDragging || phase !== 'playing') return;
@@ -404,6 +448,11 @@ export default function Controller() {
 
         if (power > 10 && phase === 'playing') {
             clientRef.current?.shoot(targetXPercent, targetYPercent, power / 100);
+            // Lock selection in multiplayer after shooting
+            if (isMultiplayer) {
+                setHasSelectedThisRound(true);
+                hasSelectedRef.current = true;
+            }
         } else {
             clientRef.current?.sendCancelAiming();
         }
@@ -411,7 +460,7 @@ export default function Controller() {
         setIsDragging(false);
         setPullBack(0);
         setPower(0);
-    }, [isDragging, power, targetXPercent, targetYPercent, phase]);
+    }, [isDragging, power, targetXPercent, targetYPercent, phase, isMultiplayer]);
 
     // ==========================================
     // RENDER — preserving existing controller UX
@@ -585,6 +634,7 @@ export default function Controller() {
     // ---- Game Over ----
     if (phase === 'game-over') {
         const isCompleted = gameOverReason === 'completed';
+        const isAllWrong = gameOverReason === 'all_wrong';
         return (
             <div className="controller-container" style={{ justifyContent: 'center', alignItems: 'center', padding: '2rem', position: 'relative' }}>
                 {/* Header with Close Button */}
@@ -609,21 +659,21 @@ export default function Controller() {
                 </div>
 
                 <div style={{ textAlign: 'center', animation: 'bounceIn 0.8s cubic-bezier(0.34, 1.56, 0.64, 1)' }}>
-                    <h1 style={{ 
-                        fontSize: isCompleted ? '2rem' : '2.5rem', 
-                        fontWeight: 900, 
+                    <h1 style={{
+                        fontSize: isCompleted ? '2rem' : '2.5rem',
+                        fontWeight: 900,
                         color: isCompleted ? '#10b981' : '#ff4444',
                         lineHeight: 1.2,
                     }}>
-                        {isCompleted ? 'ALL QUESTIONS COMPLETED!' : "TIME'S UP!"}
+                        {isCompleted ? 'ALL QUESTIONS COMPLETED!' : isAllWrong ? 'ALL ANSWERS WRONG!' : "TIME'S UP!"}
                     </h1>
-                    
+
                     {isCompleted && (
                         <p style={{ fontSize: '1rem', color: '#90e0ef', margin: '0.5rem 0 1rem' }}>
                             Great job! You answered all 10 questions.
                         </p>
                     )}
-                    
+
                     <div style={{ background: 'var(--glass-bg)', padding: '2rem', borderRadius: 'var(--radius-lg)', border: '1px solid var(--glass-border)', margin: '1.5rem 0' }}>
                         <p style={{ color: 'var(--text-secondary)', fontWeight: 600, marginBottom: '0.5rem' }}>Team Score</p>
                         <p style={{ fontSize: '3.5rem', fontWeight: 900, color: '#90e0ef' }}>{finalScore}</p>
@@ -634,15 +684,15 @@ export default function Controller() {
                         <div style={{ display: 'flex', gap: '1rem', flexDirection: 'column', alignItems: 'center' }}>
                             <button
                                 onClick={() => clientRef.current?.restartGame()}
-                                style={{ 
-                                    padding: '1rem 3rem', 
-                                    fontSize: '1.2rem', 
-                                    fontWeight: 800, 
-                                    background: 'var(--accent-primary)', 
-                                    border: 'none', 
-                                    borderRadius: 'var(--radius-md)', 
-                                    color: 'white', 
-                                    cursor: 'pointer', 
+                                style={{
+                                    padding: '1rem 3rem',
+                                    fontSize: '1.2rem',
+                                    fontWeight: 800,
+                                    background: 'var(--accent-primary)',
+                                    border: 'none',
+                                    borderRadius: 'var(--radius-md)',
+                                    color: 'white',
+                                    cursor: 'pointer',
                                     boxShadow: '0 8px 25px rgba(103, 80, 164, 0.5)',
                                     transition: 'all 0.2s ease',
                                 }}
@@ -657,13 +707,13 @@ export default function Controller() {
                             >
                                 🔄 Play Again
                             </button>
-                            
+
                             <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginTop: '0.5rem' }}>
                                 Use ✕ in top-right to close
                             </p>
                         </div>
                     )}
-                    
+
                     {role !== 'leader' && (
                         <p style={{ color: 'var(--text-secondary)', fontStyle: 'italic' }}>Waiting for leader to restart...</p>
                     )}
@@ -709,30 +759,49 @@ export default function Controller() {
                 />
             )}
 
-            {/* Header */}
+            {/* Header — phase-aware for multiplayer, classic for singleplayer */}
             <div style={{ position: 'absolute', top: 0, left: 0, right: 0, padding: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 10 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', background: 'rgba(255,255,255,0.05)', padding: '0.6rem 1rem', borderRadius: 'var(--radius-md)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.1)' }}>
                     <span style={{ fontSize: '1.4rem' }}>{role === 'leader' ? '👑' : '🎮'}</span>
                     <span style={{ fontWeight: 800, color: '#fff', fontSize: '1rem', letterSpacing: '0.5px' }}>Score: {teamScore}</span>
                     {/* Crosshair Color Indicator */}
-                    <div 
-                        style={{ 
-                            width: '12px', 
-                            height: '12px', 
-                            borderRadius: '50%', 
+                    <div
+                        style={{
+                            width: '12px',
+                            height: '12px',
+                            borderRadius: '50%',
                             background: CROSSHAIR_COLORS[colorIndex],
                             boxShadow: `0 0 8px ${CROSSHAIR_COLORS[colorIndex]}`,
                             marginLeft: '4px'
-                        }} 
+                        }}
                         title="Your crosshair color"
                     />
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                    <div style={{ background: 'rgba(255,255,255,0.05)', padding: '0.6rem 1rem', borderRadius: 'var(--radius-md)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.1)' }}>
-                        <span style={{ fontWeight: 800, color: timeLeft <= 10 ? '#ff6b6b' : '#fff', fontSize: '1.1rem', fontVariantNumeric: 'tabular-nums' }}>
-                            {timeLeft}s
-                        </span>
-                    </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    {/* Phase indicator or classic timer */}
+                    {isMultiplayer && currentPhase ? (
+                        <div style={{
+                            display: 'flex', alignItems: 'center', gap: '0.5rem',
+                            background: currentPhase === 'analysis' ? 'rgba(103,80,164,0.2)' : currentPhase === 'selection' ? 'rgba(255,149,0,0.2)' : 'rgba(16,185,129,0.2)',
+                            padding: '0.5rem 1rem', borderRadius: 'var(--radius-md)',
+                            border: `1px solid ${currentPhase === 'analysis' ? '#6750A4' : currentPhase === 'selection' ? '#ff9500' : '#10b981'}40`,
+                            animation: currentPhase === 'selection' ? 'pulse 0.8s ease-in-out infinite' : 'none',
+                        }}>
+                            <span style={{ fontWeight: 800, fontSize: '0.85rem', letterSpacing: '1px', color: currentPhase === 'analysis' ? '#b8a9d4' : currentPhase === 'selection' ? '#ffb347' : '#6ee7b7' }}>
+                                {currentPhase === 'analysis' ? '🔍' : currentPhase === 'selection' ? '🎯' : '✨'}
+                                {' '}{currentPhase.toUpperCase()}
+                            </span>
+                            <span style={{ fontWeight: 900, fontSize: '1.1rem', color: phaseTimeLeft <= 3 ? '#ff6b6b' : '#fff', fontVariantNumeric: 'tabular-nums' }}>
+                                {phaseTimeLeft}s
+                            </span>
+                        </div>
+                    ) : (
+                        <div style={{ background: 'rgba(255,255,255,0.05)', padding: '0.6rem 1rem', borderRadius: 'var(--radius-md)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                            <span style={{ fontWeight: 800, color: timeLeft <= 10 ? '#ff6b6b' : '#fff', fontSize: '1.1rem', fontVariantNumeric: 'tabular-nums' }}>
+                                {timeLeft}s
+                            </span>
+                        </div>
+                    )}
                     <button
                         onClick={() => {
                             clientRef.current?.close();
@@ -752,6 +821,31 @@ export default function Controller() {
                     </button>
                 </div>
             </div>
+
+            {/* Multiplayer selection lock indicator */}
+            {isMultiplayer && hasSelectedThisRound && currentPhase === 'selection' && (
+                <div style={{
+                    position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+                    background: 'rgba(16,185,129,0.15)', padding: '1.5rem 2.5rem', borderRadius: 'var(--radius-lg)',
+                    border: '2px solid rgba(16,185,129,0.4)', zIndex: 100,
+                    animation: 'bounceIn 0.5s ease-out',
+                }}>
+                    <p style={{ fontSize: '1.4rem', fontWeight: 900, color: '#6ee7b7', textAlign: 'center' }}>✅ Answer Locked!</p>
+                    <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', textAlign: 'center', marginTop: '0.3rem' }}>Waiting for reveal...</p>
+                </div>
+            )}
+
+            {/* Multiplayer analysis phase overlay */}
+            {isMultiplayer && currentPhase === 'analysis' && phase === 'playing' && (
+                <div style={{
+                    position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+                    textAlign: 'center', pointerEvents: 'none', zIndex: 100,
+                    opacity: 0.7,
+                }}>
+                    <p style={{ fontSize: '1.8rem', fontWeight: 900, color: '#b8a9d4' }}>🔍 Read the Question</p>
+                    <p style={{ fontSize: '1rem', color: 'var(--text-secondary)', marginTop: '0.3rem' }}>Slingshot unlocks in {phaseTimeLeft}s</p>
+                </div>
+            )}
 
             {/* Gyro Setup removed from here, now in Lobby */}
 
@@ -808,8 +902,8 @@ export default function Controller() {
                 )}
             </svg>
 
-            {/* Instructions */}
-            {!isDragging && (
+            {/* Instructions — context-aware */}
+            {!isDragging && !hasSelectedThisRound && (
                 <div style={{
                     position: 'absolute', top: '40%', left: '50%', transform: 'translate(-50%, -50%)',
                     textAlign: 'center', opacity: 0.4, pointerEvents: 'none',

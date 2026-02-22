@@ -17,6 +17,9 @@ import type {
     StartAimingPayload,
     PlayerRole,
     LeaderboardEntry,
+    PhaseChangePayload,
+    PlayerSelectionPayload,
+    RevealResultPayload,
 } from '../shared/types';
 
 // --------------- Config ---------------
@@ -253,5 +256,19 @@ export class GameClient {
 
     onTutorialEnd(cb: () => void): void {
         this.channel?.on(EVENTS.TUTORIAL_END, cb);
+    }
+
+    // ---- Phase-based multiplayer ----
+
+    onPhaseChange(cb: (data: PhaseChangePayload) => void): void {
+        this.channel?.on(EVENTS.PHASE_CHANGE, cb);
+    }
+
+    onPlayerSelection(cb: (data: PlayerSelectionPayload) => void): void {
+        this.channel?.on(EVENTS.PLAYER_SELECTION, cb);
+    }
+
+    onRevealResult(cb: (data: RevealResultPayload) => void): void {
+        this.channel?.on(EVENTS.REVEAL_RESULT, cb);
     }
 }
