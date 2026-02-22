@@ -73,7 +73,7 @@ export interface GameOverPayload {
     finalScore: number;
     teamName: string;
     leaderboard: LeaderboardEntry[];
-    reason: 'time' | 'completed'; // Why the game ended
+    reason: 'time' | 'completed' | 'all_wrong'; // Why the game ended
     questionsAnswered: number; // Questions answered in this session (accumulated across restarts)
 }
 
@@ -100,6 +100,29 @@ export interface TargetingPayload {
 export interface StartAimingPayload {
     controllerId: string;
     gyroEnabled: boolean;
+}
+
+// ---------- Phase-based Multiplayer ----------
+
+export type QuestionPhase = 'analysis' | 'selection' | 'reveal';
+
+export interface PhaseChangePayload {
+    phase: QuestionPhase;
+    timeLeft: number;       // Remaining seconds in this phase
+    questionNumber: number; // 1-indexed for UI display
+}
+
+export interface PlayerSelectionPayload {
+    controllerId: string;
+    orbId: string;          // Which orb the player selected
+    colorIndex: number;     // Player's crosshair color for visual marking
+}
+
+export interface RevealResultPayload {
+    correctOrbId: string;                    // The correct answer
+    selections: PlayerSelectionPayload[];    // All player selections
+    anyCorrect: boolean;                     // Did at least one player get it right?
+    points: number;                          // Points awarded (if any correct)
 }
 
 // ---------- Orb positions (shared constant) ----------

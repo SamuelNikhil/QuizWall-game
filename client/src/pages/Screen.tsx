@@ -14,6 +14,9 @@ import type {
     LobbyState,
     GameOverPayload,
     LeaderboardEntry,
+    QuestionPhase,
+    PlayerSelectionPayload,
+    RevealResultPayload,
 } from '../shared/types';
 import '../animations.css';
 
@@ -59,6 +62,14 @@ export default function Screen() {
     const [isTransitioning, setIsTransitioning] = useState(false);
     const [controllerCount, setControllerCount] = useState(0);
     const [sessionEnding, setSessionEnding] = useState(false);
+
+    // Phase-based multiplayer state
+    const [currentPhase, setCurrentPhase] = useState<QuestionPhase | null>(null);
+    const [phaseTimeLeft, setPhaseTimeLeft] = useState(0);
+    const [questionNumber, setQuestionNumber] = useState(0);
+    const [playerSelections, setPlayerSelections] = useState<PlayerSelectionPayload[]>([]);
+    const [revealResult, setRevealResult] = useState<RevealResultPayload | null>(null);
+    const [isMultiplayer, setIsMultiplayer] = useState(false);
 
     const arenaRef = useRef<HTMLDivElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -219,6 +230,65 @@ export default function Screen() {
                 setTimeLeft(data.timeLeft);
                 setTeamScore(0);
                 setPhase('playing');
+                // Detect multiplayer mode based on controller count
+                // (if phase events arrive, it's multiplayer)
+            });
+
+            // Phase-based multiplayer events
+            client.onPhaseChange((data) => {
+                setCurrentPhase(data.phase);
+                setPhaseTimeLeft(data.timeLeft);
+                setQuestionNumber(data.questionNumber);
+                setIsMultiplayer(true);
+                // Clear selections when entering analysis phase (new question)
+                if (data.phase === 'analysis' && data.timeLeft === 10) {
+                    setPlayerSelections([]);
+                    setRevealResult(null);
+                }
+            });
+
+            client.onPlayerSelection((data) => {
+                setPlayerSelections(prev => [...prev, data]);
+            });
+
+            client.onRevealResult((data) => {
+                setRevealResult(data);
+
+                // Trigger the classic correct/wrong orb animations
+                const correctOrb = ORB_POSITIONS.find((o) => o.id === data.correctOrbId);
+                const correctX = correctOrb ? (correctOrb.x / 100) * window.innerWidth : window.innerWidth / 2;
+                const correctY = correctOrb ? (correctOrb.y / 100) * window.innerHeight : window.innerHeight / 2;
+
+                // Orb DOM class animations
+                const orbElements = document.querySelectorAll('.orb');
+                orbElements.forEach((orb) => {
+                    const orbEl = orb as HTMLElement;
+                    if (orbEl.dataset.option === data.correctOrbId) {
+                        orb.classList.add('correct-answer', 'hit-orb');
+                    } else {
+                        orb.classList.add('wrong-answer');
+                    }
+                });
+                setTimeout(() => {
+                    orbElements.forEach((orb) => {
+                        orb.classList.remove('correct-answer', 'wrong-answer', 'hit-orb');
+                    });
+                }, 2500);
+
+                if (data.anyCorrect) {
+                    createParticles(correctX, correctY, 20, '#10b981');
+                    createScorePopup(correctX, correctY, `+${data.points}`, 'correct');
+                    createRipple(correctX, correctY, '#10b981');
+                    createConfetti(correctX, correctY);
+
+                    // Transition animation before next question
+                    setTimeout(() => setIsTransitioning(true), 1800);
+                    setTimeout(() => setIsTransitioning(false), 2500);
+                } else {
+                    createParticles(correctX, correctY, 15, '#ef4444');
+                    createScorePopup(correctX, correctY, '✗', 'wrong');
+                    createRipple(correctX, correctY, '#ef4444');
+                }
             });
 
             client.onQuestion((data) => {
@@ -404,6 +474,7 @@ export default function Screen() {
     // ---- Game Over ----
     if (phase === 'game-over' && gameOverData) {
         const isCompleted = gameOverData.reason === 'completed';
+        const isAllWrong = gameOverData.reason === 'all_wrong';
         return (
             <div className="screen-container">
                 <div
@@ -423,15 +494,15 @@ export default function Screen() {
                         marginBottom: '0.5rem',
                         lineHeight: 1.2,
                     }}>
-                        {isCompleted ? 'ALL QUESTIONS COMPLETED!' : "TIME'S UP!"}
+                        {isCompleted ? 'ALL QUESTIONS COMPLETED!' : isAllWrong ? 'ALL ANSWERS WRONG!' : "TIME'S UP!"}
                     </h1>
-                    
+
                     {isCompleted && (
                         <p style={{ fontSize: '1.2rem', color: '#90e0ef', marginBottom: '1rem' }}>
                             Great job! You answered all 10 questions.
                         </p>
                     )}
-                    
+
                     <div style={{ background: 'rgba(255, 255, 255, 0.05)', padding: '2.5rem', borderRadius: '30px', border: '1px solid rgba(255, 255, 255, 0.1)', backdropFilter: 'blur(20px)', minWidth: '350px', marginBottom: '1.5rem' }}>
                         <p style={{ fontSize: '1.2rem', color: 'var(--accent-secondary)', fontWeight: 700, marginBottom: '0.5rem' }}>{gameOverData.teamName}</p>
                         <h2 style={{ fontSize: '1.5rem', marginBottom: '0.5rem', color: 'rgba(255, 255, 255, 0.8)', fontWeight: '600' }}>Final Score</h2>
@@ -455,10 +526,10 @@ export default function Screen() {
                     )}
 
                     {/* Controller Actions Indicator */}
-                    <div style={{ 
-                        background: 'var(--glass-bg)', 
-                        padding: '1rem 2rem', 
-                        borderRadius: 'var(--radius-md)', 
+                    <div style={{
+                        background: 'var(--glass-bg)',
+                        padding: '1rem 2rem',
+                        borderRadius: 'var(--radius-md)',
                         border: '1px solid var(--glass-border)',
                         marginTop: '1rem'
                     }}>
@@ -569,12 +640,12 @@ export default function Screen() {
                     <h1 style={{ fontSize: '4rem', marginBottom: '2rem', color: '#fff', fontWeight: '900', textShadow: '0 0 50px rgba(103, 80, 164, 0.6)', fontFamily: 'var(--font-main)' }}>
                         Get Ready!
                     </h1>
-                    
+
                     <div style={{ background: 'var(--glass-bg)', padding: '2.5rem', borderRadius: 'var(--radius-lg)', border: '1px solid var(--glass-border)', backdropFilter: 'blur(20px)', boxShadow: 'var(--glass-glow)', marginBottom: '2rem' }}>
                         <h2 style={{ fontSize: '2rem', color: 'var(--accent-secondary)', marginBottom: '1.5rem', fontWeight: '800' }}>
                             How to Play
                         </h2>
-                        
+
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', textAlign: 'left', fontSize: '1.3rem', color: 'var(--text-primary)', lineHeight: '1.6' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                                 <span style={{ fontSize: '2rem' }}>📱</span>
@@ -606,7 +677,12 @@ export default function Screen() {
         );
     }
 
-    // ---- Playing (Game Arena) ---- (identical UI to original)
+    // ---- Playing (Game Arena) ----
+    // Phase-aware header: multiplayer shows phase indicator and phase timer; singleplayer shows classic timer
+    const phaseLabel = currentPhase === 'analysis' ? '🔍 ANALYZE' : currentPhase === 'selection' ? '🎯 SELECT NOW!' : currentPhase === 'reveal' ? '✨ REVEAL' : '';
+    const phaseColor = currentPhase === 'analysis' ? '#6750A4' : currentPhase === 'selection' ? '#ff9500' : currentPhase === 'reveal' ? '#10b981' : 'var(--accent-primary)';
+    const phaseDuration = currentPhase === 'analysis' ? 15 : currentPhase === 'selection' ? 4 : 1;
+
     return (
         <div className="screen-container" ref={containerRef}>
             <header className="screen-header" style={{ justifyContent: 'flex-end', padding: '2rem' }}>
@@ -622,13 +698,46 @@ export default function Screen() {
                         </span>
                     </div>
                 </div>
-                {/* Timer Bar */}
-                <div style={{ position: 'absolute', top: '0', left: '0', width: '100%', height: '8px', background: 'rgba(255,255,255,0.1)', zIndex: 1000 }}>
-                    <div style={{ width: `${(timeLeft / 30) * 100}%`, height: '100%', background: timeLeft <= 10 ? 'var(--accent-error)' : 'var(--accent-primary)', transition: 'width 1s linear, background 0.3s ease', boxShadow: `0 0 20px ${timeLeft <= 10 ? 'var(--accent-error)' : 'var(--accent-primary)'}` }} />
-                </div>
-                <div style={{ position: 'absolute', top: '3rem', left: '2rem', fontSize: '1.8rem', fontWeight: '900', color: timeLeft <= 10 ? 'var(--accent-error)' : 'var(--text-primary)', zIndex: 1000 }}>
-                    {timeLeft}s
-                </div>
+
+                {/* Timer Bar — phase-aware for multiplayer, classic for singleplayer */}
+                {isMultiplayer && currentPhase ? (
+                    <>
+                        {/* Phase progress bar */}
+                        <div style={{ position: 'absolute', top: '0', left: '0', width: '100%', height: '8px', background: 'rgba(255,255,255,0.1)', zIndex: 1000 }}>
+                            <div style={{ width: `${(phaseTimeLeft / phaseDuration) * 100}%`, height: '100%', background: phaseColor, transition: 'width 1s linear, background 0.3s ease', boxShadow: `0 0 20px ${phaseColor}` }} />
+                        </div>
+                        {/* Phase indicator + timer */}
+                        <div style={{ position: 'absolute', top: '1rem', left: '2rem', display: 'flex', alignItems: 'center', gap: '1rem', zIndex: 1000 }}>
+                            <div style={{
+                                padding: '0.4rem 1.2rem', borderRadius: '20px',
+                                background: phaseColor, color: '#fff',
+                                fontWeight: 900, fontSize: '1.2rem', letterSpacing: '2px',
+                                boxShadow: `0 0 30px ${phaseColor}60`,
+                                animation: currentPhase === 'selection' ? 'pulse 0.8s ease-in-out infinite' : 'none',
+                            }}>
+                                {phaseLabel}
+                            </div>
+                            <span style={{ fontSize: '1.8rem', fontWeight: '900', color: phaseTimeLeft <= 3 ? '#ff4444' : '#fff' }}>
+                                {phaseTimeLeft}s
+                            </span>
+                            {questionNumber > 0 && (
+                                <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                                    Q{questionNumber}/10
+                                </span>
+                            )}
+                        </div>
+                    </>
+                ) : (
+                    <>
+                        {/* Classic singleplayer timer */}
+                        <div style={{ position: 'absolute', top: '0', left: '0', width: '100%', height: '8px', background: 'rgba(255,255,255,0.1)', zIndex: 1000 }}>
+                            <div style={{ width: `${(timeLeft / 30) * 100}%`, height: '100%', background: timeLeft <= 10 ? 'var(--accent-error)' : 'var(--accent-primary)', transition: 'width 1s linear, background 0.3s ease', boxShadow: `0 0 20px ${timeLeft <= 10 ? 'var(--accent-error)' : 'var(--accent-primary)'}` }} />
+                        </div>
+                        <div style={{ position: 'absolute', top: '3rem', left: '2rem', fontSize: '1.8rem', fontWeight: '900', color: timeLeft <= 10 ? 'var(--accent-error)' : 'var(--text-primary)', zIndex: 1000 }}>
+                            {timeLeft}s
+                        </div>
+                    </>
+                )}
             </header>
 
             <div className="game-arena" ref={arenaRef}>
@@ -641,24 +750,55 @@ export default function Screen() {
                     </div>
                 )}
 
-                {/* Answer Orbs */}
-                {question?.options.map((opt, i) => (
-                    <div key={opt.id}
-                        className={`orb orb-${opt.id.toLowerCase()} ${targetedOrbId === opt.id ? 'targeted' : ''} ${isTransitioning ? 'exit-animation' : 'entry-animation'}`}
-                        style={{ left: ORB_POSITIONS[i].left, top: ORB_POSITIONS[i].top, animationDelay: isTransitioning ? '0s' : `${i * 0.15}s` }}
-                        data-option={opt.id}
-                    >
-                        {opt.id}: {opt.text}
-                    </div>
-                ))}
+                {/* Answer Orbs — with multiplayer selection markers and reveal highlights */}
+                {question?.options.map((opt, i) => {
+                    // Find players who selected this orb
+                    const selectionsForOrb = playerSelections.filter(s => s.orbId === opt.id);
+                    // Reveal styling
+                    const isCorrectOrb = revealResult?.correctOrbId === opt.id;
+                    const isRevealPhase = currentPhase === 'reveal' && revealResult;
+                    let revealBorder = '';
+                    if (isRevealPhase) {
+                        revealBorder = isCorrectOrb ? '3px solid #10b981' : selectionsForOrb.length > 0 ? '3px solid #ef4444' : '';
+                    }
+
+                    return (
+                        <div key={opt.id}
+                            className={`orb orb-${opt.id.toLowerCase()} ${targetedOrbId === opt.id ? 'targeted' : ''} ${isTransitioning ? 'exit-animation' : 'entry-animation'}`}
+                            style={{
+                                left: ORB_POSITIONS[i].left, top: ORB_POSITIONS[i].top,
+                                animationDelay: isTransitioning ? '0s' : `${i * 0.15}s`,
+                                border: revealBorder || undefined,
+                                boxShadow: isRevealPhase && isCorrectOrb ? '0 0 30px rgba(16, 185, 129, 0.6)' : isRevealPhase && selectionsForOrb.length > 0 ? '0 0 30px rgba(239, 68, 68, 0.4)' : undefined,
+                                transition: 'border 0.3s ease, box-shadow 0.3s ease',
+                            }}
+                            data-option={opt.id}
+                        >
+                            {opt.id}: {opt.text}
+                            {/* Player selection markers */}
+                            {selectionsForOrb.length > 0 && (
+                                <div style={{ position: 'absolute', bottom: '-12px', left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: '4px' }}>
+                                    {selectionsForOrb.map(sel => (
+                                        <div key={sel.controllerId} style={{
+                                            width: '12px', height: '12px', borderRadius: '50%',
+                                            background: CROSSHAIR_COLORS[sel.colorIndex] || CROSSHAIR_COLORS[0],
+                                            border: '2px solid rgba(255,255,255,0.8)',
+                                            boxShadow: `0 0 8px ${CROSSHAIR_COLORS[sel.colorIndex] || CROSSHAIR_COLORS[0]}`,
+                                        }} />
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    );
+                })}
 
                 {/* Projectiles */}
                 {projectiles.map((p) => (
                     <div key={p.id} className="projectile" style={{ left: p.targetX - 10, top: p.targetY - 10, transition: 'all 0.3s ease-out' }} />
                 ))}
 
-                {/* Per-player Crosshairs */}
-                {Array.from(crosshairs.entries()).map(([cid, pos]) => {
+                {/* Per-player Crosshairs — hidden during analysis phase in multiplayer */}
+                {(!isMultiplayer || currentPhase === 'selection') && Array.from(crosshairs.entries()).map(([cid, pos]) => {
                     const color = getPlayerColor(cid);
                     return (
                         <div key={cid} style={{ position: 'absolute', left: `${pos.x}%`, top: `${pos.y}%`, transform: 'translate(-50%, -50%)', width: '50px', height: '50px', pointerEvents: 'none', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'left 0.08s linear, top 0.08s linear' }}>
