@@ -38,7 +38,7 @@ export function loadStaticQuestions(): ServerQuestion[] {
     try {
         const fileContent = readFileSync(CONFIG.QUESTIONS_PATH, 'utf-8');
         staticQuestionsCache = JSON.parse(fileContent) as ServerQuestion[];
-        console.log(`[QuestionRepo] Loaded ${staticQuestionsCache.length} static questions from JSON`);
+
         return staticQuestionsCache;
     } catch (err) {
         console.error('[QuestionRepo] Error parsing questions.json:', err);
@@ -49,36 +49,36 @@ export function loadStaticQuestions(): ServerQuestion[] {
 /** Load AI-generated questions from file if exists and topic matches */
 function loadAiQuestions(currentTopic: string): ServerQuestion[] | null {
     if (!existsSync(AI_QUESTIONS_PATH)) {
-        console.log('[QuestionRepo] No Ai-questions.json found');
+
         return null;
     }
 
     try {
         const fileContent = readFileSync(AI_QUESTIONS_PATH, 'utf-8');
-        
+
         // Handle empty file
         if (!fileContent || fileContent.trim() === '') {
-            console.log('[QuestionRepo] Ai-questions.json is empty, deleting...');
+
             deleteAiQuestions();
             return null;
         }
-        
+
         const data = JSON.parse(fileContent) as AiQuestionsFile;
-        
+
         // Check if topic matches
         if (data.topic !== currentTopic) {
-            console.log(`[QuestionRepo] Topic changed from "${data.topic}" to "${currentTopic}" - deleting old cache`);
+
             deleteAiQuestions();
             return null;
         }
-        
+
         if (!data.questions || data.questions.length === 0) {
-            console.log('[QuestionRepo] Ai-questions.json has no questions, deleting...');
+
             deleteAiQuestions();
             return null;
         }
-        
-        console.log(`[QuestionRepo] Loaded ${data.questions.length} AI questions from cache (topic: ${data.topic})`);
+
+
         return data.questions;
     } catch (err) {
         console.error('[QuestionRepo] Error reading Ai-questions.json, deleting corrupted file:', err);
@@ -95,9 +95,9 @@ function saveAiQuestions(questions: ServerQuestion[], topic: string): void {
             generatedAt: new Date().toISOString(),
             questions: questions.map(q => normalizeQuestionFormat(q))
         };
-        
+
         writeFileSync(AI_QUESTIONS_PATH, JSON.stringify(data, null, 4), 'utf-8');
-        console.log(`[QuestionRepo] Saved ${questions.length} AI questions to Ai-questions.json (topic: ${topic})`);
+        console.log(`[QuestionRepo] Saved to Ai-questions.json (${questions.length} questions)`);
     } catch (err) {
         console.error('[QuestionRepo] Error saving Ai-questions.json:', err);
     }
@@ -108,7 +108,7 @@ function deleteAiQuestions(): void {
     try {
         if (existsSync(AI_QUESTIONS_PATH)) {
             unlinkSync(AI_QUESTIONS_PATH);
-            console.log('[QuestionRepo] Deleted Ai-questions.json');
+
         }
     } catch (err) {
         console.error('[QuestionRepo] Error deleting Ai-questions.json:', err);
@@ -123,7 +123,7 @@ function deleteAiQuestions(): void {
 export async function generateSessionQuestions(sessionId: string): Promise<ServerQuestion[]> {
     // Check if we already have questions for this session
     if (sessionQuestionsCache.has(sessionId)) {
-        console.log(`[QuestionRepo] Returning cached questions for session: ${sessionId}`);
+
         return sessionQuestionsCache.get(sessionId)!;
     }
 
@@ -134,41 +134,40 @@ export async function generateSessionQuestions(sessionId: string): Promise<Serve
     if (isGroqEnabled()) {
         try {
             const groqService = getGroqService()!;
-            console.log(`[QuestionRepo] Generating ${CONFIG.QUESTIONS_PER_SESSION || 10} FRESH questions via Groq for topic: ${currentTopic}`);
-            
+
+
             questions = await groqService.generateQuestionsForSession();
-            
+
             if (!questions || questions.length === 0) {
                 throw new Error('Groq returned empty questions array');
             }
-            
+
             // Remove any duplicates based on question text
             const seenTexts = new Set<string>();
             questions = questions.filter(q => {
                 const normalizedText = q.text.trim().toLowerCase();
                 if (seenTexts.has(normalizedText)) {
-                    console.log(`[QuestionRepo] Filtering duplicate question: "${q.text.substring(0, 50)}..."`);
+
                     return false;
                 }
                 seenTexts.add(normalizedText);
                 return true;
             });
-            
-            console.log(`[QuestionRepo] Generated ${questions.length} FRESH questions via Groq (after deduplication)`);
-            console.log(`[QuestionRepo] First question:`, JSON.stringify(questions[0]).substring(0, 200));
-            
+
+
+
             // Save to Ai-questions.json for backup only (not for reuse)
             saveAiQuestions(questions, currentTopic);
-            
+
         } catch (error) {
             console.error('[QuestionRepo] Groq generation failed, falling back to cached/static:', error);
             // Try cached AI questions as fallback
             const cachedAiQuestions = loadAiQuestions(currentTopic);
             if (cachedAiQuestions && cachedAiQuestions.length > 0) {
-                console.log(`[QuestionRepo] Using cached AI questions as fallback`);
+
                 questions = cachedAiQuestions;
             } else {
-                console.log('[QuestionRepo] No cached questions, using static fallback');
+
                 questions = getRandomStaticQuestions(CONFIG.QUESTIONS_PER_SESSION || 10);
             }
         }
@@ -177,10 +176,10 @@ export async function generateSessionQuestions(sessionId: string): Promise<Serve
     else {
         const cachedAiQuestions = loadAiQuestions(currentTopic);
         if (cachedAiQuestions && cachedAiQuestions.length > 0) {
-            console.log(`[QuestionRepo] Groq disabled, using cached AI questions for topic: ${currentTopic}`);
+
             questions = cachedAiQuestions;
         } else {
-            console.log('[QuestionRepo] Groq not enabled and no cache, using static questions');
+
             questions = getRandomStaticQuestions(CONFIG.QUESTIONS_PER_SESSION || 10);
         }
     }
@@ -190,8 +189,8 @@ export async function generateSessionQuestions(sessionId: string): Promise<Serve
 
     // Cache for this session
     sessionQuestionsCache.set(sessionId, questions);
-    
-    console.log(`[QuestionRepo] Cached ${questions.length} questions for session: ${sessionId}`);
+
+
     return questions;
 }
 
@@ -201,7 +200,7 @@ export async function generateSessionQuestions(sessionId: string): Promise<Serve
  */
 export async function preGenerateForSession(sessionId: string): Promise<void> {
     if (sessionQuestionsCache.has(sessionId)) {
-        console.log(`[QuestionRepo] Questions already cached for session: ${sessionId}`);
+
         return;
     }
 
@@ -223,8 +222,8 @@ export async function preGenerateForSession(sessionId: string): Promise<void> {
 export async function getSessionQuestions(sessionId: string, additionalCount?: number): Promise<ServerQuestion[]> {
     // If additionalCount is specified, generate more questions for existing session
     if (additionalCount && additionalCount > 0 && sessionQuestionsCache.has(sessionId)) {
-        console.log(`[QuestionRepo] Generating +${additionalCount} additional questions for session ${sessionId}`);
-        
+
+
         if (isGroqEnabled() && !isGenerating.has(sessionId)) {
             isGenerating.add(sessionId);
             try {
@@ -233,37 +232,37 @@ export async function getSessionQuestions(sessionId: string, additionalCount?: n
                 isGenerating.delete(sessionId);
             }
         }
-        
+
         return sessionQuestionsCache.get(sessionId)!;
     }
-    
+
     if (sessionQuestionsCache.has(sessionId)) {
         const questions = sessionQuestionsCache.get(sessionId)!;
-        
+
         // Check if we need more questions (less than 5 remaining)
         if (questions.length < 5) {
-            console.log(`[QuestionRepo] Running low on questions (${questions.length} left), adding static buffer + generating AI...`);
-            
+
+
             // Step 1: Immediately add static questions as temporary buffer
             const staticBuffer = getRandomStaticQuestions(10);
             const withBuffer = [...questions, ...staticBuffer];
             sessionQuestionsCache.set(sessionId, withBuffer);
-            console.log(`[QuestionRepo] Added ${staticBuffer.length} static questions as buffer. Total: ${withBuffer.length}`);
-            
+
+
             // Step 2: Trigger background AI generation if Groq is enabled
             if (isGroqEnabled() && !isGenerating.has(sessionId)) {
                 isGenerating.add(sessionId);
-                console.log(`[QuestionRepo] Triggering background AI generation for session ${sessionId}...`);
-                
+
+
                 // Run generation in background (don't await)
                 generateMoreQuestionsForSession(sessionId).finally(() => {
                     isGenerating.delete(sessionId);
                 });
             }
-            
+
             return withBuffer;
         }
-        
+
         return questions;
     }
     return generateSessionQuestions(sessionId);
@@ -283,38 +282,38 @@ async function generateMoreQuestionsForSession(sessionId: string, count?: number
     try {
         const groqService = getGroqService()!;
         const questionCount = count || (CONFIG.QUESTIONS_PER_SESSION || 10);
-        console.log(`[QuestionRepo] Generating ${questionCount} FRESH questions in background for session ${sessionId}...`);
-        
+
+
         // Temporarily override question count for this generation
         const originalCount = groqService['questionCount'];
         groqService['questionCount'] = questionCount;
-        
+
         // Generate fresh questions (not from cache)
         const newQuestions = await groqService.generateQuestionsForSession();
-        
+
         // Restore original count
         groqService['questionCount'] = originalCount;
-        
+
         if (newQuestions && newQuestions.length > 0) {
             // Normalize new questions
             const normalizedNew = newQuestions.map(q => normalizeQuestionFormat(q));
-            
+
             // Get current cache
             const currentQuestions = sessionQuestionsCache.get(sessionId) || [];
-            
+
             // Filter out any questions that have the same text as existing ones (avoid duplicates)
             const existingTexts = new Set(currentQuestions.map(q => q.text.trim().toLowerCase()));
             const uniqueNewQuestions = normalizedNew.filter(q => !existingTexts.has(q.text.trim().toLowerCase()));
-            
+
             if (uniqueNewQuestions.length === 0) {
-                console.log('[QuestionRepo] Generated questions were all duplicates, skipping...');
+
                 return;
             }
-            
+
             // Combine existing with new fresh questions
             const allQuestions = [...currentQuestions, ...uniqueNewQuestions];
             sessionQuestionsCache.set(sessionId, allQuestions);
-            
+
             // Also save to file for persistence (append mode)
             const currentTopic = CONFIG.QUIZ_TOPIC || 'General Knowledge';
             const existingCache = loadAiQuestions(currentTopic);
@@ -328,8 +327,8 @@ async function generateMoreQuestionsForSession(sessionId: string, count?: number
             } else {
                 saveAiQuestions(uniqueNewQuestions, currentTopic);
             }
-            
-            console.log(`[QuestionRepo] Background generation complete! Added ${uniqueNewQuestions.length} FRESH AI questions. Total: ${allQuestions.length}`);
+
+
         }
     } catch (error) {
         console.error('[QuestionRepo] Background generation failed:', error);
@@ -341,7 +340,7 @@ async function generateMoreQuestionsForSession(sessionId: string, count?: number
  */
 export function clearSessionQuestions(sessionId: string): void {
     sessionQuestionsCache.delete(sessionId);
-    console.log(`[QuestionRepo] Cleared questions for session: ${sessionId}`);
+
 }
 
 /**
@@ -349,7 +348,7 @@ export function clearSessionQuestions(sessionId: string): void {
  */
 export function clearAllSessionQuestions(): void {
     sessionQuestionsCache.clear();
-    console.log('[QuestionRepo] Cleared all session question caches');
+
 }
 
 /** Get all static questions (legacy support) */
@@ -382,7 +381,7 @@ function normalizeQuestionFormat(q: ServerQuestion): ServerQuestion {
     if (Array.isArray(q.options)) {
         return q;
     }
-    
+
     // Convert object format to array format
     const optionsObj = q.options as unknown as Record<string, string>;
     if (optionsObj && typeof optionsObj === 'object') {
@@ -396,7 +395,7 @@ function normalizeQuestionFormat(q: ServerQuestion): ServerQuestion {
             ],
         };
     }
-    
+
     return q;
 }
 
@@ -414,7 +413,7 @@ export function getCurrentTopic(): string {
 export function forceRegenerateAiQuestions(): void {
     deleteAiQuestions();
     clearAllSessionQuestions();
-    console.log('[QuestionRepo] Forced regeneration - AI questions will be generated on next game');
+
 }
 
 /**

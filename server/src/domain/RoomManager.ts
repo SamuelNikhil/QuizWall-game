@@ -76,12 +76,12 @@ export class RoomManager {
         const room = this.rooms.get(roomId);
 
         if (!room) {
-            console.log(`[Room] Join failed: room ${roomId} not found`);
+
             return { success: false, error: 'Room not found' };
         }
 
         if (room.joinToken !== token) {
-            console.log(`[Room] Join failed: invalid token for ${roomId}`);
+
             return { success: false, error: 'Invalid token' };
         }
 
@@ -89,7 +89,7 @@ export class RoomManager {
         const existingIdx = room.controllers.findIndex(c => c.clientId === clientId);
         if (existingIdx !== -1) {
             const existing = room.controllers[existingIdx];
-            console.log(`[Room] Client ${clientId.substring(0, 8)}... re-joining room ${roomId}. Updating ID: ${existing.id} -> ${channel.id}`);
+
 
             // Re-bind to the new connection but keep role, state, AND colorIndex
             existing.id = channel.id;
@@ -102,18 +102,18 @@ export class RoomManager {
         this.removeController(channel.id);
 
         if (room.controllers.length >= CONFIG.MAX_PLAYERS_PER_ROOM) {
-            console.log(`[Room] Join failed: room ${roomId} is full`);
+
             return { success: false, error: 'Room is full (max 3 players)' };
         }
 
         if (room.gameStarted) {
-            console.log(`[Room] Join failed: game already started in ${roomId}`);
+
             return { success: false, error: 'Game already in progress' };
         }
 
         // First controller = leader, rest = members
         const role: PlayerRole = room.controllers.length === 0 ? 'leader' : 'member';
-        
+
         // Assign color index based on position (0, 1, 2 for up to 3 players)
         const colorIndex = room.controllers.length;
 
@@ -127,8 +127,7 @@ export class RoomManager {
         };
 
         room.controllers.push(controller);
-        console.log(`[Room] ${role.toUpperCase()} joined ${roomId}. ID: ${channel.id}, Role: ${role}, Color: ${colorIndex}`);
-        console.log(`[Room] Controllers in ${roomId} after join:`, room.controllers.map(c => `${c.role}:${c.id}(color:${c.colorIndex})`));
+        console.log(`[Room] ${role.toUpperCase()} joined ${roomId}`);
 
         return { success: true, role, colorIndex };
     }
@@ -165,17 +164,17 @@ export class RoomManager {
 
         // Solo leader can always start
         if (room.controllers.length === 1) {
-            console.log(`[Room] ${roomId} can start: solo leader`);
+
             return true;
         }
 
         // Otherwise all members must be ready
         const allReady = room.controllers.every((c) => {
-            if (!c.isReady) console.log(`[Room] ${roomId} cannot start: player ${c.id} (${c.role}) not ready`);
+
             return c.isReady;
         });
 
-        if (allReady) console.log(`[Room] ${roomId} can start: all players ready`);
+
         return allReady;
     }
 
@@ -183,26 +182,25 @@ export class RoomManager {
     startGame(roomId: string, clientId: string): boolean {
         const room = this.rooms.get(roomId);
         if (!room) {
-            console.log(`[Room] startGame failed: room ${roomId} not found`);
+
             return false;
         }
 
         // Only leader can start — look up by clientId, NOT channel.id
         const controller = room.controllers.find((c) => c.clientId === clientId);
         if (!controller || controller.role !== 'leader') {
-            console.log(`[Room] startGame failed: clientId ${clientId.substring(0, 8)}... is not leader. Role: ${controller?.role}`);
-            console.log(`[Room] Current controllers in ${roomId}:`, room.controllers.map(c => `[clientId:${c.clientId.substring(0, 8)}..., role:${c.role}]`));
+
             return false;
         }
 
         const canStart = this.canStartGame(roomId);
         if (!canStart) {
-            console.log(`[Room] startGame failed: not all members ready in ${roomId}`);
+
             return false;
         }
 
         room.gameStarted = true;
-        console.log(`[Room] Game started in ${roomId} by leader clientId: ${clientId.substring(0, 8)}...`);
+        console.log(`[Room] Game started in ${roomId}`);
         return true;
     }
 
@@ -240,10 +238,10 @@ export class RoomManager {
                 if (wasLeader && room.controllers.length > 0) {
                     room.controllers[0].role = 'leader';
                     room.controllers[0].isReady = true;
-                    console.log(`[Room] Promoted ${room.controllers[0].id} to leader in ${room.roomId}`);
+
                 }
 
-                console.log(`[Room] Controller ${channelId} left ${room.roomId}`);
+
                 return { room, wasLeader };
             }
         }
@@ -256,7 +254,7 @@ export class RoomManager {
             if (room.screenChannel.id === channelId) {
                 room.quizEngine.destroy();
                 this.rooms.delete(roomId);
-                console.log(`[Room] Deleted: ${roomId}`);
+
                 return room;
             }
         }

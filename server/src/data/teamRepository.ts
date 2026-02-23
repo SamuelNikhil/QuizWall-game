@@ -16,7 +16,7 @@ export function createTeam(name: string): number {
     const id = result[0].values[0][0] as number;
 
     saveDatabase();
-    console.log(`[DB] Created team "${name}" with id ${id}`);
+
     return id;
 }
 
@@ -49,17 +49,16 @@ export function updateTeamScore(teamId: number, newScore: number): void {
         ? Number(result[0].values[0][0])
         : 0;
 
-    console.log(`[DB] updateTeamScore called: teamId=${teamId}, newScore=${numericNewScore}, currentScore=${currentScore}`);
-    console.log(`[DB] Comparison: ${numericNewScore} > ${currentScore} = ${numericNewScore > currentScore}`);
+
 
     // Only update if new score is higher than current score
     if (numericNewScore > currentScore) {
-        console.log(`[DB] Executing UPDATE for team ${teamId} with score ${numericNewScore}`);
+
         const updateResult = db.run(
             "UPDATE teams SET total_score = ?, games_played = games_played + 1, updated_at = datetime('now') WHERE id = ?",
             [numericNewScore, teamId]
         );
-        console.log(`[DB] UPDATE result:`, updateResult);
+
         saveDatabase();
 
         // Verify the update
@@ -67,16 +66,16 @@ export function updateTeamScore(teamId: number, newScore: number): void {
         const verifiedScore = verifyResult.length > 0 && verifyResult[0].values.length > 0
             ? Number(verifyResult[0].values[0][0])
             : 'N/A';
-        console.log(`[DB] Verified score after update: ${verifiedScore}`);
+
     } else {
         // Just increment games played, keep existing score
-        console.log(`[DB] Score not higher, incrementing games_played only`);
+
         db.run(
             "UPDATE teams SET games_played = games_played + 1, updated_at = datetime('now') WHERE id = ?",
             [teamId]
         );
         saveDatabase();
-        console.log(`[DB] Team ${teamId} score ${currentScore} kept (new score ${numericNewScore} not higher)`);
+
     }
 }
 
@@ -93,7 +92,7 @@ export function saveGameSession(
         [roomId, teamId, score, questionsAnswered]
     );
     saveDatabase();
-    console.log(`[DB] Saved session: room=${roomId}, team=${teamId}, score=${score}`);
+    console.log(`[DB] Score updated: team=${teamId}, score=${score}`);
 }
 
 /** Debug: Get all teams with their scores */
