@@ -187,7 +187,7 @@ export default function Controller() {
                 setPhaseTimeLeft(data.timeLeft);
                 setIsMultiplayer(true);
                 // Reset selection lock when entering analysis phase (new question)
-                if (data.phase === 'analysis' && data.timeLeft === 10) {
+                if (data.phase === 'analysis' && data.timeLeft === 2) {
                     setHasSelectedThisRound(false);
                     hasSelectedRef.current = false;
                 }
@@ -822,28 +822,29 @@ export default function Controller() {
                 </div>
             </div>
 
-            {/* Multiplayer selection lock indicator */}
+            {/* Multiplayer selection lock indicator — below slingshot */}
             {isMultiplayer && hasSelectedThisRound && currentPhase === 'selection' && (
                 <div style={{
-                    position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-                    background: 'rgba(16,185,129,0.15)', padding: '1.5rem 2.5rem', borderRadius: 'var(--radius-lg)',
+                    position: 'absolute', bottom: '5rem', left: '50%', transform: 'translateX(-50%)',
+                    background: 'rgba(16,185,129,0.15)', padding: '0.8rem 2rem', borderRadius: 'var(--radius-lg)',
                     border: '2px solid rgba(16,185,129,0.4)', zIndex: 100,
+                    pointerEvents: 'none',
                     animation: 'bounceIn 0.5s ease-out',
                 }}>
-                    <p style={{ fontSize: '1.4rem', fontWeight: 900, color: '#6ee7b7', textAlign: 'center' }}>✅ Answer Locked!</p>
-                    <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', textAlign: 'center', marginTop: '0.3rem' }}>Waiting for reveal...</p>
+                    <p style={{ fontSize: '1.1rem', fontWeight: 900, color: '#6ee7b7', textAlign: 'center' }}>✅ Answer Locked!</p>
+                    <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', textAlign: 'center', marginTop: '0.2rem' }}>Waiting for reveal...</p>
                 </div>
             )}
 
-            {/* Multiplayer analysis phase overlay */}
+            {/* Multiplayer analysis phase indicator — below slingshot */}
             {isMultiplayer && currentPhase === 'analysis' && phase === 'playing' && (
                 <div style={{
-                    position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+                    position: 'absolute', bottom: '5rem', left: '50%', transform: 'translateX(-50%)',
                     textAlign: 'center', pointerEvents: 'none', zIndex: 100,
                     opacity: 0.7,
                 }}>
-                    <p style={{ fontSize: '1.8rem', fontWeight: 900, color: '#b8a9d4' }}>🔍 Read the Question</p>
-                    <p style={{ fontSize: '1rem', color: 'var(--text-secondary)', marginTop: '0.3rem' }}>Slingshot unlocks in {phaseTimeLeft}s</p>
+                    <p style={{ fontSize: '1.4rem', fontWeight: 900, color: '#b8a9d4' }}>🔍 Read the Question</p>
+                    <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>Slingshot unlocks in {phaseTimeLeft}s</p>
                 </div>
             )}
 
