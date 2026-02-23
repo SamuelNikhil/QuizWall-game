@@ -32,7 +32,7 @@ export class GroqService {
         this.model = config.model;
         this.topic = config.topic;
         this.questionCount = config.questionCount;
-        
+
         console.log(`[GroqService] Initialized with model: ${config.model}, topic: ${config.topic}`);
     }
 
@@ -41,10 +41,10 @@ export class GroqService {
      */
     async generateQuestionsForSession(): Promise<ServerQuestion[]> {
         try {
-            console.log(`[GroqService] Generating ${this.questionCount} fresh questions for topic: ${this.topic}`);
-            
+
+
             const prompt = this.buildPrompt();
-            
+
             const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
                 method: 'POST',
                 headers: {
@@ -75,18 +75,18 @@ export class GroqService {
 
             const data = await response.json() as GroqResponse;
             const text = data.choices[0]?.message?.content || '';
-            
+
             const questions = this.parseResponse(text);
-            
+
             // Assign unique IDs
             const questionsWithIds = questions.map(q => ({
                 ...q,
                 id: this.getNextQuestionId(),
             }));
-            
-            console.log(`[GroqService] Successfully generated ${questionsWithIds.length} questions`);
+
+            console.log(`[GroqService] AI questions generated (${questionsWithIds.length})`);
             return questionsWithIds;
-            
+
         } catch (error) {
             console.error('[GroqService] Error generating questions:', error);
             throw new Error(`Failed to generate questions: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -97,7 +97,7 @@ export class GroqService {
         // Add randomness to ensure unique questions each generation
         const randomSeed = Math.random().toString(36).substring(2, 10);
         const timeSeed = Date.now().toString(36).substring(2, 8);
-        
+
         return `Generate ${this.questionCount} multiple-choice quiz questions about "${this.topic}".
 
 UNIQUE GENERATION SEED: ${randomSeed}-${timeSeed}
@@ -141,31 +141,31 @@ Do NOT include:
         try {
             // Clean up the response
             let jsonText = text.trim();
-            
+
             // Remove markdown code blocks if present
             if (jsonText.startsWith('```')) {
                 jsonText = jsonText.replace(/```json?\n?/gi, '').replace(/```/g, '');
             }
-            
+
             // Extract JSON array
             const startIndex = jsonText.indexOf('[');
             const endIndex = jsonText.lastIndexOf(']');
-            
+
             if (startIndex === -1 || endIndex === -1) {
                 throw new Error('Could not find JSON array in response');
             }
-            
+
             jsonText = jsonText.substring(startIndex, endIndex + 1);
-            
+
             const parsed = JSON.parse(jsonText);
-            
+
             if (!Array.isArray(parsed)) {
                 throw new Error('Parsed response is not an array');
             }
-            
+
             // Validate and sanitize each question
             return parsed.map(q => this.validateAndSanitizeQuestion(q));
-            
+
         } catch (error) {
             console.error('[GroqService] Failed to parse response:', text);
             throw new Error(`Failed to parse AI response: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -178,7 +178,7 @@ Do NOT include:
         const options = q.options || {};
         const correct = q.correct || 'A';
         const category = q.category || this.topic;
-        
+
         // Ensure options has all required keys
         const optionEntries = [
             { key: 'A', text: options.A || options.a || 'Option A' },
@@ -186,25 +186,25 @@ Do NOT include:
             { key: 'C', text: options.C || options.c || 'Option C' },
             { key: 'D', text: options.D || options.d || 'Option D' },
         ];
-        
+
         // Find the correct answer text
         const correctKey = ['A', 'B', 'C', 'D'].includes(correct.toUpperCase()) ? correct.toUpperCase() : 'A';
         const correctText = optionEntries.find(e => e.key === correctKey)?.text || optionEntries[0].text;
-        
+
         // Shuffle the options randomly
         const shuffled = [...optionEntries].sort(() => Math.random() - 0.5);
-        
+
         // Reassign keys A, B, C, D to shuffled options
         const sanitizedOptions: Record<string, string> = {};
         let newCorrectKey = 'A';
-        
+
         ['A', 'B', 'C', 'D'].forEach((key, index) => {
             sanitizedOptions[key] = shuffled[index].text;
             if (shuffled[index].text === correctText) {
                 newCorrectKey = key;
             }
         });
-        
+
         return {
             id: 0, // Will be assigned later
             text,
@@ -225,7 +225,7 @@ Do NOT include:
     updateTopic(newTopic: string): void {
         this.topic = newTopic;
         this.questionIdCounter = 1;
-        console.log(`[GroqService] Topic updated to: ${newTopic}`);
+
     }
 }
 
@@ -234,10 +234,10 @@ let groqService: GroqService | null = null;
 
 export function initializeGroqService(config: { apiKey: string; model: string; topic: string; questionCount: number }): void {
     if (!config.apiKey) {
-        console.log('[GroqService] No API key provided, service not initialized');
+
         return;
     }
-    
+
     groqService = new GroqService(config);
 }
 

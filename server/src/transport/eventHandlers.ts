@@ -18,12 +18,11 @@ const connectionTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
 
 export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager): void {
     io.onConnection((channel: ServerChannel) => {
-        console.log(`[Geckos] New client connected: ${channel.id}`);
+
 
         // Handshake timeout
         const timeoutId = setTimeout(() => {
             if (connectionTimeouts.has(channel.id)) {
-                console.log(`[WARNING] Client ${channel.id} handshake timeout`);
                 connectionTimeouts.delete(channel.id);
             }
         }, 15000);
@@ -45,7 +44,7 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
 
             // clientId is now required for role persistence
             if (!clientId) {
-                console.log(`[Room] Join failed: missing clientId for ${roomId}`);
+
                 channel.emit(EVENTS.JOINED_ROOM, { roomId, success: false, error: 'Client ID required' });
                 return;
             }
@@ -91,27 +90,27 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
 
         channel.on(EVENTS.START_GAME, async () => {
             const { roomId, clientId } = channel.userData || {};
-            console.log(`[Game] START_GAME received from channel ${channel.id}, roomId: ${roomId}, clientId: ${clientId?.substring(0, 8)}...`);
+
             if (!roomId || !clientId) {
-                console.log(`[Game] Start failed: missing roomId/clientId in userData`);
+
                 return;
             }
 
             const started = roomManager.startGame(roomId, clientId);
             if (!started) {
-                console.log(`[Game] Start failed: RoomManager.startGame returned false for ${roomId}`);
+
                 return;
             }
 
-            console.log(`[Game] Room ${roomId} game started flag set!`);
+
             const room = roomManager.getRoom(roomId);
             if (!room) {
-                console.log(`[Game] Room ${roomId} not found after startGame`);
+
                 return;
             }
 
             // Step 1: Send TUTORIAL_START to all clients and screen immediately
-            console.log(`[Game] Sending TUTORIAL_START to all clients and screen`);
+
             room.screenChannel.emit(EVENTS.TUTORIAL_START, { duration: 5000 });
             for (const c of room.controllers) {
                 c.channel.emit(EVENTS.TUTORIAL_START, { duration: 5000 });
@@ -130,7 +129,7 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
             await new Promise(resolve => setTimeout(resolve, 5000));
 
             // Step 4: Send TUTORIAL_END
-            console.log(`[Game] Sending TUTORIAL_END to all clients and screen`);
+
             room.screenChannel.emit(EVENTS.TUTORIAL_END, {});
             for (const c of room.controllers) {
                 c.channel.emit(EVENTS.TUTORIAL_END, {});
@@ -139,11 +138,11 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
             // Set player count for timer logic
             const playerCount = room.controllers.length;
             room.quizEngine.setPlayerCount(playerCount);
-            console.log(`[Game] Starting with ${playerCount} player(s), mode: ${playerCount >= 2 ? 'multiplayer (phase-based)' : 'singleplayer (30s)'}`);
+
 
             // Get first question
             const question = room.quizEngine.getCurrentQuestion();
-            console.log(`[Game] Sending GAME_STARTED with question: ${question?.text?.substring(0, 30)}...`);
+
 
             if (playerCount >= 2) {
                 // ==========================================
@@ -476,19 +475,19 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
         channel.onDisconnect(() => {
             clearConnectionTimeout(channel.id);
             const { role, roomId } = channel.userData || {};
-            console.log(`[Geckos] Client disconnected: ${channel.id} (role: ${role}, roomId: ${roomId})`);
+
 
             if (role === 'screen') {
                 const room = roomManager.deleteRoomByScreen(channel.id);
                 if (room) {
-                    console.log(`[Room] Screen for ${room.roomId} disconnected, room deleted`);
+
 
                     // Save the score before deleting the room (if game was in progress)
                     if (room.gameStarted) {
                         const finalScore = room.teamManager.getLiveScore();
                         const questionsAnswered = room.quizEngine.getQuestionsAnswered();
                         room.teamManager.saveGameResult(roomId, questionsAnswered);
-                        console.log(`[Room] Saved score ${finalScore} for team "${room.teamManager.getTeamName()}" on disconnect`);
+
                     }
 
                     // Get updated leaderboard after saving
@@ -508,11 +507,11 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
             } else if (role === 'controller') {
                 const { room, wasLeader } = roomManager.removeController(channel.id);
                 if (room) {
-                    console.log(`[Room] Controller ${channel.id} (wasLeader: ${wasLeader}) removed from ${room.roomId}`);
+
                     room.screenChannel.emit(EVENTS.CONTROLLER_LEFT, { controllerId: channel.id });
                     broadcastLobbyUpdate(roomManager, room.roomId);
                 } else {
-                    console.log(`[Room] Disconnected controller ${channel.id} was not tracked in any room`);
+
                 }
             }
         });
@@ -525,11 +524,7 @@ function broadcastLobbyUpdate(roomManager: RoomManager, roomId: string): void {
     const room = roomManager.getRoom(roomId);
     if (!lobby || !room) return;
 
-    console.log(`[Lobby] Broadcasting update for ${roomId}:`, {
-        room: roomId,
-        players: lobby.team.members.length,
-        canStart: lobby.canStart
-    });
+
 
     room.screenChannel.emit(EVENTS.LOBBY_UPDATE, lobby);
     for (const c of room.controllers) {
