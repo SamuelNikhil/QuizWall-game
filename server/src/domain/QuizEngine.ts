@@ -11,8 +11,8 @@ import type { ServerQuestion, ClientQuestion, QuestionPhase, PlayerSelectionPayl
 
 // Phase durations in seconds
 const PHASE_DURATIONS: Record<QuestionPhase, number> = {
-    analysis: 10,
-    selection: 7,
+    analysis: 2,
+    selection: 15,
     reveal: 3,
 };
 

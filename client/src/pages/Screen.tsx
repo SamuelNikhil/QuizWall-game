@@ -241,7 +241,7 @@ export default function Screen() {
                 setQuestionNumber(data.questionNumber);
                 setIsMultiplayer(true);
                 // Clear selections when entering analysis phase (new question)
-                if (data.phase === 'analysis' && data.timeLeft === 10) {
+                if (data.phase === 'analysis' && data.timeLeft === 2) {
                     setPlayerSelections([]);
                     setRevealResult(null);
                 }
@@ -367,6 +367,10 @@ export default function Screen() {
                 setTeamScore(0);
                 setTimeLeft(30);
                 setGameOverData(null);
+                setPlayerSelections([]);
+                setRevealResult(null);
+                setCurrentPhase(null);
+                setIsMultiplayer(false);
             });
         }).catch((err) => {
             console.error('Connection failed:', err);
@@ -681,7 +685,7 @@ export default function Screen() {
     // Phase-aware header: multiplayer shows phase indicator and phase timer; singleplayer shows classic timer
     const phaseLabel = currentPhase === 'analysis' ? '🔍 ANALYZE' : currentPhase === 'selection' ? '🎯 SELECT NOW!' : currentPhase === 'reveal' ? '✨ REVEAL' : '';
     const phaseColor = currentPhase === 'analysis' ? '#6750A4' : currentPhase === 'selection' ? '#ff9500' : currentPhase === 'reveal' ? '#10b981' : 'var(--accent-primary)';
-    const phaseDuration = currentPhase === 'analysis' ? 15 : currentPhase === 'selection' ? 4 : 1;
+    const phaseDuration = currentPhase === 'analysis' ? 2 : currentPhase === 'selection' ? 15 : 3;
 
     return (
         <div className="screen-container" ref={containerRef}>
