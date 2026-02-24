@@ -161,7 +161,8 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
 
                         // When entering analysis for a NEW question (not the first),
                         // send the next question to all clients
-                        if (phase === 'analysis' && timeLeft === 10 && questionNumber > 1) {
+                        // Note: analysis phase duration is 2 seconds, so timeLeft starts at 2
+                        if (phase === 'analysis' && timeLeft === 2 && questionNumber > 1) {
                             const nextQ = room.quizEngine.getLastSelectedQuestion();
                             if (nextQ) {
                                 room.screenChannel.emit(EVENTS.QUESTION, nextQ);
