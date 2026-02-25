@@ -38,6 +38,7 @@ export const EVENTS = {
 
     // --- Feedback (server → controller/screen) ---
     HIT_RESULT: 'hitResult',
+    WRONG_CHOICES_UPDATE: 'wrongChoicesUpdate',
     PROJECTILE: 'projectile',
 
     // --- Phase-based multiplayer ---

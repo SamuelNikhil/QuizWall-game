@@ -31,6 +31,7 @@ export class QuizEngine {
     private readonly MAX_QUESTIONS = 10; // Maximum questions per session
     private allQuestionsCompleted: boolean = false; // Track if all questions have been answered
     private lastGameOverReason: 'time' | 'completed' | 'all_wrong' = 'time'; // Reason for game over
+    private totalQuestionsAttempted: number = 0; // Track ALL questions attempted (correct + wrong)
 
     // Phase-based multiplayer fields
     private currentPhase: QuestionPhase = 'analysis';
@@ -126,7 +127,7 @@ export class QuizEngine {
         if (this.isMultiplayer()) {
             console.log(`[QuizEngine] Player count set to ${this.playerCount}, using phase-based timer (20s/question)`);
         } else {
-            console.log(`[QuizEngine] Player count set to ${this.playerCount}, timer will be 30s`);
+            console.log(`[QuizEngine] Player count set to ${this.playerCount}, timer will be 20s`);
         }
     }
 
@@ -144,7 +145,7 @@ export class QuizEngine {
      * Get timer duration based on player count (singleplayer only)
      */
     private getTimerDuration(): number {
-        return 30; // Singleplayer always 30s
+        return 20; // Singleplayer 20 seconds
     }
 
     // ==========================================
@@ -161,6 +162,7 @@ export class QuizEngine {
         // Set timer based on player count
         this.timeLeft = this.getTimerDuration();
         this.questionsAnswered = 0;
+        this.totalQuestionsAttempted = 0;
         this.currentIndex = 0;
         this.shuffleQuestions();
 
@@ -393,6 +395,7 @@ export class QuizEngine {
         this.timeLeft = CONFIG.TIMER_DURATION;
         this.currentIndex = 0;
         this.questionsAnswered = 0; // Reset round counter only
+        this.totalQuestionsAttempted = 0; // Reset total attempted for new game
         // NOTE: sessionQuestionsAnswered is NOT reset - it accumulates across restarts
         this.allQuestionsCompleted = false; // Reset completion flag for new game
         this.usedQuestionTexts.clear(); // Clear used questions for new game
@@ -456,6 +459,10 @@ export class QuizEngine {
         const isCorrect = orbId === currentQuestion.correct;
         const points = isCorrect ? 100 : 0;
 
+        // Track all questions attempted (both correct and wrong)
+        this.totalQuestionsAttempted++;
+
+        // Only increment correct answer count for score
         if (isCorrect) {
             this.questionsAnswered++;
             this.sessionQuestionsAnswered++;
@@ -468,9 +475,9 @@ export class QuizEngine {
     async nextQuestion(): Promise<ClientQuestion | null> {
         this.currentIndex++;
 
-        // Check if all questions have been answered
-        if (this.questionsAnswered >= this.sessionQuestionLimit) {
-            console.log(`[QuizEngine] All ${this.sessionQuestionLimit} questions completed! Triggering game over.`);
+        // Check if all questions have been attempted (10 questions max, regardless of correct/wrong)
+        if (this.totalQuestionsAttempted >= this.sessionQuestionLimit) {
+            console.log(`[QuizEngine] All ${this.sessionQuestionLimit} questions attempted! Triggering game over.`);
             this.allQuestionsCompleted = true;
             this.stopTimer();
             this.stopPhaseTimer();

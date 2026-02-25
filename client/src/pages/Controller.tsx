@@ -39,7 +39,7 @@ export default function Controller() {
 
     // ---- Game state (from server) ----
     const [teamScore, setTeamScore] = useState(0);
-    const [timeLeft, setTimeLeft] = useState(30);
+    const [timeLeft, setTimeLeft] = useState(20);
     const [finalScore, setFinalScore] = useState(0);
     const [gameOverReason, setGameOverReason] = useState<'time' | 'completed' | 'all_wrong'>('time');
     const [lastHit, setLastHit] = useState<{ correct: boolean } | null>(null);
@@ -212,7 +212,7 @@ export default function Controller() {
             client.onGameRestarted(() => {
                 setPhase('lobby');
                 setTeamScore(0);
-                setTimeLeft(30);
+                setTimeLeft(20);
                 setCurrentPhase(null);
                 currentPhaseRef.current = null;
                 setHasSelectedThisRound(false);

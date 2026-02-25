@@ -16,7 +16,7 @@ export const CONFIG = {
     QUESTIONS_PATH: process.env.QUESTIONS_PATH || './src/data/questions.json',
 
     /** Game timer duration in seconds */
-    TIMER_DURATION: 30,
+    TIMER_DURATION: 20,
 
     /** Maximum controllers (players) per room */
     MAX_PLAYERS_PER_ROOM: 3,

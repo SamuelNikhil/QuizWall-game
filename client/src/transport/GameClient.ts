@@ -8,6 +8,7 @@ import { EVENTS } from '../shared/protocol';
 import type {
     ClientQuestion,
     HitResultPayload,
+    WrongChoicesUpdate,
     ScoreUpdate,
     TimerSync,
     GameOverPayload,
@@ -220,6 +221,10 @@ export class GameClient {
 
     onHitResult(cb: (data: HitResultPayload) => void): void {
         this.channel?.on(EVENTS.HIT_RESULT, cb);
+    }
+
+    onWrongChoicesUpdate(cb: (data: { wrongChoicesLeft: number }) => void): void {
+        this.channel?.on(EVENTS.WRONG_CHOICES_UPDATE, cb);
     }
 
     onProjectile(cb: (data: { controllerId: string; targetXPercent: number; targetYPercent: number }) => void): void {
