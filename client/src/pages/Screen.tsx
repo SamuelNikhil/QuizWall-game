@@ -35,7 +35,7 @@ export default function Screen() {
     const [joinToken, setJoinToken] = useState<string | null>(null);
     const [lobby, setLobby] = useState<LobbyState | null>(null);
     const [question, setQuestion] = useState<ClientQuestion | null>(null);
-    const [timeLeft, setTimeLeft] = useState(30);
+    const [timeLeft, setTimeLeft] = useState(20);
     const [teamScore, setTeamScore] = useState(0);
     const [teamName, setTeamName] = useState('');
     const [gameOverData, setGameOverData] = useState<GameOverPayload | null>(null);
@@ -365,7 +365,7 @@ export default function Screen() {
                 setPhase('team-lobby');
                 setQuestion(null);
                 setTeamScore(0);
-                setTimeLeft(30);
+                setTimeLeft(20);
                 setGameOverData(null);
                 setPlayerSelections([]);
                 setRevealResult(null);
@@ -735,7 +735,7 @@ export default function Screen() {
                     <>
                         {/* Classic singleplayer timer */}
                         <div style={{ position: 'absolute', top: '0', left: '0', width: '100%', height: '8px', background: 'rgba(255,255,255,0.1)', zIndex: 1000 }}>
-                            <div style={{ width: `${(timeLeft / 30) * 100}%`, height: '100%', background: timeLeft <= 10 ? 'var(--accent-error)' : 'var(--accent-primary)', transition: 'width 1s linear, background 0.3s ease', boxShadow: `0 0 20px ${timeLeft <= 10 ? 'var(--accent-error)' : 'var(--accent-primary)'}` }} />
+                            <div style={{ width: `${(timeLeft / 20) * 100}%`, height: '100%', background: timeLeft <= 10 ? 'var(--accent-error)' : 'var(--accent-primary)', transition: 'width 1s linear, background 0.3s ease', boxShadow: `0 0 20px ${timeLeft <= 10 ? 'var(--accent-error)' : 'var(--accent-primary)'}` }} />
                         </div>
                         <div style={{ position: 'absolute', top: '3rem', left: '2rem', fontSize: '1.8rem', fontWeight: '900', color: timeLeft <= 10 ? 'var(--accent-error)' : 'var(--text-primary)', zIndex: 1000 }}>
                             {timeLeft}s

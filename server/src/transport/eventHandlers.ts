@@ -259,7 +259,7 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
                             finalScore,
                             teamName: room.teamManager.getTeamName(),
                             leaderboard,
-                            reason: room.quizEngine.isAllQuestionsCompleted() ? 'completed' : 'time',
+                            reason: room.quizEngine.getLastGameOverReason(),
                             questionsAnswered,
                         };
 
@@ -350,6 +350,7 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
                     // Validate answer server-side
                     const result = room.quizEngine.validateAnswer(hitOrb);
 
+                    // Award points only for correct answers
                     if (result.correct) {
                         room.teamManager.addScore(result.points);
                     }
@@ -375,20 +376,19 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
                         c.channel.emit(EVENTS.SCORE_UPDATE, scorePayload);
                     }
 
-                    // If correct, advance to next question and reset timer
-                    if (result.correct) {
-                        room.quizEngine.resetTimer();
+                    // Always advance to next question after showing animation (both correct and wrong)
+                    // Reset timer for fresh time on next question
+                    room.quizEngine.resetTimer();
 
-                        setTimeout(async () => {
-                            const nextQ = await room.quizEngine.nextQuestion();
-                            if (nextQ) {
-                                room.screenChannel.emit(EVENTS.QUESTION, nextQ);
-                                for (const c of room.controllers) {
-                                    c.channel.emit(EVENTS.QUESTION, nextQ);
-                                }
+                    setTimeout(async () => {
+                        const nextQ = await room.quizEngine.nextQuestion();
+                        if (nextQ) {
+                            room.screenChannel.emit(EVENTS.QUESTION, nextQ);
+                            for (const c of room.controllers) {
+                                c.channel.emit(EVENTS.QUESTION, nextQ);
                             }
-                        }, 1500); // Match the existing transition delay
-                    }
+                        }
+                    }, 1500); // Match the existing transition delay
                 }
             }
         });

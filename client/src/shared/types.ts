@@ -68,6 +68,10 @@ export interface ScoreUpdate {
     teamName: string;
 }
 
+export interface WrongChoicesUpdate {
+    wrongChoicesLeft: number;
+}
+
 export interface TimerSync {
     timeLeft: number;
 }
