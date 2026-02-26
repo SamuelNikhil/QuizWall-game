@@ -85,6 +85,7 @@ export default function Controller() {
 
     const clientRef = useRef<GameClient | null>(null);
     const containerRef = useRef<HTMLDivElement>(null);
+    const wakeLockRef = useRef<WakeLockSentinel | null>(null);
 
     // Throttle crosshair updates to ~30fps
     const lastCrosshairSend = useRef<number>(0);
@@ -167,10 +168,8 @@ export default function Controller() {
 
             client.onHitResult((data) => {
                 setLastHit({ correct: data.correct });
-                // Haptic feedback
-                if ('vibrate' in navigator) {
-                    navigator.vibrate(data.correct ? [50, 50, 50] : [200]);
-                }
+                // Haptic feedback (safe for all browsers)
+                try { navigator?.vibrate?.(data.correct ? [50, 50, 50] : [200]); } catch { /* unsupported */ }
                 setTimeout(() => setLastHit(null), 800);
             });
 
@@ -194,16 +193,20 @@ export default function Controller() {
             });
 
             client.onPlayerSelection((_data: PlayerSelectionPayload) => {
-                // Could show other players' selections, but for now just acknowledge
-                console.log('[Controller] Player selection:', _data.controllerId.substring(0, 8));
+                // Lock this controller's sling ONLY when the server confirms OUR selection
+                if (_data.controllerId === clientIdRef.current) {
+                    console.log('[Controller] My selection confirmed by server, locking sling');
+                    setHasSelectedThisRound(true);
+                    hasSelectedRef.current = true;
+                } else {
+                    console.log('[Controller] Other player selection:', _data.controllerId.substring(0, 8));
+                }
             });
 
             client.onRevealResult((data: RevealResultPayload) => {
                 console.log('[Controller] Reveal result:', data.anyCorrect ? 'correct!' : 'wrong');
-                // Haptic feedback on reveal
-                if ('vibrate' in navigator) {
-                    navigator.vibrate(data.anyCorrect ? [50, 50, 50] : [200]);
-                }
+                // Haptic feedback on reveal (safe for all browsers)
+                try { navigator?.vibrate?.(data.anyCorrect ? [50, 50, 50] : [200]); } catch { /* unsupported */ }
                 // Show visual hit feedback
                 setLastHit({ correct: data.anyCorrect });
                 setTimeout(() => setLastHit(null), 1500);
@@ -262,6 +265,50 @@ export default function Controller() {
             }
         };
     }, []);
+
+    // ---- Screen Wake Lock — prevent phone from sleeping during gameplay ----
+    useEffect(() => {
+        if (phase !== 'playing' && phase !== 'calibrating') {
+            // Release wake lock when not in active gameplay
+            if (wakeLockRef.current) {
+                wakeLockRef.current.release().catch(() => { });
+                wakeLockRef.current = null;
+            }
+            return;
+        }
+
+        const acquireWakeLock = async () => {
+            try {
+                if ('wakeLock' in navigator) {
+                    wakeLockRef.current = await navigator.wakeLock.request('screen');
+                    console.log('[WakeLock] Screen wake lock acquired');
+                    wakeLockRef.current.addEventListener('release', () => {
+                        console.log('[WakeLock] Screen wake lock released');
+                    });
+                }
+            } catch (err) {
+                console.warn('[WakeLock] Failed to acquire:', err);
+            }
+        };
+
+        acquireWakeLock();
+
+        // Re-acquire wake lock if the page becomes visible again (e.g., tab switch)
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible' && (phase === 'playing' || phase === 'calibrating')) {
+                acquireWakeLock();
+            }
+        };
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
+        return () => {
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            if (wakeLockRef.current) {
+                wakeLockRef.current.release().catch(() => { });
+                wakeLockRef.current = null;
+            }
+        };
+    }, [phase]);
 
     // Gyro orientation handler - uses refs for real-time values, sends crosshair for visual feedback
     // Works during calibration (always) and playing (only when dragging)
@@ -448,11 +495,8 @@ export default function Controller() {
 
         if (power > 10 && phase === 'playing') {
             clientRef.current?.shoot(targetXPercent, targetYPercent, power / 100);
-            // Lock selection in multiplayer after shooting
-            if (isMultiplayer) {
-                setHasSelectedThisRound(true);
-                hasSelectedRef.current = true;
-            }
+            // Selection lock is now handled by onPlayerSelection callback
+            // (only locks when server confirms the shot hit an orb)
         } else {
             clientRef.current?.sendCancelAiming();
         }

@@ -5,7 +5,7 @@
 // Phase-based multiplayer timer system
 // ==========================================
 
-import { getSessionQuestions, clearSessionQuestions, getAllQuestions } from '../data/questionRepository.ts';
+import { getSessionQuestions, clearSessionQuestions, generateSessionQuestions, getAllQuestions } from '../data/questionRepository.ts';
 import { CONFIG } from '../infrastructure/config.ts';
 import type { ServerQuestion, ClientQuestion, QuestionPhase, PlayerSelectionPayload, RevealResultPayload } from '../shared/types.ts';
 
@@ -32,6 +32,7 @@ export class QuizEngine {
     private allQuestionsCompleted: boolean = false; // Track if all questions have been answered
     private lastGameOverReason: 'time' | 'completed' | 'all_wrong' = 'time'; // Reason for game over
     private totalQuestionsAttempted: number = 0; // Track ALL questions attempted (correct + wrong)
+    private destroyed: boolean = false; // Guard against post-destroy callbacks
 
     // Phase-based multiplayer fields
     private currentPhase: QuestionPhase = 'analysis';
@@ -171,6 +172,7 @@ export class QuizEngine {
         }
 
         this.timerInterval = setInterval(() => {
+            if (this.destroyed) return;
             this.timeLeft--;
             this.onTimerTick?.(this.timeLeft);
 
@@ -235,6 +237,7 @@ export class QuizEngine {
 
         // Start the phase countdown
         this.phaseInterval = setInterval(() => {
+            if (this.destroyed) { this.stopPhaseTimer(); return; }
             this.phaseTimeLeft--;
 
             // Send phase timer sync
@@ -330,6 +333,7 @@ export class QuizEngine {
         // The reveal timer is already running. When it ends (advancePhase 'reveal' case),
         // we need to transition. So we schedule the next action for after the reveal phase.
         setTimeout(async () => {
+            if (this.destroyed) return; // Guard against post-destroy execution
             if (!anyCorrect) {
                 // All wrong — game over
                 console.log('[QuizEngine] All answers wrong — game over');
@@ -403,6 +407,46 @@ export class QuizEngine {
         this.questionNumberForUI = 0;
         this.currentPhase = 'analysis';
         this.shuffleQuestions();
+    }
+
+    /**
+     * Reset AND regenerate fresh AI questions (for "Play Again")
+     * Clears old session cache and generates entirely new questions from Groq
+     */
+    async resetAndRegenerate(): Promise<void> {
+        // Clear old session questions from the cache
+        clearSessionQuestions(this.sessionId);
+
+        // Generate a new session ID to avoid stale cache hits
+        this.sessionId = `${this.sessionId.split('-')[0]}-${Date.now()}`;
+
+        console.log(`[QuizEngine] Regenerating questions for new session: ${this.sessionId}`);
+
+        // Reset all game state
+        this.stopTimer();
+        this.stopPhaseTimer();
+        this.timeLeft = CONFIG.TIMER_DURATION;
+        this.currentIndex = 0;
+        this.questionsAnswered = 0;
+        this.totalQuestionsAttempted = 0;
+        this.allQuestionsCompleted = false;
+        this.usedQuestionTexts.clear();
+        this.playerSelections.clear();
+        this.questionNumberForUI = 0;
+        this.currentPhase = 'analysis';
+        this.destroyed = false; // Allow reuse after reset
+
+        // Generate fresh questions from AI
+        try {
+            this.questions = await generateSessionQuestions(this.sessionId);
+            this.shuffleQuestions();
+            console.log(`[QuizEngine] Fresh questions loaded: ${this.questions.length}`);
+        } catch (err) {
+            console.error('[QuizEngine] Failed to regenerate questions, falling back to existing:', err);
+            // Fall back to cached/static questions
+            this.questions = await getSessionQuestions(this.sessionId);
+            this.shuffleQuestions();
+        }
     }
 
     /** Get current question for client (without correct answer) */
@@ -537,8 +581,14 @@ export class QuizEngine {
 
     /** Clean up and clear session questions */
     destroy(): void {
+        this.destroyed = true;
         this.stopTimer();
         this.stopPhaseTimer();
+        // Clear all callbacks to prevent memory leaks via closures
+        this.onTimerTick = undefined;
+        this.onGameOver = undefined;
+        this.onPhaseChange = undefined;
+        this.onReveal = undefined;
         // Clear session questions to free memory
         clearSessionQuestions(this.sessionId);
         console.log(`[QuizEngine] Destroyed and cleared session: ${this.sessionId}`);

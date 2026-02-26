@@ -15,6 +15,8 @@ type GeckosServer = any;
 type ServerChannel = any;
 
 const connectionTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
+const crosshairLastSent = new Map<string, number>(); // Throttle crosshair relay per controller
+const CROSSHAIR_THROTTLE_MS = 33; // ~30fps max relay rate
 
 export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager): void {
     io.onConnection((channel: ServerChannel) => {
@@ -407,6 +409,12 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
                 if (currentPhase !== 'selection') return;
             }
 
+            // Throttle relay to ~30fps per controller to reduce bandwidth
+            const now = Date.now();
+            const lastSent = crosshairLastSent.get(clientId) || 0;
+            if (now - lastSent < CROSSHAIR_THROTTLE_MS) return;
+            crosshairLastSent.set(clientId, now);
+
             room.screenChannel.emit(EVENTS.CROSSHAIR, { controllerId: clientId, ...data }, { reliable: false });
         });
 
@@ -442,7 +450,7 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
 
         // ---------- Restart ----------
 
-        channel.on(EVENTS.RESTART_GAME, () => {
+        channel.on(EVENTS.RESTART_GAME, async () => {
             const { roomId } = channel.userData || {};
             const room = roomManager.getRoom(roomId);
             if (!room) return;
@@ -452,9 +460,19 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
             const controller = room.controllers.find((c) => c.clientId === restartClientId);
             if (!controller || controller.role !== 'leader') return;
 
-            room.quizEngine.reset();
+            console.log(`[Room] Regenerating questions for restart in ${roomId}...`);
+
+            // Regenerate fresh AI questions (async)
+            try {
+                await room.quizEngine.resetAndRegenerate();
+            } catch (err) {
+                console.error('[Room] Failed to regenerate questions on restart, using reset fallback:', err);
+                room.quizEngine.reset();
+            }
+
             // NOTE: We do NOT reset the score - it accumulates across restarts
             room.gameStarted = false;
+            room.lastActivity = Date.now();
 
             // Reset ready states for members
             for (const c of room.controllers) {
@@ -475,7 +493,10 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
 
         channel.onDisconnect(() => {
             clearConnectionTimeout(channel.id);
-            const { role, roomId } = channel.userData || {};
+            const { role, roomId, clientId } = channel.userData || {};
+
+            // Clean up crosshair throttle map
+            if (clientId) crosshairLastSent.delete(clientId);
 
 
             if (role === 'screen') {
