@@ -9,7 +9,7 @@ import { GameClient } from '../transport/GameClient';
 import Lobby from './Lobby';
 import type { LobbyState, PlayerRole, ScoreUpdate, QuestionPhase, PlayerSelectionPayload, RevealResultPayload } from '../shared/types';
 import { CROSSHAIR_COLORS } from '../shared/types';
-import slingCenterImg from '../assets/sling-center.png';
+import slingCenterImg from '../assets/sling-center.svg';
 import '../index.css';
 import '../animations.css';
 
@@ -453,6 +453,9 @@ export default function Controller() {
         setPullBack(0);
         setPower(0);
 
+        // Light haptic feedback when starting to pull the sling
+        try { navigator?.vibrate?.(15); } catch { /* unsupported */ }
+
         clientRef.current?.sendStartAiming(gyroEnabled);
     }, [phase, gyroEnabled, isMultiplayer]);
 
@@ -811,12 +814,12 @@ export default function Controller() {
                     {/* Crosshair Color Indicator */}
                     <div
                         style={{
-                            width: '12px',
-                            height: '12px',
+                            width: '0.75rem',
+                            height: '0.75rem',
                             borderRadius: '50%',
                             background: CROSSHAIR_COLORS[colorIndex],
-                            boxShadow: `0 0 8px ${CROSSHAIR_COLORS[colorIndex]}`,
-                            marginLeft: '4px'
+                            boxShadow: `0 0 0.5rem ${CROSSHAIR_COLORS[colorIndex]}`,
+                            marginLeft: '0.25rem'
                         }}
                         title="Your crosshair color"
                     />
