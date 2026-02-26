@@ -39,11 +39,11 @@ export class GroqService {
     /**
      * Generate fresh questions for a new game session
      */
-    async generateQuestionsForSession(): Promise<ServerQuestion[]> {
+    async generateQuestionsForSession(excludeQuestions?: string[]): Promise<ServerQuestion[]> {
         try {
 
 
-            const prompt = this.buildPrompt();
+            const prompt = this.buildPrompt(excludeQuestions);
 
             const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
                 method: 'POST',
@@ -93,10 +93,18 @@ export class GroqService {
         }
     }
 
-    private buildPrompt(): string {
+    private buildPrompt(excludeQuestions?: string[]): string {
         // Add randomness to ensure unique questions each generation
         const randomSeed = Math.random().toString(36).substring(2, 10);
         const timeSeed = Date.now().toString(36).substring(2, 8);
+
+        // Build exclusion block if there are questions to avoid
+        let exclusionBlock = '';
+        if (excludeQuestions && excludeQuestions.length > 0) {
+            // Truncate to first 20 to stay within token limits
+            const truncated = excludeQuestions.slice(0, 20);
+            exclusionBlock = `\n\nDO NOT generate any of these questions (they were already used in other active sessions):\n${truncated.map((q, i) => `${i + 1}. ${q}`).join('\n')}\n\nGenerate COMPLETELY DIFFERENT questions from the ones listed above.`;
+        }
 
         return `Generate ${this.questionCount} multiple-choice quiz questions about "${this.topic}".
 
@@ -134,7 +142,7 @@ Do NOT include:
 - Question IDs (they will be assigned automatically)
 - Any text before or after the JSON array
 - Markdown code blocks
-- Explanations or comments`;
+- Explanations or comments${exclusionBlock}`;
     }
 
     private parseResponse(text: string): ServerQuestion[] {

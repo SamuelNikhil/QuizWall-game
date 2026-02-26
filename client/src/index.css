@@ -49,7 +49,13 @@ body {
     padding: 0;
     min-width: 320px;
     min-height: 100vh;
+    min-height: 100dvh; /* Dynamic viewport height for mobile browsers */
     overflow: hidden;
+    /* Safe area padding for notched phones and TV overscan */
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
 }
 
 /* --- QR Screen Styles --- */
@@ -97,6 +103,7 @@ body {
 
 .qr-leaderboard {
     background: var(--glass-bg);
+    -webkit-backdrop-filter: blur(24px);
     backdrop-filter: blur(24px);
     padding: 1.5rem;
     border-radius: var(--radius-lg);
@@ -149,6 +156,7 @@ body {
 .screen-container {
     width: 100vw;
     height: 100vh;
+    height: 100dvh;
     background: radial-gradient(circle at center, #1e1e2e 0%, #0a0a0f 100%);
     color: var(--text-primary);
     display: flex;
@@ -173,6 +181,7 @@ body {
     display: flex;
     align-items: center;
     gap: 0.75rem;
+    -webkit-backdrop-filter: blur(12px);
     backdrop-filter: blur(12px);
     border: 1px solid var(--glass-border);
     font-size: 1rem;
@@ -191,6 +200,7 @@ body {
     background: var(--glass-bg);
     border: 1px solid var(--glass-border);
     border-radius: var(--radius-lg);
+    -webkit-backdrop-filter: blur(30px);
     backdrop-filter: blur(30px);
     text-align: center;
     z-index: 10;
@@ -238,7 +248,10 @@ body {
     animation: expressiveFloat 6s ease-in-out infinite;
     border: 3px solid rgba(255, 255, 255, 0.1);
     transform: translate(-50%, -50%);
-    /* Fix for aiming accuracy */
+    /* GPU acceleration for smooth animations */
+    will-change: transform, opacity;
+    -webkit-transform: translate(-50%, -50%);
+    contain: layout style paint;
 }
 
 .orb:hover {
@@ -277,12 +290,14 @@ body {
         0 0 30px var(--accent-primary);
     pointer-events: none;
     z-index: 50;
+    will-change: transform;
 }
 
 /* --- Controller Styles --- */
 .controller-container {
     width: 100vw;
     height: 100vh;
+    height: 100dvh;
     background: radial-gradient(circle at 50% 100%,
             #2b283a 0%,
             #121217 100%);
@@ -292,6 +307,12 @@ body {
     touch-action: none;
     overflow: hidden;
     position: relative;
+    /* Prevent pull-to-refresh and overscroll bouncing on mobile */
+    overscroll-behavior: none;
+    -webkit-overflow-scrolling: touch;
+    /* Prevent text selection during gameplay */
+    -webkit-user-select: none;
+    user-select: none;
 }
 
 .controller-header {
@@ -301,6 +322,7 @@ body {
     justify-content: space-between;
     align-items: center;
     background: var(--glass-bg);
+    -webkit-backdrop-filter: blur(20px);
     backdrop-filter: blur(20px);
     border-bottom: 1px solid var(--glass-border);
     z-index: 100;

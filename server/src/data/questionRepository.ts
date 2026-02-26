@@ -26,6 +26,28 @@ let staticQuestionsCache: ServerQuestion[] | null = null;
 // Session-specific generated questions (per room/game)
 const sessionQuestionsCache = new Map<string, ServerQuestion[]>();
 
+// Global tracking of recently-used question texts across ALL active sessions
+// Prevents duplicate questions across concurrent rooms
+const globalRecentQuestions = new Set<string>();
+const MAX_GLOBAL_RECENT = 200; // Hard cap to prevent unbounded growth
+
+/** Add a question text to global tracking (with eviction if over cap) */
+function addToGlobalRecent(text: string): void {
+    const normalized = text.trim().toLowerCase();
+    globalRecentQuestions.add(normalized);
+    // Evict oldest entries if over cap
+    if (globalRecentQuestions.size > MAX_GLOBAL_RECENT) {
+        const iterator = globalRecentQuestions.values();
+        const oldest = iterator.next().value;
+        if (oldest) globalRecentQuestions.delete(oldest);
+    }
+}
+
+/** Get the global exclusion list for Groq prompts */
+function getGlobalExclusionList(): string[] {
+    return Array.from(globalRecentQuestions);
+}
+
 /** Load static questions from JSON file (fallback source) */
 export function loadStaticQuestions(): ServerQuestion[] {
     if (staticQuestionsCache) return staticQuestionsCache;
@@ -136,7 +158,7 @@ export async function generateSessionQuestions(sessionId: string): Promise<Serve
             const groqService = getGroqService()!;
 
 
-            questions = await groqService.generateQuestionsForSession();
+            questions = await groqService.generateQuestionsForSession(getGlobalExclusionList());
 
             if (!questions || questions.length === 0) {
                 throw new Error('Groq returned empty questions array');
@@ -158,6 +180,11 @@ export async function generateSessionQuestions(sessionId: string): Promise<Serve
 
             // Save to Ai-questions.json for backup only (not for reuse)
             saveAiQuestions(questions, currentTopic);
+
+            // Track these questions globally so other rooms avoid them
+            for (const q of questions) {
+                addToGlobalRecent(q.text);
+            }
 
         } catch (error) {
             console.error('[QuestionRepo] Groq generation failed, falling back to cached/static:', error);
@@ -339,8 +366,14 @@ async function generateMoreQuestionsForSession(sessionId: string, count?: number
  * Clear session questions (call when game/room ends)
  */
 export function clearSessionQuestions(sessionId: string): void {
+    // Remove this session's questions from global tracking
+    const sessionQuestions = sessionQuestionsCache.get(sessionId);
+    if (sessionQuestions) {
+        for (const q of sessionQuestions) {
+            globalRecentQuestions.delete(q.text.trim().toLowerCase());
+        }
+    }
     sessionQuestionsCache.delete(sessionId);
-
 }
 
 /**
@@ -348,7 +381,7 @@ export function clearSessionQuestions(sessionId: string): void {
  */
 export function clearAllSessionQuestions(): void {
     sessionQuestionsCache.clear();
-
+    globalRecentQuestions.clear();
 }
 
 /** Get all static questions (legacy support) */

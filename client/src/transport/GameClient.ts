@@ -128,11 +128,28 @@ export class GameClient {
         return this.connected;
     }
 
+    /** Get geckos channel ID (used as controllerId on the server) */
+    getClientId(): string | null {
+        return this.channel?.id ?? null;
+    }
+
     close(): void {
         if (this.connected && this.channel) {
+            this.removeAllListeners();
             try { this.channel.close(); } catch { /* ignore */ }
             this.connected = false;
         }
+    }
+
+    /** Remove all event listeners from the channel (for cleanup on unmount) */
+    removeAllListeners(): void {
+        if (!this.channel) return;
+        try {
+            // Geckos.io channels support removeAllListeners
+            if (typeof this.channel.removeAllListeners === 'function') {
+                this.channel.removeAllListeners();
+            }
+        } catch { /* ignore */ }
     }
 
     // ---- Emit methods ----

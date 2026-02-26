@@ -27,11 +27,20 @@ export interface Room {
     quizEngine: QuizEngine;
     teamManager: TeamManager;
     gameStarted: boolean;
+    lastActivity: number; // Timestamp of last activity for idle reaping
 }
 
 export class RoomManager {
     private rooms: Map<string, Room> = new Map();
+    private idleReaperInterval: ReturnType<typeof setInterval> | null = null;
+    private static readonly IDLE_TIMEOUT_MS = 2 * 60 * 1000; // 2 minutes
+    private static readonly REAPER_INTERVAL_MS = 30 * 1000; // Check every 30 seconds
 
+    constructor() {
+        // Start the idle room reaper
+        this.idleReaperInterval = setInterval(() => this.reapIdleRooms(), RoomManager.REAPER_INTERVAL_MS);
+        console.log('[RoomManager] Idle room reaper started (2 min timeout)');
+    }
     /** Generate a 6-char room ID */
     private generateRoomId(): string {
         return Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -59,6 +68,7 @@ export class RoomManager {
             quizEngine,
             teamManager: new TeamManager(),
             gameStarted: false,
+            lastActivity: Date.now(),
         };
 
         this.rooms.set(roomId, room);
@@ -127,6 +137,7 @@ export class RoomManager {
         };
 
         room.controllers.push(controller);
+        room.lastActivity = Date.now();
         console.log(`[Room] ${role.toUpperCase()} joined ${roomId}`);
 
         return { success: true, role, colorIndex };
@@ -200,6 +211,7 @@ export class RoomManager {
         }
 
         room.gameStarted = true;
+        room.lastActivity = Date.now();
         console.log(`[Room] Game started in ${roomId}`);
         return true;
     }
@@ -233,6 +245,7 @@ export class RoomManager {
             if (idx !== -1) {
                 const wasLeader = room.controllers[idx].role === 'leader';
                 room.controllers.splice(idx, 1);
+                room.lastActivity = Date.now();
 
                 // If leader left and there are still members, promote first member
                 if (wasLeader && room.controllers.length > 0) {
@@ -284,5 +297,31 @@ export class RoomManager {
             }
         }
         return null;
+    }
+
+    /** Reap idle rooms that have no controllers and haven't been active */
+    private reapIdleRooms(): void {
+        const now = Date.now();
+        for (const [roomId, room] of this.rooms) {
+            const idleTime = now - room.lastActivity;
+            if (room.controllers.length === 0 && !room.gameStarted && idleTime > RoomManager.IDLE_TIMEOUT_MS) {
+                console.log(`[RoomManager] Reaping idle room ${roomId} (idle for ${Math.round(idleTime / 1000)}s)`);
+                room.quizEngine.destroy();
+                this.rooms.delete(roomId);
+
+                // Notify screen that room was cleaned up
+                try {
+                    room.screenChannel.emit('room:expired', { reason: 'idle_timeout' });
+                } catch { /* channel may already be closed */ }
+            }
+        }
+    }
+
+    /** Stop the idle reaper (for graceful shutdown) */
+    stopReaper(): void {
+        if (this.idleReaperInterval) {
+            clearInterval(this.idleReaperInterval);
+            this.idleReaperInterval = null;
+        }
     }
 }
