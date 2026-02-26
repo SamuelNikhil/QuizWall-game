@@ -556,7 +556,7 @@ function broadcastLobbyUpdate(roomManager: RoomManager, roomId: string): void {
 
 /** Detect which orb was hit based on percentage coordinates */
 function detectOrbHit(xPercent: number, yPercent: number): string | null {
-    const HIT_RADIUS = 8; // percentage-based hit radius
+    const HIT_RADIUS = 10; // percentage-based hit radius (increased for better mobile/gyro UX)
 
     for (const orb of ORB_POSITIONS) {
         const dist = Math.sqrt(Math.pow(xPercent - orb.x, 2) + Math.pow(yPercent - orb.y, 2));

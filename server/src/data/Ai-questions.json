@@ -1,86 +1,134 @@
 {
-    "topic": "animatls-easy-and-simple",
-    "generatedAt": "2026-02-26T05:19:54.744Z",
+    "topic": "animals-easy-and-simple",
+    "generatedAt": "2026-02-26T13:55:49.988Z",
     "questions": [
         {
-            "id": 1,
-            "text": "What is the primary source of food for Giant Pandas?",
+            "id": 11,
+            "text": "What is the average lifespan of a goldfish in captivity?",
             "options": [
                 {
                     "id": "A",
-                    "text": "Small Mammals"
+                    "text": "10-15 years"
                 },
                 {
                     "id": "B",
-                    "text": "Bamboo"
+                    "text": "5-7 years"
                 },
                 {
                     "id": "C",
-                    "text": "Fish"
+                    "text": "20-25 years"
                 },
                 {
                     "id": "D",
-                    "text": "Insects"
+                    "text": "1-2 years"
                 }
             ],
             "correct": "B",
-            "category": "animatls-easy-and-simple"
+            "category": "animals-easy-and-simple"
         },
         {
-            "id": 2,
-            "text": "Which of the following big cats is known for its distinctive mane?",
+            "id": 12,
+            "text": "Which of the following birds is known for its distinctive call that sounds like laughter?",
             "options": [
                 {
                     "id": "A",
-                    "text": "Leopard"
+                    "text": "Flamingo"
                 },
                 {
                     "id": "B",
-                    "text": "Jaguar"
+                    "text": "Kookaburra"
                 },
                 {
                     "id": "C",
+                    "text": "Penguin"
+                },
+                {
+                    "id": "D",
+                    "text": "Pelican"
+                }
+            ],
+            "correct": "B",
+            "category": "animals-easy-and-simple"
+        },
+        {
+            "id": 13,
+            "text": "What is the fastest land animal, which can reach speeds of up to 70 mph?",
+            "options": [
+                {
+                    "id": "A",
                     "text": "Lion"
                 },
                 {
-                    "id": "D",
-                    "text": "Tiger"
-                }
-            ],
-            "correct": "C",
-            "category": "animatls-easy-and-simple"
-        },
-        {
-            "id": 3,
-            "text": "What is the average lifespan of a domestic cat?",
-            "options": [
-                {
-                    "id": "A",
-                    "text": "10-12 years"
-                },
-                {
                     "id": "B",
-                    "text": "25-27 years"
+                    "text": "Elephant"
                 },
                 {
                     "id": "C",
-                    "text": "20-22 years"
+                    "text": "Cheetah"
                 },
                 {
                     "id": "D",
-                    "text": "15-17 years"
+                    "text": "Giraffe"
                 }
             ],
-            "correct": "D",
-            "category": "animatls-easy-and-simple"
+            "correct": "C",
+            "category": "animals-easy-and-simple"
         },
         {
-            "id": 4,
-            "text": "Which animal has the longest migration route, traveling up to 44,000 miles per year?",
+            "id": 14,
+            "text": "Which insect is known for its unique ability to turn its body into a wheel and roll away from predators?",
             "options": [
                 {
                     "id": "A",
-                    "text": "Caribou"
+                    "text": "Bee"
+                },
+                {
+                    "id": "B",
+                    "text": "Dung Beetle"
+                },
+                {
+                    "id": "C",
+                    "text": "Ant"
+                },
+                {
+                    "id": "D",
+                    "text": "Butterfly"
+                }
+            ],
+            "correct": "B",
+            "category": "animals-easy-and-simple"
+        },
+        {
+            "id": 15,
+            "text": "What is the largest species of snake, which can grow up to 30 feet in length?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Viper"
+                },
+                {
+                    "id": "B",
+                    "text": "Reticulated Python"
+                },
+                {
+                    "id": "C",
+                    "text": "Cobra"
+                },
+                {
+                    "id": "D",
+                    "text": "Boa Constrictor"
+                }
+            ],
+            "correct": "B",
+            "category": "animals-easy-and-simple"
+        },
+        {
+            "id": 16,
+            "text": "Which of the following animals has the longest migration pattern, with some species traveling over 40,000 miles per year?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Arctic Tern"
                 },
                 {
                     "id": "B",
@@ -88,43 +136,43 @@
                 },
                 {
                     "id": "C",
-                    "text": "Sea Turtle"
+                    "text": "Monarch Butterfly"
                 },
                 {
                     "id": "D",
-                    "text": "Arctic Tern"
-                }
-            ],
-            "correct": "D",
-            "category": "animatls-easy-and-simple"
-        },
-        {
-            "id": 5,
-            "text": "What is the fastest land animal, capable of reaching speeds of up to 70 mph?",
-            "options": [
-                {
-                    "id": "A",
-                    "text": "Cheetah"
-                },
-                {
-                    "id": "B",
-                    "text": "Pronghorn"
-                },
-                {
-                    "id": "C",
-                    "text": "Lion"
-                },
-                {
-                    "id": "D",
-                    "text": "Leopard"
+                    "text": "Caribou"
                 }
             ],
             "correct": "A",
-            "category": "animatls-easy-and-simple"
+            "category": "animals-easy-and-simple"
         },
         {
-            "id": 6,
-            "text": "Which of the following animals has a unique communication system that involves clicking sounds?",
+            "id": 17,
+            "text": "What is the smallest species of mammal, which weighs less than 2 grams?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Etruscan Shrew"
+                },
+                {
+                    "id": "B",
+                    "text": "Bats"
+                },
+                {
+                    "id": "C",
+                    "text": "Rat"
+                },
+                {
+                    "id": "D",
+                    "text": "Mouse"
+                }
+            ],
+            "correct": "A",
+            "category": "animals-easy-and-simple"
+        },
+        {
+            "id": 18,
+            "text": "Which of the following animals is known for its unique ability to change its body color to blend in with its surroundings?",
             "options": [
                 {
                     "id": "A",
@@ -132,115 +180,67 @@
                 },
                 {
                     "id": "B",
-                    "text": "Whale"
-                },
-                {
-                    "id": "C",
-                    "text": "Dolphin"
-                },
-                {
-                    "id": "D",
-                    "text": "Seal"
-                }
-            ],
-            "correct": "C",
-            "category": "animatls-easy-and-simple"
-        },
-        {
-            "id": 7,
-            "text": "What is the largest species of bear, found in the Arctic region?",
-            "options": [
-                {
-                    "id": "A",
-                    "text": "Black Bear"
-                },
-                {
-                    "id": "B",
-                    "text": "Grizzly Bear"
-                },
-                {
-                    "id": "C",
-                    "text": "Polar Bear"
-                },
-                {
-                    "id": "D",
-                    "text": "Brown Bear"
-                }
-            ],
-            "correct": "C",
-            "category": "animatls-easy-and-simple"
-        },
-        {
-            "id": 8,
-            "text": "Which of the following animals is known for its unique ability to change its body color?",
-            "options": [
-                {
-                    "id": "A",
-                    "text": "Frog"
-                },
-                {
-                    "id": "B",
-                    "text": "Chameleon"
-                },
-                {
-                    "id": "C",
                     "text": "Squid"
                 },
                 {
+                    "id": "C",
+                    "text": "Flounder"
+                },
+                {
                     "id": "D",
-                    "text": "Octopus"
+                    "text": "Chameleon"
                 }
             ],
-            "correct": "B",
-            "category": "animatls-easy-and-simple"
+            "correct": "D",
+            "category": "animals-easy-and-simple"
         },
         {
-            "id": 9,
-            "text": "What is the smallest species of bird, weighing around 1.6 grams?",
+            "id": 19,
+            "text": "What is the largest species of turtle, which can weigh up to 2,000 pounds?",
             "options": [
                 {
                     "id": "A",
-                    "text": "Finch"
+                    "text": "Loggerhead Sea Turtle"
                 },
                 {
                     "id": "B",
-                    "text": "Bee Hummingbird"
+                    "text": "Green Sea Turtle"
                 },
                 {
                     "id": "C",
-                    "text": "Hummingbird"
+                    "text": "Leatherback Sea Turtle"
                 },
                 {
                     "id": "D",
-                    "text": "Sparrow"
+                    "text": "Hawksbill Sea Turtle"
                 }
             ],
-            "correct": "B",
-            "category": "animatls-easy-and-simple"
+            "correct": "C",
+            "category": "animals-easy-and-simple"
         },
         {
-            "id": 10,
-            "text": "Which of the following animals has a highly developed sense of smell, with up to 300 million olfactory receptors?",
+            "id": 20,
+            "text": "Which of the following animals has the strongest bite force, with some species exerting a force of over 5,000 pounds per square inch?",
             "options": [
                 {
                     "id": "A",
-                    "text": "Bloodhound"
+                    "text": "Great White Shark"
                 },
                 {
                     "id": "B",
-                    "text": "Golden Retriever"
+                    "text": "Saltwater Crocodile"
                 },
                 {
                     "id": "C",
-                    "text": "Elephant"
+                    "text": "Tiger"
                 },
                 {
                     "id": "D",
-                    "text": "German Shepherd"
+                    "text": "Lion"
                 }
             ],
-            "correct": "A",
-            "category": "animatls-easy-and-simple"
+            "correct": "B",
+            "category": "animals-easy-and-simple"
         }
     ]
 }

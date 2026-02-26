@@ -229,6 +229,7 @@ export default function Screen() {
                 setQuestion(data.question);
                 setTimeLeft(data.timeLeft);
                 setTeamScore(0);
+                setQuestionNumber(1); // Start at question 1
                 setPhase('playing');
                 // Detect multiplayer mode based on controller count
                 // (if phase events arrive, it's multiplayer)
@@ -293,6 +294,10 @@ export default function Screen() {
 
             client.onQuestion((data) => {
                 setQuestion(data);
+                // Increment question counter for singleplayer
+                if (!isMultiplayer) {
+                    setQuestionNumber(prev => prev + 1);
+                }
             });
 
             client.onTimerSync((data) => {
@@ -684,17 +689,16 @@ export default function Screen() {
     // ---- Playing (Game Arena) ----
     // Phase-aware header: multiplayer shows phase indicator and phase timer; singleplayer shows classic timer
     const phaseLabel = currentPhase === 'analysis' ? '🔍 ANALYZE' : currentPhase === 'selection' ? '🎯 SELECT NOW!' : currentPhase === 'reveal' ? '✨ REVEAL' : '';
-    const phaseColor = currentPhase === 'analysis' ? '#6750A4' : currentPhase === 'selection' ? '#ff9500' : currentPhase === 'reveal' ? '#10b981' : 'var(--accent-primary)';
-    const phaseDuration = currentPhase === 'analysis' ? 2 : currentPhase === 'selection' ? 15 : 3;
+    const phaseColor = currentPhase === 'analysis' ? 'var(--accent-primary)' : currentPhase === 'selection' ? '#ff9500' : currentPhase === 'reveal' ? 'var(--accent-success)' : 'var(--accent-primary)';
 
     return (
         <div className="screen-container" ref={containerRef}>
-            <header className="screen-header" style={{ justifyContent: 'flex-end', padding: '2rem' }}>
+            <header className="screen-header">
                 <div className="player-count-badge">
-                    <span style={{ fontSize: '1.2rem', filter: 'drop-shadow(0 0 10px rgba(103, 80, 164, 0.5))' }}>👥</span>
-                    <span style={{ fontWeight: '900', color: 'var(--text-primary)' }}>{controllerCount}</span>
-                    <div style={{ display: 'flex', gap: '20px', borderLeft: '2px solid var(--glass-border)', paddingLeft: '20px' }}>
-                        <span style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <span style={{ fontSize: '1.2rem', filter: 'drop-shadow(0 0 0.6rem rgba(103, 80, 164, 0.5))' }}>👥</span>
+                    <span style={{ fontWeight: '900', color: 'var(--text-primary)', fontSize: '1.4rem' }}>{controllerCount}</span>
+                    <div style={{ display: 'flex', gap: '1.25rem', borderLeft: '2px solid var(--glass-border)', paddingLeft: '1.25rem', marginLeft: '0.5rem' }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
                             <span style={{ color: 'var(--accent-secondary)', fontWeight: 700, fontSize: '0.9rem' }}>{teamName}</span>
                             <span style={{ color: 'var(--accent-secondary)', fontWeight: '800', fontSize: '1.1rem' }}>
                                 Score: {teamScore}
@@ -703,44 +707,43 @@ export default function Screen() {
                     </div>
                 </div>
 
-                {/* Timer Bar — phase-aware for multiplayer, classic for singleplayer */}
+                {/* Timer Bar / Phase Indicator — phase-aware for multiplayer, classic for singleplayer */}
                 {isMultiplayer && currentPhase ? (
                     <>
-                        {/* Phase progress bar */}
-                        <div style={{ position: 'absolute', top: '0', left: '0', width: '100%', height: '8px', background: 'rgba(255,255,255,0.1)', zIndex: 1000 }}>
-                            <div style={{ width: `${(phaseTimeLeft / phaseDuration) * 100}%`, height: '100%', background: phaseColor, transition: 'width 1s linear, background 0.3s ease', boxShadow: `0 0 20px ${phaseColor}` }} />
-                        </div>
-                        {/* Phase indicator + timer */}
-                        <div style={{ position: 'absolute', top: '1rem', left: '2rem', display: 'flex', alignItems: 'center', gap: '1rem', zIndex: 1000 }}>
+                        {/* Premium Phase & Timer HUD */}
+                        <div style={{ position: 'absolute', top: '2rem', left: '50%', transform: 'translateX(-50%)', display: 'flex', alignItems: 'center', background: 'rgba(255,255,255,0.05)', padding: '0.4rem', borderRadius: 'var(--radius-full)', border: '1px solid var(--glass-border)', backdropFilter: 'blur(16px)', boxShadow: 'var(--glass-glow)', zIndex: 1000, gap: '1rem' }}>
                             <div style={{
-                                padding: '0.4rem 1.2rem', borderRadius: '20px',
+                                padding: '0.5rem 1.5rem', borderRadius: 'var(--radius-full)',
                                 background: phaseColor, color: '#fff',
-                                fontWeight: 900, fontSize: '1.2rem', letterSpacing: '2px',
-                                boxShadow: `0 0 30px ${phaseColor}60`,
-                                animation: currentPhase === 'selection' ? 'pulse 0.8s ease-in-out infinite' : 'none',
+                                fontWeight: 900, fontSize: '1rem', letterSpacing: '0.15rem',
+                                boxShadow: `0 4px 15px ${phaseColor}40`,
+                                animation: currentPhase === 'selection' ? 'pulse 1.2s ease-in-out infinite' : 'none',
+                                display: 'flex', alignItems: 'center', gap: '0.5rem'
                             }}>
                                 {phaseLabel}
                             </div>
-                            <span style={{ fontSize: '1.8rem', fontWeight: '900', color: phaseTimeLeft <= 3 ? '#ff4444' : '#fff' }}>
+                            <span style={{ fontSize: '1.8rem', fontWeight: '900', color: phaseTimeLeft <= 3 ? '#ff4444' : '#fff', paddingRight: '1.25rem', minWidth: '3.5rem', textAlign: 'center', fontVariantNumeric: 'tabular-nums' }}>
                                 {phaseTimeLeft}s
                             </span>
-                            {questionNumber > 0 && (
-                                <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
-                                    Q{questionNumber}/10
-                                </span>
-                            )}
                         </div>
                     </>
                 ) : (
                     <>
-                        {/* Classic singleplayer timer */}
-                        <div style={{ position: 'absolute', top: '0', left: '0', width: '100%', height: '8px', background: 'rgba(255,255,255,0.1)', zIndex: 1000 }}>
-                            <div style={{ width: `${(timeLeft / 20) * 100}%`, height: '100%', background: timeLeft <= 10 ? 'var(--accent-error)' : 'var(--accent-primary)', transition: 'width 1s linear, background 0.3s ease', boxShadow: `0 0 20px ${timeLeft <= 10 ? 'var(--accent-error)' : 'var(--accent-primary)'}` }} />
+                        <div style={{ position: 'absolute', top: '0', left: '0', width: '100%', height: '0.5rem', background: 'rgba(255,255,255,0.1)', zIndex: 1000 }}>
+                            <div style={{ width: `${(timeLeft / 20) * 100}%`, height: '100%', background: timeLeft <= 10 ? 'var(--accent-error)' : 'var(--accent-primary)', transition: 'width 1s linear, background 0.3s ease', boxShadow: `0 0 1.25rem ${timeLeft <= 10 ? 'var(--accent-error)' : 'var(--accent-primary)'}` }} />
                         </div>
-                        <div style={{ position: 'absolute', top: '3rem', left: '2rem', fontSize: '1.8rem', fontWeight: '900', color: timeLeft <= 10 ? 'var(--accent-error)' : 'var(--text-primary)', zIndex: 1000 }}>
+                        <div style={{ position: 'absolute', top: '2rem', left: '50%', transform: 'translateX(-50%)', background: 'rgba(255,255,255,0.05)', padding: '0.6rem 2rem', borderRadius: 'var(--radius-full)', border: '1px solid var(--glass-border)', backdropFilter: 'blur(16px)', boxShadow: 'var(--glass-glow)', fontSize: '1.8rem', fontWeight: '900', color: timeLeft <= 10 ? 'var(--accent-error)' : 'var(--text-primary)', zIndex: 1000, fontVariantNumeric: 'tabular-nums' }}>
                             {timeLeft}s
                         </div>
                     </>
+                )}
+
+                {/* Unified Premium Question Badge */}
+                {questionNumber > 0 && (
+                    <div style={{ position: 'absolute', top: '2.5rem', right: '2.5rem', background: 'rgba(255,255,255,0.08)', padding: '0.8rem 1.7rem', borderRadius: 'var(--radius-full)', border: '1px solid var(--glass-border)', backdropFilter: 'blur(12px)', boxShadow: 'var(--glass-glow)', display: 'flex', alignItems: 'center', gap: '0.75rem', zIndex: 1000 }}>
+                        <span style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--accent-secondary)', letterSpacing: '2px' }}>QUESTION</span>
+                        <span style={{ fontSize: '1.4rem', fontWeight: 900, color: '#fff' }}>{questionNumber}<span style={{ color: 'var(--text-secondary)', fontSize: '1.1rem' }}>/10</span></span>
+                    </div>
                 )}
             </header>
 
@@ -840,6 +843,6 @@ export default function Screen() {
                     <div key={c.id} className="confetti" style={{ left: c.x, top: c.y, width: c.width, height: c.height, backgroundColor: c.color, '--dx': c['--dx'], '--dy': c['--dy'], '--rot': c['--rot'] } as React.CSSProperties} />
                 ))}
             </div>
-        </div>
+        </div >
     );
 }
