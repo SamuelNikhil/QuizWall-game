@@ -16,10 +16,30 @@ interface LobbyProps {
     onSetTeamName: (name: string) => void;
     onReady: () => void;
     onStartGame: () => void;
+    onLeave: () => void;
     gyroEnabled: boolean;
     gyroCalibrated?: boolean;
     onRequestGyro: () => void;
 }
+
+// Reusable close button matching gameplay/game-over style
+const LeaveButton = ({ onLeave }: { onLeave: () => void }) => (
+    <button
+        onClick={onLeave}
+        style={{
+            position: 'absolute', top: '1rem', right: '1rem', zIndex: 10,
+            width: '42px', height: '42px', borderRadius: '50%',
+            background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)',
+            color: '#fff', fontSize: '1.2rem', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            backdropFilter: 'blur(10px)', transition: 'all 0.2s ease',
+        }}
+        onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.15)')}
+        onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.08)')}
+    >
+        ✕
+    </button>
+);
 
 export default function Lobby({
     role,
@@ -28,6 +48,7 @@ export default function Lobby({
     onSetTeamName,
     onReady,
     onStartGame,
+    onLeave,
     gyroEnabled,
     gyroCalibrated = false,
     onRequestGyro
@@ -55,7 +76,8 @@ export default function Lobby({
     // ---- Leader: Team Name Dialog ----
     if (role === 'leader' && !effectiveNameSubmitted) {
         return (
-            <div className="controller-container" style={{ justifyContent: 'center', alignItems: 'center', padding: '2rem' }}>
+            <div className="controller-container" style={{ justifyContent: 'center', alignItems: 'center', padding: '2rem', position: 'relative' }}>
+                <LeaveButton onLeave={onLeave} />
                 <div
                     style={{
                         maxWidth: '360px',
@@ -155,7 +177,8 @@ export default function Lobby({
         const allReady = lobby?.canStart ?? false;
 
         return (
-            <div className="controller-container" style={{ justifyContent: 'center', alignItems: 'center', padding: '2rem' }}>
+            <div className="controller-container" style={{ justifyContent: 'center', alignItems: 'center', padding: '2rem', position: 'relative' }}>
+                <LeaveButton onLeave={onLeave} />
                 <div
                     style={{
                         maxWidth: '380px',
@@ -225,7 +248,7 @@ export default function Lobby({
                             >
                                 <span style={{ fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                     {m.role === 'leader' ? '👑' : '🎮'} Player {m.role === 'leader' ? '(You)' : ''}
-                                    <span 
+                                    <span
                                         style={{
                                             width: '10px',
                                             height: '10px',
@@ -282,7 +305,8 @@ export default function Lobby({
 
     // ---- Member: Ready Up ----
     return (
-        <div className="controller-container" style={{ justifyContent: 'center', alignItems: 'center', padding: '2rem' }}>
+        <div className="controller-container" style={{ justifyContent: 'center', alignItems: 'center', padding: '2rem', position: 'relative' }}>
+            <LeaveButton onLeave={onLeave} />
             <div
                 style={{
                     maxWidth: '360px',
@@ -352,7 +376,7 @@ export default function Lobby({
                         >
                             <span style={{ fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                 {m.role === 'leader' ? '👑 Leader' : '🎮 Player'}
-                                <span 
+                                <span
                                     style={{
                                         width: '10px',
                                         height: '10px',
