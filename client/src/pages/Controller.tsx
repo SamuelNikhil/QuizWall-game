@@ -550,6 +550,10 @@ export default function Controller() {
                     // No optimistic UI - let server control the timing
                     clientRef.current?.startGame();
                 }}
+                onLeave={() => {
+                    clientRef.current?.close();
+                    window.location.href = '/';
+                }}
                 gyroEnabled={gyroEnabled}
                 gyroCalibrated={gyroCalibrated}
                 onRequestGyro={requestGyroPermission}
