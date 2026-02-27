@@ -209,6 +209,7 @@ export class QuizEngine {
         }
 
         this.questionsAnswered = 0;
+        this.totalQuestionsAttempted = 0;
         this.currentIndex = 0;
         this.questionNumberForUI = 1;
         this.shuffleQuestions();
@@ -312,6 +313,9 @@ export class QuizEngine {
         const anyCorrect = selections.some(s => s.orbId === correctOrbId);
         const points = anyCorrect ? 100 : 0;
 
+        // Track all questions attempted (correct + wrong)
+        this.totalQuestionsAttempted++;
+
         if (anyCorrect) {
             this.questionsAnswered++;
             this.sessionQuestionsAnswered++;
@@ -324,29 +328,19 @@ export class QuizEngine {
             points,
         };
 
-        console.log(`[QuizEngine] Reveal: correct=${correctOrbId}, selections=${selections.length}, anyCorrect=${anyCorrect}`);
+        console.log(`[QuizEngine] Reveal: correct=${correctOrbId}, selections=${selections.length}, anyCorrect=${anyCorrect}, attempted=${this.totalQuestionsAttempted}/${this.sessionQuestionLimit}`);
 
         // Notify clients of the reveal result
         this.onReveal?.(result);
 
-        // After reveal (1 second), decide next action
-        // The reveal timer is already running. When it ends (advancePhase 'reveal' case),
-        // we need to transition. So we schedule the next action for after the reveal phase.
+        // After reveal, decide next action
+        // Always advance to next question regardless of correctness, until all 10 are done
         setTimeout(async () => {
             if (this.destroyed) return; // Guard against post-destroy execution
-            if (!anyCorrect) {
-                // All wrong — game over
-                console.log('[QuizEngine] All answers wrong — game over');
-                this.allQuestionsCompleted = false;
-                this.lastGameOverReason = 'all_wrong';
-                this.stopPhaseTimer();
-                this.onGameOver?.();
-                return;
-            }
 
-            // Check if all questions completed
-            if (this.questionsAnswered >= this.sessionQuestionLimit) {
-                console.log(`[QuizEngine] All ${this.sessionQuestionLimit} questions completed!`);
+            // Check if all questions have been attempted (correct or wrong)
+            if (this.totalQuestionsAttempted >= this.sessionQuestionLimit) {
+                console.log(`[QuizEngine] All ${this.sessionQuestionLimit} questions attempted! (${this.questionsAnswered} correct)`);
                 this.allQuestionsCompleted = true;
                 this.lastGameOverReason = 'completed';
                 this.stopPhaseTimer();

@@ -483,7 +483,6 @@ export default function Screen() {
     // ---- Game Over ----
     if (phase === 'game-over' && gameOverData) {
         const isCompleted = gameOverData.reason === 'completed';
-        const isAllWrong = gameOverData.reason === 'all_wrong';
         return (
             <div className="screen-container">
                 <div
@@ -503,7 +502,7 @@ export default function Screen() {
                         marginBottom: '0.5rem',
                         lineHeight: 1.2,
                     }}>
-                        {isCompleted ? 'ALL QUESTIONS COMPLETED!' : isAllWrong ? 'ALL ANSWERS WRONG!' : "TIME'S UP!"}
+                        {isCompleted ? 'ALL QUESTIONS COMPLETED!' : "TIME'S UP!"}
                     </h1>
 
                     {isCompleted && (
