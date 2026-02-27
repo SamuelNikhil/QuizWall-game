@@ -685,7 +685,6 @@ export default function Controller() {
     // ---- Game Over ----
     if (phase === 'game-over') {
         const isCompleted = gameOverReason === 'completed';
-        const isAllWrong = gameOverReason === 'all_wrong';
         return (
             <div className="controller-container" style={{ justifyContent: 'center', alignItems: 'center', padding: '2rem', position: 'relative' }}>
                 {/* Header with Close Button */}
@@ -716,7 +715,7 @@ export default function Controller() {
                         color: isCompleted ? '#10b981' : '#ff4444',
                         lineHeight: 1.2,
                     }}>
-                        {isCompleted ? 'ALL QUESTIONS COMPLETED!' : isAllWrong ? 'ALL ANSWERS WRONG!' : "TIME'S UP!"}
+                        {isCompleted ? 'ALL QUESTIONS COMPLETED!' : "TIME'S UP!"}
                     </h1>
 
                     {isCompleted && (
