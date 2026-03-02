@@ -334,6 +334,19 @@ export class QuizEngine {
         // Notify clients of the reveal result
         this.onReveal?.(result);
 
+        // If NO player selected anything, end the game immediately (Time's Up)
+        if (selections.length === 0) {
+            console.log('[QuizEngine] No selections made — triggering Time\'s Up game over');
+            this.lastGameOverReason = 'time';
+            this.stopPhaseTimer();
+            // Small delay so clients see the reveal before game-over
+            setTimeout(() => {
+                if (this.destroyed) return;
+                this.onGameOver?.();
+            }, 1500);
+            return;
+        }
+
         // After reveal, decide next action
         // Always advance to next question regardless of correctness, until all 10 are done
         setTimeout(async () => {

@@ -966,27 +966,6 @@ export default function Screen() {
                     );
                 })}
 
-                {/* ⏰ Time's Up — reuses singleplayer game-over style */}
-                {isMultiplayer && currentPhase === 'reveal' && revealResult?.noSelection && (
-                    <div style={{
-                        position: 'absolute', top: '50%', left: '50%',
-                        transform: 'translate(-50%, -50%)',
-                        zIndex: 2000, pointerEvents: 'none',
-                        textAlign: 'center',
-                        animation: 'bounceIn 0.8s cubic-bezier(0.34, 1.56, 0.64, 1)',
-                    }}>
-                        <h1 style={{
-                            fontSize: '5rem',
-                            fontWeight: '900',
-                            color: '#ff4444',
-                            textShadow: '0 0 40px rgba(255, 0, 0, 0.5)',
-                            marginBottom: '0.5rem',
-                            lineHeight: 1.2,
-                        }}>
-                            TIME'S UP!
-                        </h1>
-                    </div>
-                )}
 
                 {/* Hit Effects */}
                 {hitEffects.map((e) => (
