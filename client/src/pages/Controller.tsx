@@ -70,6 +70,8 @@ export default function Controller() {
     const tutorialSlingDetected = useRef(false);
     const tutorialTiltLeftDetected = useRef(false);
     const tutorialTiltRightDetected = useRef(false);
+    const tutorialTiltUpDetected = useRef(false);
+    const tutorialTiltDownDetected = useRef(false);
 
     // ---- Gyroscope ----
     const [gyroEnabled, setGyroEnabled] = useState(false);
@@ -222,6 +224,8 @@ export default function Controller() {
                 tutorialSlingDetected.current = false;
                 tutorialTiltLeftDetected.current = false;
                 tutorialTiltRightDetected.current = false;
+                tutorialTiltUpDetected.current = false;
+                tutorialTiltDownDetected.current = false;
             });
 
             // Tutorial status updates from server
@@ -345,22 +349,41 @@ export default function Controller() {
 
         // During calibration, update calibration tilt for visual feedback
         if (phase === 'calibrating') {
-            // Send tilt data to server for screen visualization
-            clientRef.current?.sendTutorialProgress({ step: tutorialStepRef.current, tiltX: x, tiltY: y });
+            // Always send live tilt data for screen visualization
+            if (tutorialSlingDetected.current) {
+                // Only send tilt updates after sling is done
+                clientRef.current?.sendTutorialProgress({ step: 'tilt-left', tiltX: x, tiltY: y });
+            }
 
-            // Tutorial: detect tilt-left (x < 25 while sling completed and dragging)
-            if (tutorialSlingDetected.current && !tutorialTiltLeftDetected.current && x < 25 && isDraggingRef.current) {
+            // Tutorial: detect tilt-left (x < 20)
+            if (tutorialSlingDetected.current && !tutorialTiltLeftDetected.current && x < 20 && isDraggingRef.current) {
                 tutorialTiltLeftDetected.current = true;
                 clientRef.current?.sendTutorialProgress({ step: 'tilt-left', tiltX: x, tiltY: y });
                 console.log('[Tutorial] Tilt-LEFT detected!');
                 try { navigator?.vibrate?.(30); } catch { /* unsupported */ }
             }
 
-            // Tutorial: detect tilt-right (x > 75 while sling completed and dragging)
-            if (tutorialTiltLeftDetected.current && !tutorialTiltRightDetected.current && x > 75 && isDraggingRef.current) {
+            // Tutorial: detect tilt-right (x > 80)
+            if (tutorialSlingDetected.current && !tutorialTiltRightDetected.current && x > 80 && isDraggingRef.current) {
                 tutorialTiltRightDetected.current = true;
                 clientRef.current?.sendTutorialProgress({ step: 'tilt-right', tiltX: x, tiltY: y });
                 console.log('[Tutorial] Tilt-RIGHT detected!');
+                try { navigator?.vibrate?.(30); } catch { /* unsupported */ }
+            }
+
+            // Tutorial: detect tilt-up (y < 20)
+            if (tutorialSlingDetected.current && !tutorialTiltUpDetected.current && y < 20 && isDraggingRef.current) {
+                tutorialTiltUpDetected.current = true;
+                clientRef.current?.sendTutorialProgress({ step: 'tilt-up', tiltX: x, tiltY: y });
+                console.log('[Tutorial] Tilt-UP detected!');
+                try { navigator?.vibrate?.(30); } catch { /* unsupported */ }
+            }
+
+            // Tutorial: detect tilt-down (y > 80)
+            if (tutorialSlingDetected.current && !tutorialTiltDownDetected.current && y > 80 && isDraggingRef.current) {
+                tutorialTiltDownDetected.current = true;
+                clientRef.current?.sendTutorialProgress({ step: 'tilt-down', tiltX: x, tiltY: y });
+                console.log('[Tutorial] Tilt-DOWN detected!');
                 try { navigator?.vibrate?.([30, 50, 30]); } catch { /* unsupported */ }
             }
 
@@ -621,16 +644,17 @@ export default function Controller() {
     // ---- Calibration Tutorial (Interactive) ----
     if (phase === 'calibrating') {
         const myColor = CROSSHAIR_COLORS[colorIndex];
-        const stepMessages: Record<TutorialStep, { icon: string; title: string; subtitle: string }> = {
-            'waiting': { icon: '🎯', title: 'Pull the Slingshot!', subtitle: 'Pull back on the joystick below to aim' },
-            'sling': { icon: '🎯', title: 'Pull the Slingshot!', subtitle: 'Pull back on the joystick below to aim' },
-            'tilt-left': { icon: '📱⬅️', title: 'Tilt Left!', subtitle: 'Hold the sling and tilt your phone to the left' },
-            'tilt-right': { icon: '📱➡️', title: 'Tilt Right!', subtitle: 'Now tilt your phone to the right' },
-            'complete': { icon: '✅', title: 'All Done!', subtitle: 'Waiting for other players...' },
-        };
-        const currentMsg = stepMessages[tutorialStep];
-        const stepsCompleted = (tutorialSlingDetected.current ? 1 : 0) + (tutorialTiltLeftDetected.current ? 1 : 0) + (tutorialTiltRightDetected.current ? 1 : 0);
-        const progressPercent = (stepsCompleted / 3) * 100;
+        const isSlingPhase = tutorialStep === 'waiting' || tutorialStep === 'sling';
+        const isTiltPhase = tutorialStep === 'tilt';
+        const isComplete = tutorialStep === 'complete';
+        const tiltLeft = tutorialTiltLeftDetected.current;
+        const tiltRight = tutorialTiltRightDetected.current;
+        const tiltUp = tutorialTiltUpDetected.current;
+        const tiltDown = tutorialTiltDownDetected.current;
+        const stepsCompleted = (tutorialSlingDetected.current ? 1 : 0) + (tiltLeft ? 1 : 0) + (tiltRight ? 1 : 0) + (tiltUp ? 1 : 0) + (tiltDown ? 1 : 0);
+        const progressPercent = (stepsCompleted / 5) * 100;
+        const liveX = targetXPercent;
+        const liveY = targetYPercent;
 
         return (
             <div
@@ -650,52 +674,56 @@ export default function Controller() {
                     padding: '1.5rem', textAlign: 'center', zIndex: 100,
                     pointerEvents: 'none',
                 }}>
+                    {/* Instruction card */}
                     <div style={{
-                        background: 'var(--glass-bg)', padding: '1.25rem 1.5rem',
+                        background: 'var(--glass-bg)', padding: '1rem 1.25rem',
                         borderRadius: 'var(--radius-lg)', border: `1px solid ${myColor}40`,
                         backdropFilter: 'blur(20px)', boxShadow: `0 8px 30px ${myColor}20`,
-                        animation: tutorialStep !== 'complete' ? 'pulse 2s ease-in-out infinite' : 'none',
                     }}>
-                        <p style={{ fontSize: '2rem', margin: 0 }}>{currentMsg.icon}</p>
-                        <h2 style={{
-                            fontSize: '1.4rem', fontWeight: 900, color: '#fff',
-                            margin: '0.5rem 0 0.25rem',
-                        }}>{currentMsg.title}</h2>
-                        <p style={{
-                            color: 'var(--text-secondary)', fontSize: '0.9rem',
-                            margin: 0,
-                        }}>{currentMsg.subtitle}</p>
+                        {isComplete ? (
+                            <><p style={{ fontSize: '1.8rem', margin: 0 }}>✅</p>
+                                <h2 style={{ fontSize: '1.1rem', fontWeight: 900, color: '#fff', margin: '0.4rem 0 0.2rem' }}>All Done!</h2>
+                                <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', margin: 0 }}>Waiting for others...</p></>
+                        ) : isSlingPhase ? (
+                            <><p style={{ fontSize: '1.8rem', margin: 0, animation: 'pulse 1.5s ease-in-out infinite' }}>🏹</p>
+                                <h2 style={{ fontSize: '1.1rem', fontWeight: 900, color: '#fff', margin: '0.4rem 0 0.2rem' }}>Pull the Slingshot!</h2>
+                                <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', margin: 0 }}>Drag down hard · hold it pulled</p></>
+                        ) : (
+                            <><p style={{ fontSize: '1.8rem', margin: 0, animation: 'pulse 1.5s ease-in-out infinite' }}>📱</p>
+                                <h2 style={{ fontSize: '1.1rem', fontWeight: 900, color: '#fff', margin: '0.4rem 0 0.2rem' }}>Tilt All 4 Directions!</h2>
+                                <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', margin: 0 }}>Keep sling held · tilt ⬅️ ➡️ ⬆️ ⬇️</p></>
+                        )}
                     </div>
 
-                    {/* Step progress indicators */}
-                    <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center', marginTop: '1rem' }}>
-                        {(['Sling', 'Tilt ⬅️', 'Tilt ➡️'] as const).map((label, i) => {
-                            const done = i === 0 ? tutorialSlingDetected.current : i === 1 ? tutorialTiltLeftDetected.current : tutorialTiltRightDetected.current;
-                            return (
-                                <div key={label} style={{
-                                    padding: '0.3rem 0.8rem', borderRadius: 'var(--radius-full)',
-                                    background: done ? `${myColor}30` : 'rgba(255,255,255,0.05)',
-                                    border: `1px solid ${done ? myColor : 'rgba(255,255,255,0.1)'}`,
-                                    fontSize: '0.75rem', fontWeight: 700,
-                                    color: done ? myColor : 'var(--text-secondary)',
-                                }}>
-                                    {done ? '✓ ' : ''}{label}
+                    {/* 4-direction tilt guide with live crosshair — shown during tilt phase */}
+                    {isTiltPhase && (
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: '0.75rem', gap: '0' }}>
+                            {/* Up arrow */}
+                            <span style={{ fontSize: '1.4rem', opacity: tiltUp ? 1 : 0.3, filter: tiltUp ? `drop-shadow(0 0 6px ${myColor})` : 'none', transition: 'all 0.3s', lineHeight: 1.2 }}>⬆️</span>
+                            {/* Middle row: Left + crosshair circle + Right */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                <span style={{ fontSize: '1.4rem', opacity: tiltLeft ? 1 : 0.3, filter: tiltLeft ? `drop-shadow(0 0 6px ${myColor})` : 'none', transition: 'all 0.3s' }}>⬅️</span>
+                                {/* Live crosshair mini-display */}
+                                <div style={{ width: '40px', height: '40px', borderRadius: '50%', border: `2px solid ${myColor}50`, position: 'relative', background: 'rgba(255,255,255,0.03)' }}>
+                                    <div style={{
+                                        width: '10px', height: '10px', borderRadius: '50%',
+                                        background: myColor, boxShadow: `0 0 8px ${myColor}`,
+                                        position: 'absolute',
+                                        left: `${liveX}%`, top: `${liveY}%`,
+                                        transform: 'translate(-50%,-50%)',
+                                        transition: 'left 0.08s linear, top 0.08s linear',
+                                    }} />
                                 </div>
-                            );
-                        })}
-                    </div>
+                                <span style={{ fontSize: '1.4rem', opacity: tiltRight ? 1 : 0.3, filter: tiltRight ? `drop-shadow(0 0 6px ${myColor})` : 'none', transition: 'all 0.3s' }}>➡️</span>
+                            </div>
+                            {/* Down arrow */}
+                            <span style={{ fontSize: '1.4rem', opacity: tiltDown ? 1 : 0.3, filter: tiltDown ? `drop-shadow(0 0 6px ${myColor})` : 'none', transition: 'all 0.3s', lineHeight: 1.2 }}>⬇️</span>
+                        </div>
+                    )}
 
                     {/* Progress bar */}
-                    <div style={{
-                        width: '80%', height: '6px', margin: '1rem auto 0',
-                        background: 'rgba(255,255,255,0.1)', borderRadius: '3px', overflow: 'hidden',
-                    }}>
-                        <div style={{
-                            width: `${progressPercent}%`, height: '100%',
-                            background: `linear-gradient(90deg, ${myColor}, #fff)`,
-                            borderRadius: '3px', transition: 'width 0.3s ease',
-                            boxShadow: `0 0 10px ${myColor}`,
-                        }} />
+                    <div style={{ width: '80%', height: '5px', margin: '0.6rem auto 0', background: 'rgba(255,255,255,0.1)', borderRadius: '3px', overflow: 'hidden' }}>
+                        <div style={{ width: `${progressPercent}%`, height: '100%', background: `linear-gradient(90deg, ${myColor}, #fff)`, borderRadius: '3px', transition: 'width 0.3s ease', boxShadow: `0 0 8px ${myColor}` }} />
                     </div>
                 </div>
 

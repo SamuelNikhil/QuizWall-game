@@ -127,11 +127,14 @@ export interface RevealResultPayload {
 
 // ---------- Interactive Tutorial ----------
 
-export type TutorialStep = 'waiting' | 'sling' | 'tilt-left' | 'tilt-right' | 'complete';
+export type TutorialStep = 'waiting' | 'sling' | 'tilt' | 'complete';
+
+/** Progress events sent from controller → server */
+export type TutorialProgressStep = 'sling' | 'tilt-left' | 'tilt-right' | 'tilt-up' | 'tilt-down';
 
 /** Sent from controller → server when a player completes a tutorial step */
 export interface TutorialProgressPayload {
-    step: TutorialStep;
+    step: TutorialProgressStep;
     tiltX?: number;
     tiltY?: number;
 }
@@ -149,6 +152,8 @@ export interface TutorialPlayerStatus {
     completedSling: boolean;
     completedTiltLeft: boolean;
     completedTiltRight: boolean;
+    completedTiltUp: boolean;
+    completedTiltDown: boolean;
     tiltX: number;
     tiltY: number;
 }
