@@ -420,12 +420,9 @@ export default function Screen() {
         if (controllerCount > 0) {
             hadControllersRef.current = true;
         }
-        // Only trigger if ALL controllers left AND we're NOT in an active game
-        // (during gameplay a single player leaving should not kill the screen)
-        const livePhase = phaseRef.current;
-        const isActiveGame = livePhase === 'playing' || livePhase === 'tutorial';
-        if (hadControllersRef.current && controllerCount === 0 && !sessionEnding && !isActiveGame
-            && livePhase !== 'connecting' && livePhase !== 'qr-lobby') {
+        // End session if ALL controllers leave (including during gameplay)
+        if (hadControllersRef.current && controllerCount === 0 && !sessionEnding
+            && phase !== 'connecting' && phase !== 'qr-lobby') {
             setSessionEnding(true);
             setTimeout(() => { window.location.reload(); }, 3000);
         }
@@ -969,32 +966,25 @@ export default function Screen() {
                     );
                 })}
 
-                {/* ⏰ Time's Up banner — multiplayer reveal with zero selections */}
+                {/* ⏰ Time's Up — reuses singleplayer game-over style */}
                 {isMultiplayer && currentPhase === 'reveal' && revealResult?.noSelection && (
                     <div style={{
                         position: 'absolute', top: '50%', left: '50%',
                         transform: 'translate(-50%, -50%)',
                         zIndex: 2000, pointerEvents: 'none',
-                        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem',
-                        animation: 'bounceIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                        textAlign: 'center',
+                        animation: 'bounceIn 0.8s cubic-bezier(0.34, 1.56, 0.64, 1)',
                     }}>
-                        <div style={{
-                            background: 'rgba(239, 68, 68, 0.15)',
-                            border: '2px solid rgba(239, 68, 68, 0.6)',
-                            backdropFilter: 'blur(20px)',
-                            padding: '1.5rem 3rem',
-                            borderRadius: 'var(--radius-lg)',
-                            boxShadow: '0 0 60px rgba(239, 68, 68, 0.3)',
-                            textAlign: 'center',
+                        <h1 style={{
+                            fontSize: '5rem',
+                            fontWeight: '900',
+                            color: '#ff4444',
+                            textShadow: '0 0 40px rgba(255, 0, 0, 0.5)',
+                            marginBottom: '0.5rem',
+                            lineHeight: 1.2,
                         }}>
-                            <div style={{ fontSize: '3.5rem', marginBottom: '0.25rem' }}>⏰</div>
-                            <div style={{ fontSize: '2rem', fontWeight: 900, color: '#ef4444', letterSpacing: '0.1rem' }}>
-                                TIME'S UP!
-                            </div>
-                            <div style={{ fontSize: '1rem', color: 'rgba(255,255,255,0.6)', marginTop: '0.25rem' }}>
-                                No answer selected
-                            </div>
-                        </div>
+                            TIME'S UP!
+                        </h1>
                     </div>
                 )}
 
