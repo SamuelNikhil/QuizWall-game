@@ -7,7 +7,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { GameClient } from '../transport/GameClient';
 import Lobby from './Lobby';
-import type { LobbyState, PlayerRole, ScoreUpdate, QuestionPhase, PlayerSelectionPayload, RevealResultPayload } from '../shared/types';
+import type { LobbyState, PlayerRole, ScoreUpdate, QuestionPhase, PlayerSelectionPayload, RevealResultPayload, TutorialStep, TutorialStatusUpdatePayload } from '../shared/types';
 import { CROSSHAIR_COLORS } from '../shared/types';
 import slingCenterImg from '../assets/sling-center.svg';
 import '../index.css';
@@ -62,9 +62,14 @@ export default function Controller() {
     const [startPos, setStartPos] = useState({ x: 0, y: 0 });
 
     // ---- Gyro Calibration Tutorial State ----
-    const [calibrationProgress, setCalibrationProgress] = useState(0);
-    const [calibrationTilt, setCalibrationTilt] = useState({ x: 50, y: 50 });
     const calibrationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    // ---- Interactive Tutorial State ----
+    const [tutorialStep, setTutorialStep] = useState<TutorialStep>('waiting');
+    const tutorialStepRef = useRef<TutorialStep>('waiting');
+    const tutorialSlingDetected = useRef(false);
+    const tutorialTiltLeftDetected = useRef(false);
+    const tutorialTiltRightDetected = useRef(false);
 
     // ---- Gyroscope ----
     const [gyroEnabled, setGyroEnabled] = useState(false);
@@ -82,6 +87,7 @@ export default function Controller() {
     useEffect(() => { isDraggingRef.current = isDragging; }, [isDragging]);
     useEffect(() => { gyroCalibrationRef.current = gyroCalibration; }, [gyroCalibration]);
     useEffect(() => { gyroEnabledRef.current = gyroEnabled; }, [gyroEnabled]);
+    useEffect(() => { tutorialStepRef.current = tutorialStep; }, [tutorialStep]);
 
     const clientRef = useRef<GameClient | null>(null);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -124,24 +130,14 @@ export default function Controller() {
                 setLobby(data);
             });
 
-            client.onTutorialStart((data) => {
-                console.log('[Controller] Tutorial started, duration:', data.duration);
+            client.onTutorialStart((_data: { duration: number }) => {
+                console.log('[Controller] Tutorial started, interactive mode');
                 setPhase('calibrating');
-                setCalibrationProgress(0);
-
-                // Auto-progress calibration animation
-                let progress = 0;
-                const interval = setInterval(() => {
-                    progress += 20; // 5 seconds = 20% per second
-                    setCalibrationProgress(Math.min(progress, 100));
-                    if (progress >= 100) {
-                        clearInterval(interval);
-                    }
-                }, 1000);
-
-                calibrationTimerRef.current = setTimeout(() => {
-                    clearInterval(interval);
-                }, data.duration);
+                setTutorialStep('waiting');
+                tutorialStepRef.current = 'waiting';
+                tutorialSlingDetected.current = false;
+                tutorialTiltLeftDetected.current = false;
+                tutorialTiltRightDetected.current = false;
             });
 
             client.onTutorialEnd(() => {
@@ -221,6 +217,22 @@ export default function Controller() {
                 setHasSelectedThisRound(false);
                 hasSelectedRef.current = false;
                 setIsMultiplayer(false);
+                setTutorialStep('waiting');
+                tutorialStepRef.current = 'waiting';
+                tutorialSlingDetected.current = false;
+                tutorialTiltLeftDetected.current = false;
+                tutorialTiltRightDetected.current = false;
+            });
+
+            // Tutorial status updates from server
+            client.onTutorialStatusUpdate((data: TutorialStatusUpdatePayload) => {
+                // Update our own step from server state
+                const myClientId = clientIdRef.current;
+                const myStatus = data.players.find(p => p.controllerId === myClientId);
+                if (myStatus && myStatus.currentStep !== tutorialStepRef.current) {
+                    setTutorialStep(myStatus.currentStep);
+                    tutorialStepRef.current = myStatus.currentStep;
+                }
             });
         }).catch((err) => {
             console.error('Connection failed:', err);
@@ -333,7 +345,25 @@ export default function Controller() {
 
         // During calibration, update calibration tilt for visual feedback
         if (phase === 'calibrating') {
-            setCalibrationTilt({ x, y });
+            // Send tilt data to server for screen visualization
+            clientRef.current?.sendTutorialProgress({ step: tutorialStepRef.current, tiltX: x, tiltY: y });
+
+            // Tutorial: detect tilt-left (x < 25 while sling completed and dragging)
+            if (tutorialSlingDetected.current && !tutorialTiltLeftDetected.current && x < 25 && isDraggingRef.current) {
+                tutorialTiltLeftDetected.current = true;
+                clientRef.current?.sendTutorialProgress({ step: 'tilt-left', tiltX: x, tiltY: y });
+                console.log('[Tutorial] Tilt-LEFT detected!');
+                try { navigator?.vibrate?.(30); } catch { /* unsupported */ }
+            }
+
+            // Tutorial: detect tilt-right (x > 75 while sling completed and dragging)
+            if (tutorialTiltLeftDetected.current && !tutorialTiltRightDetected.current && x > 75 && isDraggingRef.current) {
+                tutorialTiltRightDetected.current = true;
+                clientRef.current?.sendTutorialProgress({ step: 'tilt-right', tiltX: x, tiltY: y });
+                console.log('[Tutorial] Tilt-RIGHT detected!');
+                try { navigator?.vibrate?.([30, 50, 30]); } catch { /* unsupported */ }
+            }
+
             return; // Don't send crosshair during calibration
         }
 
@@ -440,9 +470,9 @@ export default function Controller() {
     // ---- Slingshot touch handlers ----
 
     const handleStart = useCallback(() => {
-        if (phase !== 'playing') return;
+        if (phase !== 'playing' && phase !== 'calibrating') return;
         // In multiplayer, only allow slingshot during selection phase and if not already selected
-        if (isMultiplayer && (currentPhaseRef.current !== 'selection' || hasSelectedRef.current)) return;
+        if (phase === 'playing' && isMultiplayer && (currentPhaseRef.current !== 'selection' || hasSelectedRef.current)) return;
 
         const rect = containerRef.current?.getBoundingClientRect();
         if (!rect) return;
@@ -456,11 +486,13 @@ export default function Controller() {
         // Light haptic feedback when starting to pull the sling
         try { navigator?.vibrate?.(15); } catch { /* unsupported */ }
 
-        clientRef.current?.sendStartAiming(gyroEnabled);
+        if (phase === 'playing') {
+            clientRef.current?.sendStartAiming(gyroEnabled);
+        }
     }, [phase, gyroEnabled, isMultiplayer]);
 
     const handleMove = useCallback((e: React.TouchEvent | React.MouseEvent) => {
-        if (!isDragging || phase !== 'playing') return;
+        if (!isDragging || (phase !== 'playing' && phase !== 'calibrating')) return;
 
         const touch = 'touches' in e ? e.touches[0] : e;
         const rect = containerRef.current?.getBoundingClientRect();
@@ -486,20 +518,36 @@ export default function Controller() {
             const tY = Math.max(0, Math.min(100, 50 - (dy / maxPull) * 50));
             setTargetXPercent(tX);
             setTargetYPercent(tY);
-            clientRef.current?.sendCrosshair(tX, tY);
+            if (phase === 'playing') {
+                clientRef.current?.sendCrosshair(tX, tY);
+            }
+        }
+
+        // Tutorial: detect sling action (power > 50%)
+        if (phase === 'calibrating' && !tutorialSlingDetected.current && Math.min(100, (clampedDist / maxPull) * 100) > 50) {
+            tutorialSlingDetected.current = true;
+            clientRef.current?.sendTutorialProgress({ step: 'sling' });
+            console.log('[Tutorial] Sling detected!');
+            try { navigator?.vibrate?.(30); } catch { /* unsupported */ }
         }
     }, [isDragging, startPos, gyroEnabled, phase]);
 
     const handleEnd = useCallback(() => {
         if (!isDragging) return;
 
+        // During tutorial, don't shoot, just release
+        if (phase === 'calibrating') {
+            setIsDragging(false);
+            setPullBack(0);
+            setPower(0);
+            return;
+        }
+
         // Cancel crosshair on screen when not dragging
         clientRef.current?.sendCancelAiming();
 
         if (power > 10 && phase === 'playing') {
             clientRef.current?.shoot(targetXPercent, targetYPercent, power / 100);
-            // Selection lock is now handled by onPlayerSelection callback
-            // (only locks when server confirms the shot hit an orb)
         } else {
             clientRef.current?.sendCancelAiming();
         }
@@ -561,122 +609,127 @@ export default function Controller() {
         );
     }
 
-    // ---- Calibration Tutorial ----
+    // ---- Slingshot Layout Calculations (shared by calibrating + playing phases) ----
+    const width = containerRef.current?.offsetWidth || 400;
+    const height = containerRef.current?.offsetHeight || 800;
+    const slingshotCenterX = width / 2;
+    const slingshotCenterY = height / 2;
+    const boundaryRadius = 100;
+    const pullEndX = isDragging ? slingshotCenterX - Math.cos(aimAngle) * pullBack : slingshotCenterX;
+    const pullEndY = isDragging ? slingshotCenterY - Math.sin(aimAngle) * pullBack : slingshotCenterY;
+
+    // ---- Calibration Tutorial (Interactive) ----
     if (phase === 'calibrating') {
         const myColor = CROSSHAIR_COLORS[colorIndex];
+        const stepMessages: Record<TutorialStep, { icon: string; title: string; subtitle: string }> = {
+            'waiting': { icon: '🎯', title: 'Pull the Slingshot!', subtitle: 'Pull back on the joystick below to aim' },
+            'sling': { icon: '🎯', title: 'Pull the Slingshot!', subtitle: 'Pull back on the joystick below to aim' },
+            'tilt-left': { icon: '📱⬅️', title: 'Tilt Left!', subtitle: 'Hold the sling and tilt your phone to the left' },
+            'tilt-right': { icon: '📱➡️', title: 'Tilt Right!', subtitle: 'Now tilt your phone to the right' },
+            'complete': { icon: '✅', title: 'All Done!', subtitle: 'Waiting for other players...' },
+        };
+        const currentMsg = stepMessages[tutorialStep];
+        const stepsCompleted = (tutorialSlingDetected.current ? 1 : 0) + (tutorialTiltLeftDetected.current ? 1 : 0) + (tutorialTiltRightDetected.current ? 1 : 0);
+        const progressPercent = (stepsCompleted / 3) * 100;
+
         return (
-            <div className="controller-container" style={{ justifyContent: 'center', alignItems: 'center', padding: '2rem' }}>
+            <div
+                ref={containerRef}
+                className="controller-container"
+                onTouchStart={handleStart}
+                onTouchMove={handleMove}
+                onTouchEnd={handleEnd}
+                onMouseDown={handleStart}
+                onMouseMove={handleMove}
+                onMouseUp={handleEnd}
+                style={{ position: 'relative', overflow: 'hidden', touchAction: 'none' }}
+            >
+                {/* Tutorial instruction overlay */}
                 <div style={{
-                    maxWidth: '360px',
-                    width: '100%',
-                    textAlign: 'center',
+                    position: 'absolute', top: 0, left: 0, right: 0,
+                    padding: '1.5rem', textAlign: 'center', zIndex: 100,
+                    pointerEvents: 'none',
                 }}>
-                    {/* Crosshair Visualization */}
                     <div style={{
-                        width: '200px',
-                        height: '200px',
-                        margin: '0 auto 2rem',
-                        position: 'relative',
-                        background: 'rgba(255,255,255,0.05)',
-                        borderRadius: '50%',
-                        border: `2px solid ${myColor}`,
-                        boxShadow: `0 0 30px ${myColor}40`,
+                        background: 'var(--glass-bg)', padding: '1.25rem 1.5rem',
+                        borderRadius: 'var(--radius-lg)', border: `1px solid ${myColor}40`,
+                        backdropFilter: 'blur(20px)', boxShadow: `0 8px 30px ${myColor}20`,
+                        animation: tutorialStep !== 'complete' ? 'pulse 2s ease-in-out infinite' : 'none',
                     }}>
-                        {/* Target marker that moves with gyro */}
-                        <div style={{
-                            position: 'absolute',
-                            width: '20px',
-                            height: '20px',
-                            borderRadius: '50%',
-                            background: myColor,
-                            boxShadow: `0 0 20px ${myColor}`,
-                            left: `${calibrationTilt.x}%`,
-                            top: `${calibrationTilt.y}%`,
-                            transform: 'translate(-50%, -50%)',
-                            transition: 'all 0.1s ease-out',
-                        }} />
-                        {/* Center marker */}
-                        <div style={{
-                            position: 'absolute',
-                            width: '8px',
-                            height: '8px',
-                            borderRadius: '50%',
-                            background: 'rgba(255,255,255,0.5)',
-                            left: '50%',
-                            top: '50%',
-                            transform: 'translate(-50%, -50%)',
-                        }} />
+                        <p style={{ fontSize: '2rem', margin: 0 }}>{currentMsg.icon}</p>
+                        <h2 style={{
+                            fontSize: '1.4rem', fontWeight: 900, color: '#fff',
+                            margin: '0.5rem 0 0.25rem',
+                        }}>{currentMsg.title}</h2>
+                        <p style={{
+                            color: 'var(--text-secondary)', fontSize: '0.9rem',
+                            margin: 0,
+                        }}>{currentMsg.subtitle}</p>
                     </div>
 
-                    <h2 style={{
-                        fontSize: '1.5rem',
-                        fontWeight: 900,
-                        color: '#fff',
-                        marginBottom: '0.5rem',
-                    }}>
-                        📱 Calibrate Your Aim
-                    </h2>
+                    {/* Step progress indicators */}
+                    <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center', marginTop: '1rem' }}>
+                        {(['Sling', 'Tilt ⬅️', 'Tilt ➡️'] as const).map((label, i) => {
+                            const done = i === 0 ? tutorialSlingDetected.current : i === 1 ? tutorialTiltLeftDetected.current : tutorialTiltRightDetected.current;
+                            return (
+                                <div key={label} style={{
+                                    padding: '0.3rem 0.8rem', borderRadius: 'var(--radius-full)',
+                                    background: done ? `${myColor}30` : 'rgba(255,255,255,0.05)',
+                                    border: `1px solid ${done ? myColor : 'rgba(255,255,255,0.1)'}`,
+                                    fontSize: '0.75rem', fontWeight: 700,
+                                    color: done ? myColor : 'var(--text-secondary)',
+                                }}>
+                                    {done ? '✓ ' : ''}{label}
+                                </div>
+                            );
+                        })}
+                    </div>
 
-                    <p style={{
-                        color: 'var(--text-secondary)',
-                        fontSize: '0.95rem',
-                        marginBottom: '2rem',
-                        lineHeight: 1.5,
-                    }}>
-                        {gyroEnabled
-                            ? 'Tilt your phone to move the crosshair. Try aiming to the corners!'
-                            : 'Touch and drag to aim. Game starts in a moment...'}
-                    </p>
-
-                    {/* Progress Bar */}
+                    {/* Progress bar */}
                     <div style={{
-                        width: '100%',
-                        height: '8px',
-                        background: 'rgba(255,255,255,0.1)',
-                        borderRadius: '4px',
-                        overflow: 'hidden',
-                        marginBottom: '1rem',
+                        width: '80%', height: '6px', margin: '1rem auto 0',
+                        background: 'rgba(255,255,255,0.1)', borderRadius: '3px', overflow: 'hidden',
                     }}>
                         <div style={{
-                            width: `${calibrationProgress}%`,
-                            height: '100%',
+                            width: `${progressPercent}%`, height: '100%',
                             background: `linear-gradient(90deg, ${myColor}, #fff)`,
-                            borderRadius: '4px',
-                            transition: 'width 0.3s ease',
+                            borderRadius: '3px', transition: 'width 0.3s ease',
                             boxShadow: `0 0 10px ${myColor}`,
                         }} />
                     </div>
+                </div>
 
-                    <p style={{
-                        color: myColor,
-                        fontSize: '0.9rem',
-                        fontWeight: 700,
-                    }}>
-                        Game starting in {Math.ceil((100 - calibrationProgress) / 25)}...
-                    </p>
+                {/* Slingshot visual — same as playing phase */}
+                <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 5 }}>
+                    <circle
+                        cx={slingshotCenterX} cy={slingshotCenterY}
+                        r={boundaryRadius} fill="none"
+                        stroke={`${myColor}40`} strokeWidth={2} strokeDasharray="8,8"
+                    />
+                    <image
+                        href={slingCenterImg}
+                        x={pullEndX - 35} y={pullEndY - 35}
+                        width={70} height={70}
+                        style={{
+                            filter: isDragging ? `drop-shadow(0 0 20px ${myColor}80)` : 'drop-shadow(0 0 10px rgba(255, 255, 255, 0.5))',
+                            transition: isDragging ? 'none' : 'all 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28)',
+                            cursor: 'grab',
+                        }}
+                    />
+                </svg>
 
-                    {/* Color indicator */}
+                {/* Color indicator */}
+                <div style={{
+                    position: 'absolute', bottom: '2rem', left: '50%', transform: 'translateX(-50%)',
+                    display: 'flex', alignItems: 'center', gap: '0.5rem', zIndex: 10,
+                }}>
                     <div style={{
-                        marginTop: '2rem',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '0.5rem',
-                    }}>
-                        <div style={{
-                            width: '12px',
-                            height: '12px',
-                            borderRadius: '50%',
-                            background: myColor,
-                            boxShadow: `0 0 8px ${myColor}`,
-                        }} />
-                        <span style={{
-                            color: 'var(--text-secondary)',
-                            fontSize: '0.8rem',
-                        }}>
-                            Your crosshair color
-                        </span>
-                    </div>
+                        width: '12px', height: '12px', borderRadius: '50%',
+                        background: myColor, boxShadow: `0 0 8px ${myColor}`,
+                    }} />
+                    <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
+                        Your crosshair color
+                    </span>
                 </div>
             </div>
         );
@@ -773,16 +826,6 @@ export default function Controller() {
     }
 
     // ---- Playing (Slingshot) ----
-    const width = containerRef.current?.offsetWidth || 400;
-    const height = containerRef.current?.offsetHeight || 800;
-    const slingshotCenterX = width / 2;
-    const slingshotCenterY = height / 2; // Moved to center
-
-    // Slingshot boundary radius
-    const boundaryRadius = 100;
-
-    const pullEndX = isDragging ? slingshotCenterX - Math.cos(aimAngle) * pullBack : slingshotCenterX;
-    const pullEndY = isDragging ? slingshotCenterY - Math.sin(aimAngle) * pullBack : slingshotCenterY;
 
     return (
         <div

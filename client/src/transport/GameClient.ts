@@ -21,6 +21,8 @@ import type {
     PhaseChangePayload,
     PlayerSelectionPayload,
     RevealResultPayload,
+    TutorialProgressPayload,
+    TutorialStatusUpdatePayload,
 } from '../shared/types';
 
 // --------------- Config ---------------
@@ -292,5 +294,15 @@ export class GameClient {
 
     onRevealResult(cb: (data: RevealResultPayload) => void): void {
         this.channel?.on(EVENTS.REVEAL_RESULT, cb);
+    }
+
+    // ---- Interactive Tutorial ----
+
+    sendTutorialProgress(data: TutorialProgressPayload): void {
+        this.channel?.emit(EVENTS.TUTORIAL_PROGRESS, data);
+    }
+
+    onTutorialStatusUpdate(cb: (data: TutorialStatusUpdatePayload) => void): void {
+        this.channel?.on(EVENTS.TUTORIAL_STATUS_UPDATE, cb);
     }
 }

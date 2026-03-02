@@ -132,6 +132,36 @@ export interface RevealResultPayload {
     points: number;                          // Points awarded (if any correct)
 }
 
+// ---------- Interactive Tutorial ----------
+
+export type TutorialStep = 'waiting' | 'sling' | 'tilt-left' | 'tilt-right' | 'complete';
+
+/** Sent from controller → server when a player completes a tutorial step */
+export interface TutorialProgressPayload {
+    step: TutorialStep;
+    /** Controller's current gyro tilt data for screen visualization */
+    tiltX?: number; // 0-100 percent
+    tiltY?: number; // 0-100 percent
+}
+
+/** Broadcast from server → all clients with each player's tutorial status */
+export interface TutorialStatusUpdatePayload {
+    players: TutorialPlayerStatus[];
+    allComplete: boolean;
+}
+
+export interface TutorialPlayerStatus {
+    controllerId: string;
+    colorIndex: number;
+    currentStep: TutorialStep;
+    completedSling: boolean;
+    completedTiltLeft: boolean;
+    completedTiltRight: boolean;
+    /** Real-time tilt data for screen phone visualization */
+    tiltX: number;
+    tiltY: number;
+}
+
 // ---------- Orb positions (shared constant) ----------
 
 export const ORB_POSITIONS = [

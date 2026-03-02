@@ -4,7 +4,7 @@
 // Member: I'm Ready button
 // ==========================================
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { LobbyState, PlayerRole } from '../shared/types';
 import { CROSSHAIR_COLORS } from '../shared/types';
 import '../index.css';
@@ -56,6 +56,27 @@ export default function Lobby({
     const [teamName, setTeamName] = useState('');
     const [nameSubmitted, setNameSubmitted] = useState(false);
     const [isReady, setIsReady] = useState(false);
+
+    // Gyro highlight: show a pulsing hint on the gyro button for first-time users
+    const [gyroHintShown, setGyroHintShown] = useState(() => {
+        return localStorage.getItem('slingshot_gyro_hint_seen') === 'true';
+    });
+
+    // Once gyro is enabled or hint is dismissed, mark it as seen
+    useEffect(() => {
+        if (gyroEnabled && !gyroHintShown) {
+            setGyroHintShown(true);
+            localStorage.setItem('slingshot_gyro_hint_seen', 'true');
+        }
+    }, [gyroEnabled, gyroHintShown]);
+
+    const dismissGyroHint = () => {
+        setGyroHintShown(true);
+        localStorage.setItem('slingshot_gyro_hint_seen', 'true');
+    };
+
+    // Block Ready/Start until gyro hint is acknowledged
+    const gyroGateOpen = gyroHintShown || gyroEnabled;
 
     const handleSubmitName = () => {
         const trimmed = teamName.trim();
@@ -200,16 +221,16 @@ export default function Lobby({
                         👑 You are the Leader
                     </p>
 
-                    {/* Gyro Setup */}
-                    <div style={{ marginBottom: '1.5rem' }}>
+                    {/* Gyro Setup — with highlight for first-time users */}
+                    <div style={{ marginBottom: '1.5rem', position: 'relative' }}>
                         <button
                             onClick={gyroEnabled ? undefined : onRequestGyro}
                             style={{
                                 width: '100%',
                                 padding: '0.75rem',
-                                background: gyroEnabled ? 'rgba(16, 185, 129, 0.1)' : 'rgba(255, 255, 255, 0.05)',
+                                background: gyroEnabled ? 'rgba(16, 185, 129, 0.1)' : !gyroHintShown ? 'rgba(103, 80, 164, 0.25)' : 'rgba(255, 255, 255, 0.05)',
                                 color: gyroEnabled ? 'var(--accent-success)' : '#fff',
-                                border: `1px solid ${gyroEnabled ? 'rgba(16, 185, 129, 0.4)' : 'var(--glass-border)'}`,
+                                border: `1px solid ${gyroEnabled ? 'rgba(16, 185, 129, 0.4)' : !gyroHintShown ? 'var(--accent-primary)' : 'var(--glass-border)'}`,
                                 borderRadius: 'var(--radius-md)',
                                 fontSize: '0.9rem',
                                 fontWeight: 700,
@@ -218,12 +239,28 @@ export default function Lobby({
                                 alignItems: 'center',
                                 justifyContent: 'center',
                                 gap: '0.5rem',
-                                transition: 'all 0.2s ease'
+                                transition: 'all 0.2s ease',
+                                animation: !gyroHintShown && !gyroEnabled ? 'pulse 1.5s ease-in-out infinite' : 'none',
+                                boxShadow: !gyroHintShown && !gyroEnabled ? '0 0 20px rgba(103, 80, 164, 0.5)' : 'none',
                             }}
                         >
                             {gyroEnabled ? (gyroCalibrated ? '✅ Gyro Ready' : '⏳ Calibrating...') : '📱 Enable Motion Controls'}
                         </button>
-                        {!gyroEnabled && (
+                        {!gyroEnabled && !gyroHintShown && (
+                            <div style={{ marginTop: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                <p style={{ fontSize: '0.75rem', color: 'var(--accent-primary)', fontWeight: 700, margin: 0 }}>
+                                    ⚡ Enable gyro for the best experience!
+                                </p>
+                                <button
+                                    onClick={dismissGyroHint}
+                                    style={{
+                                        background: 'transparent', border: 'none', color: 'var(--text-secondary)',
+                                        fontSize: '0.7rem', cursor: 'pointer', textDecoration: 'underline', padding: '0 0.25rem',
+                                    }}
+                                >Skip</button>
+                            </div>
+                        )}
+                        {!gyroEnabled && gyroHintShown && (
                             <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '0.4rem' }}>
                                 Tap to enable gyro aiming (recommended)
                             </p>
@@ -280,18 +317,18 @@ export default function Lobby({
 
                     <button
                         onClick={onStartGame}
-                        disabled={!allReady}
+                        disabled={!allReady || !gyroGateOpen}
                         style={{
                             width: '100%',
                             padding: '1.25rem 2rem',
                             fontSize: '1.3rem',
                             fontWeight: 900,
-                            background: allReady ? 'var(--accent-primary)' : 'rgba(255,255,255,0.08)',
+                            background: allReady && gyroGateOpen ? 'var(--accent-primary)' : 'rgba(255,255,255,0.08)',
                             border: 'none',
                             borderRadius: 'var(--radius-md)',
-                            color: allReady ? 'white' : 'var(--text-secondary)',
-                            cursor: allReady ? 'pointer' : 'not-allowed',
-                            boxShadow: allReady ? '0 8px 25px rgba(103, 80, 164, 0.5)' : 'none',
+                            color: allReady && gyroGateOpen ? 'white' : 'var(--text-secondary)',
+                            cursor: allReady && gyroGateOpen ? 'pointer' : 'not-allowed',
+                            boxShadow: allReady && gyroGateOpen ? '0 8px 25px rgba(103, 80, 164, 0.5)' : 'none',
                             transition: 'all 0.3s ease',
                             letterSpacing: '1px',
                         }}
@@ -328,16 +365,16 @@ export default function Lobby({
                     🎮 Team Member
                 </p>
 
-                {/* Gyro Setup */}
-                <div style={{ marginBottom: '1.5rem' }}>
+                {/* Gyro Setup — with highlight for first-time members */}
+                <div style={{ marginBottom: '1.5rem', position: 'relative' }}>
                     <button
                         onClick={gyroEnabled ? undefined : onRequestGyro}
                         style={{
                             width: '100%',
                             padding: '0.75rem',
-                            background: gyroEnabled ? 'rgba(16, 185, 129, 0.1)' : 'rgba(255, 255, 255, 0.05)',
+                            background: gyroEnabled ? 'rgba(16, 185, 129, 0.1)' : !gyroHintShown ? 'rgba(103, 80, 164, 0.25)' : 'rgba(255, 255, 255, 0.05)',
                             color: gyroEnabled ? 'var(--accent-success)' : '#fff',
-                            border: `1px solid ${gyroEnabled ? 'rgba(16, 185, 129, 0.4)' : 'var(--glass-border)'}`,
+                            border: `1px solid ${gyroEnabled ? 'rgba(16, 185, 129, 0.4)' : !gyroHintShown ? 'var(--accent-primary)' : 'var(--glass-border)'}`,
                             borderRadius: 'var(--radius-md)',
                             fontSize: '0.9rem',
                             fontWeight: 700,
@@ -346,12 +383,28 @@ export default function Lobby({
                             alignItems: 'center',
                             justifyContent: 'center',
                             gap: '0.5rem',
-                            transition: 'all 0.2s ease'
+                            transition: 'all 0.2s ease',
+                            animation: !gyroHintShown && !gyroEnabled ? 'pulse 1.5s ease-in-out infinite' : 'none',
+                            boxShadow: !gyroHintShown && !gyroEnabled ? '0 0 20px rgba(103, 80, 164, 0.5)' : 'none',
                         }}
                     >
                         {gyroEnabled ? (gyroCalibrated ? '✅ Gyro Ready' : '⏳ Calibrating...') : '📱 Enable Motion Controls'}
                     </button>
-                    {!gyroEnabled && (
+                    {!gyroEnabled && !gyroHintShown && (
+                        <div style={{ marginTop: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <p style={{ fontSize: '0.75rem', color: 'var(--accent-primary)', fontWeight: 700, margin: 0 }}>
+                                ⚡ Enable gyro for the best experience!
+                            </p>
+                            <button
+                                onClick={dismissGyroHint}
+                                style={{
+                                    background: 'transparent', border: 'none', color: 'var(--text-secondary)',
+                                    fontSize: '0.7rem', cursor: 'pointer', textDecoration: 'underline', padding: '0 0.25rem',
+                                }}
+                            >Skip</button>
+                        </div>
+                    )}
+                    {!gyroEnabled && gyroHintShown && (
                         <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '0.4rem' }}>
                             Tap to enable gyro aiming (recommended)
                         </p>
@@ -403,17 +456,18 @@ export default function Lobby({
                 {!isReady ? (
                     <button
                         onClick={handleReady}
+                        disabled={!gyroGateOpen}
                         style={{
                             width: '100%',
                             padding: '1.25rem 2rem',
                             fontSize: '1.3rem',
                             fontWeight: 900,
-                            background: 'var(--accent-success)',
+                            background: gyroGateOpen ? 'var(--accent-success)' : 'rgba(255,255,255,0.08)',
                             border: 'none',
                             borderRadius: 'var(--radius-md)',
-                            color: 'white',
-                            cursor: 'pointer',
-                            boxShadow: '0 8px 25px rgba(16, 185, 129, 0.4)',
+                            color: gyroGateOpen ? 'white' : 'var(--text-secondary)',
+                            cursor: gyroGateOpen ? 'pointer' : 'not-allowed',
+                            boxShadow: gyroGateOpen ? '0 8px 25px rgba(16, 185, 129, 0.4)' : 'none',
                             letterSpacing: '1px',
                         }}
                     >

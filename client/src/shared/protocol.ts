@@ -52,6 +52,8 @@ export const EVENTS = {
     // --- Tutorial ---
     TUTORIAL_START: 'tutorialStart',
     TUTORIAL_END: 'tutorialEnd',
+    TUTORIAL_PROGRESS: 'tutorialProgress',
+    TUTORIAL_STATUS_UPDATE: 'tutorialStatusUpdate',
 } as const;
 
 export type EventName = (typeof EVENTS)[keyof typeof EVENTS];
