@@ -1,4 +1,4 @@
-// ==========================================
+﻿// ==========================================
 // Screen Page — Presentation Layer
 // Displays game arena, questions, effects
 // ALL logic comes from server events
@@ -690,7 +690,7 @@ export default function Screen() {
                     flex: 1,
                     maxHeight: '70vh',
                 }}>
-                    {(tutorialPlayers.length > 0 ? tutorialPlayers : [{ controllerId: 'waiting', colorIndex: 0, currentStep: 'waiting' as const, completedSling: false, completedTiltLeft: false, completedTiltRight: false, tiltX: 50, tiltY: 50 }]).map((player, idx) => {
+                    {(tutorialPlayers.length > 0 ? tutorialPlayers : [{ controllerId: 'waiting', colorIndex: 0, currentStep: 'waiting' as const, completedSling: false, completedTiltLeft: false, completedTiltRight: false, completedTiltUp: false, completedTiltDown: false, tiltX: 50, tiltY: 50 }]).map((player, idx) => {
                         const color = CROSSHAIR_COLORS[player.colorIndex] || CROSSHAIR_COLORS[0];
                         const tiltRotateZ = ((player.tiltX - 50) / 50) * 25; // -25deg to +25deg
                         const tiltRotateX = ((player.tiltY - 50) / 50) * 15; // -15deg to +15deg
@@ -749,51 +749,51 @@ export default function Screen() {
                                         }} />
 
                                         {/* Phone screen content */}
-                                        <div style={{
-                                            fontSize: '2.5rem',
-                                            animation: isComplete ? 'none' : 'pulse 1.5s ease-in-out infinite',
-                                        }}>
-                                            {isComplete ? '✅' : player.currentStep === 'waiting' || player.currentStep === 'sling' ? '🎯' : '📱'}
-                                        </div>
-                                        <p style={{
-                                            color: isComplete ? color : 'rgba(255,255,255,0.7)',
-                                            fontSize: '0.7rem', fontWeight: 700,
-                                            textAlign: 'center', padding: '0 0.5rem',
-                                            marginTop: '0.5rem',
-                                        }}>
-                                            {isComplete ? 'READY' :
-                                                player.currentStep === 'waiting' || player.currentStep === 'sling' ? 'SLING IT!' :
-                                                    player.currentStep === 'tilt-left' ? 'TILT LEFT' :
-                                                        'TILT RIGHT'}
+                                        {player.currentStep === 'tilt' ? (
+                                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+                                                <span style={{ fontSize: '1rem', opacity: player.completedTiltUp ? 1 : 0.25, transition: 'opacity 0.3s' }}>⬆️</span>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                    <span style={{ fontSize: '1rem', opacity: player.completedTiltLeft ? 1 : 0.25, transition: 'opacity 0.3s' }}>⬅️</span>
+                                                    <div style={{ width: '44px', height: '44px', borderRadius: '50%', border: `2px solid ${color}60`, position: 'relative', background: 'rgba(0,0,0,0.3)' }}>
+                                                        <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: color, boxShadow: `0 0 8px ${color}`, position: 'absolute', left: `${player.tiltX}%`, top: `${player.tiltY}%`, transform: 'translate(-50%,-50%)', transition: 'left 0.1s linear, top 0.1s linear' }} />
+                                                    </div>
+                                                    <span style={{ fontSize: '1rem', opacity: player.completedTiltRight ? 1 : 0.25, transition: 'opacity 0.3s' }}>➡️</span>
+                                                </div>
+                                                <span style={{ fontSize: '1rem', opacity: player.completedTiltDown ? 1 : 0.25, transition: 'opacity 0.3s' }}>⬇️</span>
+                                            </div>
+                                        ) : (
+                                            <div style={{ fontSize: '2.2rem', animation: player.currentStep === 'complete' ? 'none' : 'pulse 1.5s ease-in-out infinite' }}>
+                                                {player.currentStep === 'complete' ? '✅' : '🏹'}
+                                            </div>
+                                        )}
+                                        <p style={{ color: isComplete ? color : 'rgba(255,255,255,0.7)', fontSize: '0.65rem', fontWeight: 700, textAlign: 'center', padding: '0 0.5rem', marginTop: '0.4rem' }}>
+                                            {isComplete ? 'READY' : player.currentStep === 'tilt' ? 'TILT 4 WAYS!' : 'SLING IT!'}
                                         </p>
 
                                         {/* Home indicator */}
-                                        <div style={{
-                                            position: 'absolute', bottom: '8px',
-                                            width: '40px', height: '5px',
-                                            background: 'rgba(255,255,255,0.2)',
-                                            borderRadius: '3px',
-                                        }} />
-                                    </div>
-                                </div>
+                                        <div style={{ position: 'absolute', bottom: '8px', width: '40px', height: '5px', background: 'rgba(255,255,255,0.2)', borderRadius: '3px' }} />
+                                    </div>{/* end phone body */}
+                                </div>{/* end perspective wrapper */}
 
-                                {/* Step badges */}
-                                <div style={{ display: 'flex', gap: '0.4rem' }}>
+                                {/* Step badges — 5 total */}
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem', justifyContent: 'center' }}>
                                     {[
                                         { label: 'Sling', done: player.completedSling },
-                                        { label: 'Left', done: player.completedTiltLeft },
-                                        { label: 'Right', done: player.completedTiltRight },
+                                        { label: '⬅️', done: player.completedTiltLeft },
+                                        { label: '➡️', done: player.completedTiltRight },
+                                        { label: '⬆️', done: player.completedTiltUp },
+                                        { label: '⬇️', done: player.completedTiltDown },
                                     ].map(({ label, done }) => (
                                         <div key={label} style={{
-                                            padding: '0.25rem 0.6rem',
+                                            padding: '0.2rem 0.5rem',
                                             borderRadius: '999px',
                                             background: done ? `${color}25` : 'rgba(255,255,255,0.05)',
                                             border: `1px solid ${done ? color : 'rgba(255,255,255,0.1)'}`,
-                                            fontSize: '0.7rem', fontWeight: 700,
+                                            fontSize: '0.65rem', fontWeight: 700,
                                             color: done ? color : 'rgba(255,255,255,0.4)',
                                             transition: 'all 0.3s ease',
                                         }}>
-                                            {done ? '✓ ' : ''}{label}
+                                            {done ? '✓' : ''} {label}
                                         </div>
                                     ))}
                                 </div>

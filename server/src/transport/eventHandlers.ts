@@ -133,6 +133,8 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
                     completedSling: false,
                     completedTiltLeft: false,
                     completedTiltRight: false,
+                    completedTiltUp: false,
+                    completedTiltDown: false,
                     tiltX: 50,
                     tiltY: 50,
                 });
@@ -516,24 +518,47 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
                 case 'sling':
                     if (!playerState.completedSling) {
                         playerState.completedSling = true;
-                        playerState.currentStep = 'tilt-left';
+                        playerState.currentStep = 'tilt'; // Move to tilt phase
                         console.log(`[Tutorial] Player ${clientId.substring(0, 8)} completed SLING`);
                     }
                     break;
                 case 'tilt-left':
                     if (playerState.completedSling && !playerState.completedTiltLeft) {
                         playerState.completedTiltLeft = true;
-                        playerState.currentStep = 'tilt-right';
                         console.log(`[Tutorial] Player ${clientId.substring(0, 8)} completed TILT-LEFT`);
                     }
                     break;
                 case 'tilt-right':
-                    if (playerState.completedTiltLeft && !playerState.completedTiltRight) {
+                    if (playerState.completedSling && !playerState.completedTiltRight) {
                         playerState.completedTiltRight = true;
-                        playerState.currentStep = 'complete';
                         console.log(`[Tutorial] Player ${clientId.substring(0, 8)} completed TILT-RIGHT`);
                     }
                     break;
+                case 'tilt-up':
+                    if (playerState.completedSling && !playerState.completedTiltUp) {
+                        playerState.completedTiltUp = true;
+                        console.log(`[Tutorial] Player ${clientId.substring(0, 8)} completed TILT-UP`);
+                    }
+                    break;
+                case 'tilt-down':
+                    if (playerState.completedSling && !playerState.completedTiltDown) {
+                        playerState.completedTiltDown = true;
+                        console.log(`[Tutorial] Player ${clientId.substring(0, 8)} completed TILT-DOWN`);
+                    }
+                    break;
+            }
+
+            // Check if tilt phase is fully complete (all 4 directions)
+            if (
+                playerState.completedSling &&
+                playerState.completedTiltLeft &&
+                playerState.completedTiltRight &&
+                playerState.completedTiltUp &&
+                playerState.completedTiltDown &&
+                playerState.currentStep !== 'complete'
+            ) {
+                playerState.currentStep = 'complete';
+                console.log(`[Tutorial] Player ${clientId.substring(0, 8)} COMPLETE!`);
             }
 
             // Broadcast updated status to all

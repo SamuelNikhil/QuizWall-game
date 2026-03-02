@@ -134,11 +134,14 @@ export interface RevealResultPayload {
 
 // ---------- Interactive Tutorial ----------
 
-export type TutorialStep = 'waiting' | 'sling' | 'tilt-left' | 'tilt-right' | 'complete';
+export type TutorialStep = 'waiting' | 'sling' | 'tilt' | 'complete';
+
+/** Progress events sent from controller → server */
+export type TutorialProgressStep = 'sling' | 'tilt-left' | 'tilt-right' | 'tilt-up' | 'tilt-down';
 
 /** Sent from controller → server when a player completes a tutorial step */
 export interface TutorialProgressPayload {
-    step: TutorialStep;
+    step: TutorialProgressStep;
     /** Controller's current gyro tilt data for screen visualization */
     tiltX?: number; // 0-100 percent
     tiltY?: number; // 0-100 percent
@@ -157,7 +160,9 @@ export interface TutorialPlayerStatus {
     completedSling: boolean;
     completedTiltLeft: boolean;
     completedTiltRight: boolean;
-    /** Real-time tilt data for screen phone visualization */
+    completedTiltUp: boolean;
+    completedTiltDown: boolean;
+    /** Real-time tilt data for screen crosshair visualization */
     tiltX: number;
     tiltY: number;
 }
