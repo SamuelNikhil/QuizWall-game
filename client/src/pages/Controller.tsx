@@ -350,7 +350,10 @@ export default function Controller() {
 
         // During calibration, update calibration tilt for visual feedback
         if (phase === 'calibrating') {
-            // Always update local coords so the mini crosshair on controller moves smoothly
+            // Only process gyro tilt AFTER the sling is completed
+            if (!tutorialSlingDetected.current) return;
+
+            // Update local coords so the mini crosshair on controller moves smoothly
             setTargetXPercent(x);
             setTargetYPercent(y);
 
