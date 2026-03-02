@@ -57,22 +57,19 @@ export default function Lobby({
     const [nameSubmitted, setNameSubmitted] = useState(false);
     const [isReady, setIsReady] = useState(false);
 
-    // Gyro highlight: show a pulsing hint on the gyro button for first-time users
-    const [gyroHintShown, setGyroHintShown] = useState(() => {
-        return localStorage.getItem('slingshot_gyro_hint_seen') === 'true';
-    });
+    // Gyro highlight: show on every lobby session. Only permanently suppress after user enables gyro.
+    // We intentionally do NOT read localStorage here so the highlight always appears on first load.
+    const [gyroHintShown, setGyroHintShown] = useState(false);
 
-    // Once gyro is enabled or hint is dismissed, mark it as seen
+    // Once gyro is enabled, mark hint as shown so pulse stops
     useEffect(() => {
         if (gyroEnabled && !gyroHintShown) {
             setGyroHintShown(true);
-            localStorage.setItem('slingshot_gyro_hint_seen', 'true');
         }
     }, [gyroEnabled, gyroHintShown]);
 
     const dismissGyroHint = () => {
         setGyroHintShown(true);
-        localStorage.setItem('slingshot_gyro_hint_seen', 'true');
     };
 
     // Block Ready/Start until gyro hint is acknowledged
