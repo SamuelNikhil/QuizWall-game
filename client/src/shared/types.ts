@@ -130,6 +130,7 @@ export interface RevealResultPayload {
     selections: PlayerSelectionPayload[];    // All player selections
     anyCorrect: boolean;                     // Did at least one player get it right?
     points: number;                          // Points awarded (if any correct)
+    noSelection: boolean;                    // True if NO player selected anything (Time's Up)
 }
 
 // ---------- Interactive Tutorial ----------
