@@ -17,6 +17,8 @@ import type {
     QuestionPhase,
     PlayerSelectionPayload,
     RevealResultPayload,
+    TutorialPlayerStatus,
+    TutorialStatusUpdatePayload,
 } from '../shared/types';
 import '../animations.css';
 
@@ -70,6 +72,10 @@ export default function Screen() {
     const [playerSelections, setPlayerSelections] = useState<PlayerSelectionPayload[]>([]);
     const [revealResult, setRevealResult] = useState<RevealResultPayload | null>(null);
     const [isMultiplayer, setIsMultiplayer] = useState(false);
+
+    // Interactive tutorial state
+    const [tutorialPlayers, setTutorialPlayers] = useState<TutorialPlayerStatus[]>([]);
+    const [tutorialAllComplete, setTutorialAllComplete] = useState(false);
 
     const arenaRef = useRef<HTMLDivElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -214,9 +220,17 @@ export default function Screen() {
                 console.log('Controller left:', data.controllerId);
             });
 
-            client.onTutorialStart((data) => {
-                console.log('[Screen] Tutorial started, duration:', data.duration);
+            client.onTutorialStart((_data: { duration: number }) => {
+                console.log('[Screen] Tutorial started, interactive mode');
                 setPhase('tutorial');
+                setTutorialPlayers([]);
+                setTutorialAllComplete(false);
+            });
+
+            // Listen for tutorial status updates with per-player progress
+            client.onTutorialStatusUpdate((data: TutorialStatusUpdatePayload) => {
+                setTutorialPlayers(data.players);
+                setTutorialAllComplete(data.allComplete);
             });
 
             client.onTutorialEnd(() => {
@@ -640,47 +654,171 @@ export default function Screen() {
         );
     }
 
-    // ---- Tutorial Phase ----
+    // ---- Tutorial Phase (Interactive Virtual Phone Display) ----
     if (phase === 'tutorial') {
+        const playerCount = tutorialPlayers.length || controllerCount || 1;
+        // Grid layout: 1 player = full, 2 = side-by-side, 3 = 2+1
+        const gridTemplate = playerCount <= 1 ? '1fr' : playerCount === 2 ? '1fr 1fr' : '1fr 1fr';
+
         return (
-            <div className="screen-container" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', background: 'linear-gradient(135deg, #1C1B1F 0%, #2D2C31 100%)' }}>
-                <div style={{ textAlign: 'center', maxWidth: '800px', padding: '3rem', animation: 'fadeIn 0.5s ease-out' }}>
-                    <h1 style={{ fontSize: '4rem', marginBottom: '2rem', color: '#fff', fontWeight: '900', textShadow: '0 0 50px rgba(103, 80, 164, 0.6)', fontFamily: 'var(--font-main)' }}>
-                        Get Ready!
-                    </h1>
+            <div className="screen-container" style={{
+                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                height: '100vh', background: 'linear-gradient(135deg, #1C1B1F 0%, #2D2C31 100%)',
+                padding: '2rem',
+            }}>
+                {/* Title */}
+                <h1 style={{
+                    fontSize: '2.5rem', fontWeight: 900, color: '#fff',
+                    textShadow: '0 0 40px rgba(103, 80, 164, 0.5)',
+                    marginBottom: '1rem', textAlign: 'center',
+                    animation: 'fadeIn 0.5s ease-out',
+                    fontFamily: 'var(--font-main)',
+                }}>
+                    {tutorialAllComplete ? '✅ All Players Ready!' : '📱 Calibrate Your Controls'}
+                </h1>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '1.1rem', marginBottom: '2rem', textAlign: 'center' }}>
+                    {tutorialAllComplete ? 'Game starting...' : 'Follow the steps on your phone'}
+                </p>
 
-                    <div style={{ background: 'var(--glass-bg)', padding: '2.5rem', borderRadius: 'var(--radius-lg)', border: '1px solid var(--glass-border)', backdropFilter: 'blur(20px)', boxShadow: 'var(--glass-glow)', marginBottom: '2rem' }}>
-                        <h2 style={{ fontSize: '2rem', color: 'var(--accent-secondary)', marginBottom: '1.5rem', fontWeight: '800' }}>
-                            How to Play
-                        </h2>
+                {/* Player Phone Grid */}
+                <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: gridTemplate,
+                    gap: '2rem',
+                    maxWidth: '1100px',
+                    width: '100%',
+                    flex: 1,
+                    maxHeight: '70vh',
+                }}>
+                    {(tutorialPlayers.length > 0 ? tutorialPlayers : [{ controllerId: 'waiting', colorIndex: 0, currentStep: 'waiting' as const, completedSling: false, completedTiltLeft: false, completedTiltRight: false, tiltX: 50, tiltY: 50 }]).map((player, idx) => {
+                        const color = CROSSHAIR_COLORS[player.colorIndex] || CROSSHAIR_COLORS[0];
+                        const tiltRotateZ = ((player.tiltX - 50) / 50) * 25; // -25deg to +25deg
+                        const tiltRotateX = ((player.tiltY - 50) / 50) * 15; // -15deg to +15deg
+                        const isComplete = player.currentStep === 'complete';
+                        const spanFull = playerCount === 3 && idx === 2;
 
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', textAlign: 'left', fontSize: '1.3rem', color: 'var(--text-primary)', lineHeight: '1.6' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                                <span style={{ fontSize: '2rem' }}>📱</span>
-                                <span><strong>Pull back</strong> on your slingshot to aim</span>
-                            </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                                <span style={{ fontSize: '2rem' }}>🎯</span>
-                                <span><strong>Tilt your phone</strong> to fine-tune your aim</span>
-                            </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                                <span style={{ fontSize: '2rem' }}>💥</span>
-                                <span><strong>Release</strong> to shoot at the answer orbs</span>
-                            </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                                <span style={{ fontSize: '2rem' }}>⏱️</span>
-                                <span>You have <strong>30 seconds</strong> per question</span>
-                            </div>
-                        </div>
-                    </div>
+                        return (
+                            <div
+                                key={player.controllerId}
+                                style={{
+                                    display: 'flex', flexDirection: 'column', alignItems: 'center',
+                                    justifyContent: 'center', gap: '1.5rem',
+                                    background: 'var(--glass-bg)', borderRadius: 'var(--radius-lg)',
+                                    border: `1px solid ${isComplete ? `${color}60` : 'var(--glass-border)'}`,
+                                    padding: '2rem', backdropFilter: 'blur(20px)',
+                                    boxShadow: isComplete ? `0 0 30px ${color}20` : 'var(--glass-glow)',
+                                    gridColumn: spanFull ? '1 / -1' : 'auto',
+                                    animation: 'bounceIn 0.5s ease-out',
+                                    transition: 'all 0.3s ease',
+                                }}
+                            >
+                                {/* Player label */}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                    <div style={{
+                                        width: '14px', height: '14px', borderRadius: '50%',
+                                        background: color, boxShadow: `0 0 10px ${color}`,
+                                    }} />
+                                    <span style={{ fontWeight: 800, fontSize: '1.1rem', color: '#fff' }}>
+                                        Player {idx + 1}
+                                    </span>
+                                </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1rem', marginTop: '2rem' }}>
-                        <div className="loading-spinner" style={{ width: '40px', height: '40px', border: '4px solid rgba(103, 80, 164, 0.3)', borderTop: '4px solid var(--accent-primary)', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
-                        <span style={{ fontSize: '1.5rem', color: 'var(--text-secondary)', fontWeight: '600' }}>
-                            Game starting soon...
+                                {/* Virtual Phone */}
+                                <div style={{
+                                    width: '140px', height: '260px',
+                                    perspective: '600px',
+                                }}>
+                                    <div style={{
+                                        width: '100%', height: '100%',
+                                        background: 'linear-gradient(180deg, #2a2a2e 0%, #1a1a1e 100%)',
+                                        borderRadius: '20px',
+                                        border: `3px solid ${color}50`,
+                                        boxShadow: `0 10px 40px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1), 0 0 20px ${color}15`,
+                                        transform: `rotateZ(${tiltRotateZ}deg) rotateX(${tiltRotateX}deg)`,
+                                        transition: 'transform 0.15s ease-out',
+                                        display: 'flex', flexDirection: 'column',
+                                        alignItems: 'center', justifyContent: 'center',
+                                        position: 'relative', overflow: 'hidden',
+                                    }}>
+                                        {/* Phone notch */}
+                                        <div style={{
+                                            position: 'absolute', top: '8px',
+                                            width: '50px', height: '6px',
+                                            background: 'rgba(255,255,255,0.15)',
+                                            borderRadius: '3px',
+                                        }} />
+
+                                        {/* Phone screen content */}
+                                        <div style={{
+                                            fontSize: '2.5rem',
+                                            animation: isComplete ? 'none' : 'pulse 1.5s ease-in-out infinite',
+                                        }}>
+                                            {isComplete ? '✅' : player.currentStep === 'waiting' || player.currentStep === 'sling' ? '🎯' : '📱'}
+                                        </div>
+                                        <p style={{
+                                            color: isComplete ? color : 'rgba(255,255,255,0.7)',
+                                            fontSize: '0.7rem', fontWeight: 700,
+                                            textAlign: 'center', padding: '0 0.5rem',
+                                            marginTop: '0.5rem',
+                                        }}>
+                                            {isComplete ? 'READY' :
+                                                player.currentStep === 'waiting' || player.currentStep === 'sling' ? 'SLING IT!' :
+                                                    player.currentStep === 'tilt-left' ? 'TILT LEFT' :
+                                                        'TILT RIGHT'}
+                                        </p>
+
+                                        {/* Home indicator */}
+                                        <div style={{
+                                            position: 'absolute', bottom: '8px',
+                                            width: '40px', height: '5px',
+                                            background: 'rgba(255,255,255,0.2)',
+                                            borderRadius: '3px',
+                                        }} />
+                                    </div>
+                                </div>
+
+                                {/* Step badges */}
+                                <div style={{ display: 'flex', gap: '0.4rem' }}>
+                                    {[
+                                        { label: 'Sling', done: player.completedSling },
+                                        { label: 'Left', done: player.completedTiltLeft },
+                                        { label: 'Right', done: player.completedTiltRight },
+                                    ].map(({ label, done }) => (
+                                        <div key={label} style={{
+                                            padding: '0.25rem 0.6rem',
+                                            borderRadius: '999px',
+                                            background: done ? `${color}25` : 'rgba(255,255,255,0.05)',
+                                            border: `1px solid ${done ? color : 'rgba(255,255,255,0.1)'}`,
+                                            fontSize: '0.7rem', fontWeight: 700,
+                                            color: done ? color : 'rgba(255,255,255,0.4)',
+                                            transition: 'all 0.3s ease',
+                                        }}>
+                                            {done ? '✓ ' : ''}{label}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+
+                {/* Loading indicator */}
+                {!tutorialAllComplete && (
+                    <div style={{
+                        display: 'flex', alignItems: 'center', gap: '1rem',
+                        marginTop: '1.5rem', opacity: 0.6,
+                    }}>
+                        <div style={{
+                            width: '24px', height: '24px',
+                            border: '3px solid rgba(103, 80, 164, 0.3)',
+                            borderTop: '3px solid var(--accent-primary)',
+                            borderRadius: '50%', animation: 'spin 1s linear infinite',
+                        }} />
+                        <span style={{ color: 'var(--text-secondary)', fontSize: '1rem' }}>
+                            Waiting for all players...
                         </span>
                     </div>
-                </div>
+                )}
             </div>
         );
     }

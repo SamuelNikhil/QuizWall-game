@@ -5,7 +5,7 @@
 
 import { EVENTS } from '../shared/protocol.ts';
 import { ORB_POSITIONS } from '../shared/types.ts';
-import type { PlayerSelectionPayload, RevealResultPayload } from '../shared/types.ts';
+import type { PlayerSelectionPayload, RevealResultPayload, TutorialProgressPayload, TutorialPlayerStatus, TutorialStatusUpdatePayload, TutorialStep } from '../shared/types.ts';
 import { RoomManager } from '../domain/RoomManager.ts';
 import { TeamManager } from '../domain/TeamManager.ts';
 
@@ -17,6 +17,14 @@ type ServerChannel = any;
 const connectionTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
 const crosshairLastSent = new Map<string, number>(); // Throttle crosshair relay per controller
 const CROSSHAIR_THROTTLE_MS = 33; // ~30fps max relay rate
+
+// Per-room tutorial state tracking
+interface RoomTutorialState {
+    players: Map<string, TutorialPlayerStatus>;
+    timeoutId: ReturnType<typeof setTimeout> | null;
+    resolveComplete: (() => void) | null;
+}
+const roomTutorialStates = new Map<string, RoomTutorialState>();
 
 export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager): void {
     io.onConnection((channel: ServerChannel) => {
@@ -111,12 +119,34 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
                 return;
             }
 
-            // Step 1: Send TUTORIAL_START to all clients and screen immediately
-
-            room.screenChannel.emit(EVENTS.TUTORIAL_START, { duration: 5000 });
+            // Step 1: Initialize tutorial state for each player
+            const tutorialState: RoomTutorialState = {
+                players: new Map(),
+                timeoutId: null,
+                resolveComplete: null,
+            };
             for (const c of room.controllers) {
-                c.channel.emit(EVENTS.TUTORIAL_START, { duration: 5000 });
+                tutorialState.players.set(c.clientId, {
+                    controllerId: c.clientId,
+                    colorIndex: c.colorIndex,
+                    currentStep: 'waiting' as TutorialStep,
+                    completedSling: false,
+                    completedTiltLeft: false,
+                    completedTiltRight: false,
+                    tiltX: 50,
+                    tiltY: 50,
+                });
             }
+            roomTutorialStates.set(roomId, tutorialState);
+
+            // Send TUTORIAL_START to all clients and screen
+            room.screenChannel.emit(EVENTS.TUTORIAL_START, { duration: 60000 });
+            for (const c of room.controllers) {
+                c.channel.emit(EVENTS.TUTORIAL_START, { duration: 60000 });
+            }
+
+            // Broadcast initial tutorial status
+            broadcastTutorialStatus(roomManager, roomId);
 
             // Step 2: Initialize quiz engine in background during tutorial
             console.log(`[Game] Initializing quiz engine for room ${roomId} during tutorial...`);
@@ -127,8 +157,25 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
                 console.error(`[Game] Failed to initialize quiz engine:`, error);
             }
 
-            // Step 3: Wait for tutorial to complete (5 seconds)
-            await new Promise(resolve => setTimeout(resolve, 5000));
+            // Step 3: Wait for all players to complete tutorial OR 60s timeout
+            await new Promise<void>((resolve) => {
+                tutorialState.resolveComplete = resolve;
+
+                // Fallback timeout (60 seconds)
+                tutorialState.timeoutId = setTimeout(() => {
+                    console.log(`[Tutorial] Timeout reached for room ${roomId}, forcing start`);
+                    resolve();
+                }, 60000);
+
+                // Check if already complete (e.g. single player)
+                if (isTutorialComplete(roomId)) {
+                    if (tutorialState.timeoutId) clearTimeout(tutorialState.timeoutId);
+                    resolve();
+                }
+            });
+
+            // Clean up tutorial state
+            roomTutorialStates.delete(roomId);
 
             // Step 4: Send TUTORIAL_END
 
@@ -448,6 +495,58 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
             }
         });
 
+        // ---------- Tutorial Progress ----------
+
+        channel.on(EVENTS.TUTORIAL_PROGRESS, (data: TutorialProgressPayload) => {
+            const { roomId, clientId } = channel.userData || {};
+            if (!roomId || !clientId) return;
+
+            const tutorialState = roomTutorialStates.get(roomId);
+            if (!tutorialState) return;
+
+            const playerState = tutorialState.players.get(clientId);
+            if (!playerState) return;
+
+            // Update tilt data for screen visualization
+            if (data.tiltX !== undefined) playerState.tiltX = data.tiltX;
+            if (data.tiltY !== undefined) playerState.tiltY = data.tiltY;
+
+            // Update step completion
+            switch (data.step) {
+                case 'sling':
+                    if (!playerState.completedSling) {
+                        playerState.completedSling = true;
+                        playerState.currentStep = 'tilt-left';
+                        console.log(`[Tutorial] Player ${clientId.substring(0, 8)} completed SLING`);
+                    }
+                    break;
+                case 'tilt-left':
+                    if (playerState.completedSling && !playerState.completedTiltLeft) {
+                        playerState.completedTiltLeft = true;
+                        playerState.currentStep = 'tilt-right';
+                        console.log(`[Tutorial] Player ${clientId.substring(0, 8)} completed TILT-LEFT`);
+                    }
+                    break;
+                case 'tilt-right':
+                    if (playerState.completedTiltLeft && !playerState.completedTiltRight) {
+                        playerState.completedTiltRight = true;
+                        playerState.currentStep = 'complete';
+                        console.log(`[Tutorial] Player ${clientId.substring(0, 8)} completed TILT-RIGHT`);
+                    }
+                    break;
+            }
+
+            // Broadcast updated status to all
+            broadcastTutorialStatus(roomManager, roomId);
+
+            // Check if all players are complete
+            if (isTutorialComplete(roomId)) {
+                console.log(`[Tutorial] All players complete in room ${roomId}!`);
+                if (tutorialState.timeoutId) clearTimeout(tutorialState.timeoutId);
+                tutorialState.resolveComplete?.();
+            }
+        });
+
         // ---------- Restart ----------
 
         channel.on(EVENTS.RESTART_GAME, async () => {
@@ -552,6 +651,31 @@ function broadcastLobbyUpdate(roomManager: RoomManager, roomId: string): void {
     for (const c of room.controllers) {
         c.channel.emit(EVENTS.LOBBY_UPDATE, lobby);
     }
+}
+
+/** Broadcast tutorial status to all participants in a room */
+function broadcastTutorialStatus(roomManager: RoomManager, roomId: string): void {
+    const room = roomManager.getRoom(roomId);
+    const tutorialState = roomTutorialStates.get(roomId);
+    if (!room || !tutorialState) return;
+
+    const players: TutorialPlayerStatus[] = Array.from(tutorialState.players.values());
+    const allComplete = players.every(p => p.currentStep === 'complete');
+
+    const payload: TutorialStatusUpdatePayload = { players, allComplete };
+
+    room.screenChannel.emit(EVENTS.TUTORIAL_STATUS_UPDATE, payload);
+    for (const c of room.controllers) {
+        c.channel.emit(EVENTS.TUTORIAL_STATUS_UPDATE, payload);
+    }
+}
+
+/** Check if all players in a room have completed the tutorial */
+function isTutorialComplete(roomId: string): boolean {
+    const tutorialState = roomTutorialStates.get(roomId);
+    if (!tutorialState) return true; // No tutorial state means it's done
+    const players = Array.from(tutorialState.players.values());
+    return players.every(p => p.currentStep === 'complete');
 }
 
 /** Detect which orb was hit based on percentage coordinates */
