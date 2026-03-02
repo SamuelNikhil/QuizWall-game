@@ -33,6 +33,9 @@ interface Projectile { id: string; x: number; y: number; targetX: number; target
 export default function Screen() {
     // ---- State ----
     const [phase, setPhase] = useState<GamePhase>('connecting');
+    // Keep a ref in sync for use inside event-handler closures (avoids stale state reads)
+    const phaseRef = useRef<GamePhase>('connecting');
+    const setPhaseSync = (p: GamePhase) => { phaseRef.current = p; setPhase(p); };
     const [roomId, setRoomId] = useState<string | null>(null);
     const [joinToken, setJoinToken] = useState<string | null>(null);
     const [lobby, setLobby] = useState<LobbyState | null>(null);
@@ -83,6 +86,7 @@ export default function Screen() {
     const clientRef = useRef<GameClient | null>(null);
     const hadControllersRef = useRef(false);
     const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const gameOverIdleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // ---- Visual effect helpers (identical to original) ----
 
@@ -192,15 +196,17 @@ export default function Screen() {
                 setRoomId(data.roomId);
                 setJoinToken(data.joinToken);
                 if (data.leaderboard) setLeaderboard(data.leaderboard);
-                setPhase('qr-lobby');
+                setPhaseSync('qr-lobby');
             });
 
             client.onLobbyUpdate((data) => {
                 setLobby(data);
                 setTeamName(data.team.name);
                 setControllerCount(data.team.members.length);
-                if (data.team.members.length > 0 && phase !== 'playing' && phase !== 'game-over') {
-                    setPhase('team-lobby');
+                // Use phaseRef.current (not stale 'phase' closure) to avoid switching away from gameplay
+                const livePhase = phaseRef.current;
+                if (data.team.members.length > 0 && livePhase !== 'playing' && livePhase !== 'game-over' && livePhase !== 'tutorial') {
+                    setPhaseSync('team-lobby');
                 }
             });
 
@@ -222,7 +228,7 @@ export default function Screen() {
 
             client.onTutorialStart((_data: { duration: number }) => {
                 console.log('[Screen] Tutorial started, interactive mode');
-                setPhase('tutorial');
+                setPhaseSync('tutorial');
                 setTutorialPlayers([]);
                 setTutorialAllComplete(false);
             });
@@ -243,10 +249,8 @@ export default function Screen() {
                 setQuestion(data.question);
                 setTimeLeft(data.timeLeft);
                 setTeamScore(0);
-                setQuestionNumber(1); // Start at question 1
-                setPhase('playing');
-                // Detect multiplayer mode based on controller count
-                // (if phase events arrive, it's multiplayer)
+                setQuestionNumber(1);
+                setPhaseSync('playing');
             });
 
             // Phase-based multiplayer events
@@ -377,11 +381,17 @@ export default function Screen() {
             client.onGameOver((data) => {
                 setGameOverData(data);
                 if (data.leaderboard) setLeaderboard(data.leaderboard);
-                setPhase('game-over');
+                setPhaseSync('game-over');
+                // Start 60-second idle timer: if nobody interacts, reload after 1 min
+                if (gameOverIdleTimerRef.current) clearTimeout(gameOverIdleTimerRef.current);
+                gameOverIdleTimerRef.current = setTimeout(() => {
+                    console.log('[Screen] Game-over idle timeout (1 min), refreshing...');
+                    window.location.reload();
+                }, 60 * 1000);
             });
 
             client.onGameRestarted(() => {
-                setPhase('team-lobby');
+                setPhaseSync('team-lobby');
                 setQuestion(null);
                 setTeamScore(0);
                 setTimeLeft(20);
@@ -390,6 +400,8 @@ export default function Screen() {
                 setRevealResult(null);
                 setCurrentPhase(null);
                 setIsMultiplayer(false);
+                // Cancel any pending game-over idle timer
+                if (gameOverIdleTimerRef.current) { clearTimeout(gameOverIdleTimerRef.current); gameOverIdleTimerRef.current = null; }
             });
         }).catch((err) => {
             console.error('Connection failed:', err);
@@ -408,12 +420,14 @@ export default function Screen() {
         if (controllerCount > 0) {
             hadControllersRef.current = true;
         }
-        // All controllers left after at least one was present
-        if (hadControllersRef.current && controllerCount === 0 && !sessionEnding && phase !== 'connecting' && phase !== 'qr-lobby') {
+        // Only trigger if ALL controllers left AND we're NOT in an active game
+        // (during gameplay a single player leaving should not kill the screen)
+        const livePhase = phaseRef.current;
+        const isActiveGame = livePhase === 'playing' || livePhase === 'tutorial';
+        if (hadControllersRef.current && controllerCount === 0 && !sessionEnding && !isActiveGame
+            && livePhase !== 'connecting' && livePhase !== 'qr-lobby') {
             setSessionEnding(true);
-            setTimeout(() => {
-                window.location.reload();
-            }, 3000);
+            setTimeout(() => { window.location.reload(); }, 3000);
         }
     }, [controllerCount, sessionEnding, phase]);
 
@@ -954,6 +968,35 @@ export default function Screen() {
                         </div>
                     );
                 })}
+
+                {/* ⏰ Time's Up banner — multiplayer reveal with zero selections */}
+                {isMultiplayer && currentPhase === 'reveal' && revealResult?.noSelection && (
+                    <div style={{
+                        position: 'absolute', top: '50%', left: '50%',
+                        transform: 'translate(-50%, -50%)',
+                        zIndex: 2000, pointerEvents: 'none',
+                        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem',
+                        animation: 'bounceIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                    }}>
+                        <div style={{
+                            background: 'rgba(239, 68, 68, 0.15)',
+                            border: '2px solid rgba(239, 68, 68, 0.6)',
+                            backdropFilter: 'blur(20px)',
+                            padding: '1.5rem 3rem',
+                            borderRadius: 'var(--radius-lg)',
+                            boxShadow: '0 0 60px rgba(239, 68, 68, 0.3)',
+                            textAlign: 'center',
+                        }}>
+                            <div style={{ fontSize: '3.5rem', marginBottom: '0.25rem' }}>⏰</div>
+                            <div style={{ fontSize: '2rem', fontWeight: 900, color: '#ef4444', letterSpacing: '0.1rem' }}>
+                                TIME'S UP!
+                            </div>
+                            <div style={{ fontSize: '1rem', color: 'rgba(255,255,255,0.6)', marginTop: '0.25rem' }}>
+                                No answer selected
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {/* Hit Effects */}
                 {hitEffects.map((e) => (

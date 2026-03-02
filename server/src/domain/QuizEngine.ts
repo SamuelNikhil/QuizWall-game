@@ -326,6 +326,7 @@ export class QuizEngine {
             selections,
             anyCorrect,
             points,
+            noSelection: selections.length === 0,
         };
 
         console.log(`[QuizEngine] Reveal: correct=${correctOrbId}, selections=${selections.length}, anyCorrect=${anyCorrect}, attempted=${this.totalQuestionsAttempted}/${this.sessionQuestionLimit}`);
