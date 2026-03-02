@@ -72,6 +72,7 @@ export default function Controller() {
     const tutorialTiltRightDetected = useRef(false);
     const tutorialTiltUpDetected = useRef(false);
     const tutorialTiltDownDetected = useRef(false);
+    const lastTiltSendRef = useRef<number>(0); // throttle tilt position sends
 
     // ---- Gyroscope ----
     const [gyroEnabled, setGyroEnabled] = useState(false);
@@ -349,9 +350,14 @@ export default function Controller() {
 
         // During calibration, update calibration tilt for visual feedback
         if (phase === 'calibrating') {
-            // Always send live tilt data for screen visualization
-            if (tutorialSlingDetected.current) {
-                // Only send tilt updates after sling is done
+            // Always update local coords so the mini crosshair on controller moves smoothly
+            setTargetXPercent(x);
+            setTargetYPercent(y);
+
+            // Throttled: stream tilt position to server for Screen crosshair (~20fps)
+            const now = Date.now();
+            if (now - lastTiltSendRef.current >= 50) {
+                lastTiltSendRef.current = now;
                 clientRef.current?.sendTutorialProgress({ step: 'tilt-left', tiltX: x, tiltY: y });
             }
 
