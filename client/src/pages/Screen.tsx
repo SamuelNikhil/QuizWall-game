@@ -545,6 +545,33 @@ export default function Screen() {
                         </p>
                     </div>
 
+                    {/* Individual Player Scoreboard */}
+                    {gameOverData.playerScores && gameOverData.playerScores.length > 0 && (
+                        <div style={{ background: 'var(--glass-bg)', padding: '1.5rem', borderRadius: 'var(--radius-lg)', minWidth: '350px', border: '1px solid var(--glass-border)', marginBottom: '1.5rem' }}>
+                            <h3 style={{ color: '#90e0ef', fontWeight: 800, marginBottom: '1rem', fontSize: '1.1rem', letterSpacing: '2px', textTransform: 'uppercase' }}>Player Scoreboard</h3>
+                            {gameOverData.playerScores.map((ps, idx) => (
+                                <div key={ps.controllerId} style={{
+                                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                                    padding: '0.6rem 1rem', marginBottom: '0.35rem', borderRadius: '10px',
+                                    background: idx === 0 ? 'rgba(103, 80, 164, 0.2)' : 'rgba(255,255,255,0.03)',
+                                    border: idx === 0 ? '1px solid rgba(103, 80, 164, 0.4)' : '1px solid transparent',
+                                }}>
+                                    <span style={{ fontWeight: 700, fontSize: '1rem', color: '#fff', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                        <span style={{
+                                            width: '10px', height: '10px', borderRadius: '50%',
+                                            background: CROSSHAIR_COLORS[ps.colorIndex] || CROSSHAIR_COLORS[0],
+                                            boxShadow: `0 0 6px ${CROSSHAIR_COLORS[ps.colorIndex] || CROSSHAIR_COLORS[0]}`,
+                                        }} />
+                                        {idx === 0 ? '🏆' : `#${idx + 1}`} {ps.name}
+                                    </span>
+                                    <span style={{ color: 'var(--accent-secondary)', fontWeight: 800, fontSize: '1rem' }}>
+                                        {ps.score} pts
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
                     {/* Leaderboard */}
                     {gameOverData.leaderboard.length > 0 && (
                         <div style={{ background: 'var(--glass-bg)', padding: '1.5rem', borderRadius: 'var(--radius-lg)', minWidth: '350px', border: '1px solid var(--glass-border)', marginBottom: '1.5rem' }}>
@@ -648,7 +675,7 @@ export default function Screen() {
                         <h3 style={{ fontFamily: 'var(--font-main)', fontWeight: '800' }}>Team Roster</h3>
                         {lobby?.team.members.map((m, i) => (
                             <div key={m.id} className="qr-leaderboard-item" style={{ borderRadius: 'var(--radius-md)', border: m.role === 'leader' ? '2px solid var(--accent-primary)' : '1px solid var(--glass-border)', background: m.role === 'leader' ? 'rgba(103, 80, 164, 0.2)' : 'var(--glass-bg)' }}>
-                                <span style={{ fontSize: '0.9rem' }}>{m.role === 'leader' ? '👑' : `#${i + 1}`} Player</span>
+                                <span style={{ fontSize: '0.9rem' }}>{m.role === 'leader' ? '👑' : `#${i + 1}`} {m.name || 'Player'}</span>
                                 <span style={{ color: m.isReady ? 'var(--accent-success)' : 'var(--text-secondary)', fontWeight: '800', fontSize: '1rem' }}>
                                     {m.isReady ? '✓ Ready' : '⏳ Waiting'}
                                 </span>

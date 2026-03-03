@@ -7,7 +7,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { GameClient } from '../transport/GameClient';
 import Lobby from './Lobby';
-import type { LobbyState, PlayerRole, ScoreUpdate, QuestionPhase, PlayerSelectionPayload, RevealResultPayload, TutorialStep, TutorialStatusUpdatePayload } from '../shared/types';
+import type { LobbyState, PlayerRole, ScoreUpdate, QuestionPhase, PlayerSelectionPayload, RevealResultPayload, TutorialStep, TutorialStatusUpdatePayload, PlayerScoreEntry } from '../shared/types';
 import { CROSSHAIR_COLORS } from '../shared/types';
 import slingCenterImg from '../assets/sling-center.svg';
 import '../index.css';
@@ -43,6 +43,7 @@ export default function Controller() {
     const [finalScore, setFinalScore] = useState(0);
     const [gameOverReason, setGameOverReason] = useState<'time' | 'completed' | 'all_wrong'>('time');
     const [lastHit, setLastHit] = useState<{ correct: boolean } | null>(null);
+    const [playerScores, setPlayerScores] = useState<PlayerScoreEntry[]>([]);
 
     // Phase-based multiplayer state
     const [currentPhase, setCurrentPhase] = useState<QuestionPhase | null>(null);
@@ -175,6 +176,7 @@ export default function Controller() {
             client.onGameOver((data) => {
                 setFinalScore(data.finalScore);
                 setGameOverReason(data.reason || 'time');
+                setPlayerScores(data.playerScores || []);
                 setPhase('game-over');
             });
 
@@ -623,6 +625,7 @@ export default function Controller() {
                 lobby={lobby}
                 colorIndex={colorIndex}
                 onSetTeamName={(name) => clientRef.current?.setTeamName(name)}
+                onSetPlayerName={(name) => clientRef.current?.setPlayerName(name)}
                 onReady={() => clientRef.current?.playerReady()}
                 onStartGame={() => {
                     console.log('[Lobby] Leader clicked Start Game - telling server to start');
@@ -818,6 +821,37 @@ export default function Controller() {
                         <p style={{ color: 'var(--text-secondary)', fontWeight: 600, marginBottom: '0.5rem' }}>Team Score</p>
                         <p style={{ fontSize: '3.5rem', fontWeight: 900, color: '#90e0ef' }}>{finalScore}</p>
                     </div>
+
+                    {/* Individual Player Scoreboard */}
+                    {playerScores.length > 0 && (
+                        <div style={{
+                            background: 'var(--glass-bg)', padding: '1.25rem', borderRadius: 'var(--radius-lg)',
+                            border: '1px solid var(--glass-border)', marginBottom: '1.5rem', width: '100%', maxWidth: '320px',
+                        }}>
+                            <h3 style={{ color: 'var(--accent-primary)', fontWeight: 800, marginBottom: '0.75rem', fontSize: '0.9rem', letterSpacing: '2px', textTransform: 'uppercase' }}>
+                                Scoreboard
+                            </h3>
+                            {playerScores.map((ps, idx) => (
+                                <div key={ps.controllerId} style={{
+                                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                                    padding: '0.5rem 0.75rem', marginBottom: '0.25rem', borderRadius: '8px',
+                                    background: idx === 0 ? 'rgba(103, 80, 164, 0.2)' : 'transparent',
+                                }}>
+                                    <span style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#fff', fontSize: '0.9rem' }}>
+                                        <span style={{
+                                            width: '8px', height: '8px', borderRadius: '50%',
+                                            background: CROSSHAIR_COLORS[ps.colorIndex] || CROSSHAIR_COLORS[0],
+                                            boxShadow: `0 0 4px ${CROSSHAIR_COLORS[ps.colorIndex] || CROSSHAIR_COLORS[0]}`,
+                                        }} />
+                                        {idx === 0 ? '🏆' : `#${idx + 1}`} {ps.name}
+                                    </span>
+                                    <span style={{ color: 'var(--accent-secondary)', fontWeight: 800, fontSize: '0.9rem' }}>
+                                        {ps.score} pts
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+                    )}
 
                     {/* Leader Actions - Only Play Again button */}
                     {role === 'leader' && (

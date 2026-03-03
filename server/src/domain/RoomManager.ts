@@ -6,7 +6,7 @@ import { randomBytes } from 'crypto';
 import { QuizEngine } from './QuizEngine.ts';
 import { TeamManager } from './TeamManager.ts';
 import { CONFIG } from '../infrastructure/config.ts';
-import type { PlayerRole, PlayerInfo, LobbyState } from '../shared/types.ts';
+import type { PlayerRole, PlayerInfo, PlayerScoreEntry, LobbyState } from '../shared/types.ts';
 
 export interface RoomController {
     id: string;
@@ -14,6 +14,8 @@ export interface RoomController {
     role: PlayerRole;
     isReady: boolean;
     colorIndex: number; // For crosshair color assignment (0, 1, 2)
+    name: string; // Individual player name
+    score: number; // Individual player score for this game session
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     channel: any; // Geckos.io ServerChannel
 }
@@ -127,12 +129,18 @@ export class RoomManager {
         // Assign color index based on position (0, 1, 2 for up to 3 players)
         const colorIndex = room.controllers.length;
 
+        // Assign default name based on position
+        const playerNumber = room.controllers.length + 1;
+        const defaultName = playerNumber === 1 ? 'Leader' : `Player ${playerNumber}`;
+
         const controller: RoomController = {
             id: channel.id,
             clientId,
             role,
             isReady: role === 'leader', // Leader is always "ready"
             colorIndex,
+            name: defaultName,
+            score: 0,
             channel,
         };
 
@@ -226,6 +234,7 @@ export class RoomManager {
             role: c.role,
             isReady: c.isReady,
             colorIndex: c.colorIndex,
+            name: c.name,
         }));
 
         return {
@@ -297,6 +306,54 @@ export class RoomManager {
             }
         }
         return null;
+    }
+
+    /** Set player name. Uses clientId for lookup. */
+    setPlayerName(roomId: string, clientId: string, name: string): boolean {
+        const room = this.rooms.get(roomId);
+        if (!room) return false;
+
+        const controller = room.controllers.find((c) => c.clientId === clientId);
+        if (!controller) return false;
+
+        controller.name = name;
+        return true;
+    }
+
+    /** Add points to an individual player's score */
+    addPlayerScore(roomId: string, clientId: string, points: number): void {
+        const room = this.rooms.get(roomId);
+        if (!room) return;
+
+        const controller = room.controllers.find((c) => c.clientId === clientId);
+        if (controller) {
+            controller.score += points;
+        }
+    }
+
+    /** Get individual player scores sorted by highest score first */
+    getPlayerScores(roomId: string): PlayerScoreEntry[] {
+        const room = this.rooms.get(roomId);
+        if (!room) return [];
+
+        return room.controllers
+            .map((c) => ({
+                controllerId: c.clientId,
+                name: c.name,
+                colorIndex: c.colorIndex,
+                score: c.score,
+            }))
+            .sort((a, b) => b.score - a.score);
+    }
+
+    /** Reset all player scores (for game restart) */
+    resetPlayerScores(roomId: string): void {
+        const room = this.rooms.get(roomId);
+        if (!room) return;
+
+        for (const c of room.controllers) {
+            c.score = 0;
+        }
     }
 
     /** Reap idle rooms that have no controllers and haven't been active */
