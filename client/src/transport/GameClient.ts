@@ -176,6 +176,10 @@ export class GameClient {
         this.channel?.emit(EVENTS.START_GAME);
     }
 
+    setPlayerName(name: string): void {
+        this.channel?.emit(EVENTS.SET_PLAYER_NAME, { name });
+    }
+
     shoot(targetXPercent: number, targetYPercent: number, power: number): void {
         this.channel?.emit(EVENTS.SHOOT, { targetXPercent, targetYPercent, power });
     }

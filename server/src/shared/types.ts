@@ -30,6 +30,7 @@ export interface PlayerInfo {
     role: PlayerRole;
     isReady: boolean;
     colorIndex?: number; // For crosshair color indicator
+    name?: string;       // Individual player name
 }
 
 export interface TeamInfo {
@@ -75,6 +76,14 @@ export interface GameOverPayload {
     leaderboard: LeaderboardEntry[];
     reason: 'time' | 'completed' | 'all_wrong'; // Why the game ended
     questionsAnswered: number; // Questions answered in this session (accumulated across restarts)
+    playerScores?: PlayerScoreEntry[]; // Individual player scores for scoreboard
+}
+
+export interface PlayerScoreEntry {
+    controllerId: string;
+    name: string;
+    colorIndex: number;
+    score: number;
 }
 
 export interface LeaderboardEntry {

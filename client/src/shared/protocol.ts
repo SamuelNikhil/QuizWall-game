@@ -17,6 +17,7 @@ export const EVENTS = {
     TEAM_INFO: 'teamInfo',
     LOBBY_UPDATE: 'lobbyUpdate',
     PLAYER_READY: 'playerReady',
+    SET_PLAYER_NAME: 'setPlayerName',
     START_GAME: 'startGame',
     GAME_STARTED: 'gameStarted',
 

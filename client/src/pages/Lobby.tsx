@@ -14,6 +14,7 @@ interface LobbyProps {
     lobby: LobbyState | null;
     colorIndex: number;
     onSetTeamName: (name: string) => void;
+    onSetPlayerName: (name: string) => void;
     onReady: () => void;
     onStartGame: () => void;
     onLeave: () => void;
@@ -46,6 +47,7 @@ export default function Lobby({
     lobby,
     colorIndex,
     onSetTeamName,
+    onSetPlayerName,
     onReady,
     onStartGame,
     onLeave,
@@ -56,6 +58,8 @@ export default function Lobby({
     const [teamName, setTeamName] = useState('');
     const [nameSubmitted, setNameSubmitted] = useState(false);
     const [isReady, setIsReady] = useState(false);
+    const [playerName, setPlayerName] = useState('');
+    const [playerNameSubmitted, setPlayerNameSubmitted] = useState(false);
 
     // Gyro highlight: show on every lobby session. Only permanently suppress after user enables gyro.
     // We intentionally do NOT read localStorage here so the highlight always appears on first load.
@@ -83,8 +87,20 @@ export default function Lobby({
     };
 
     const handleReady = () => {
+        // Submit player name before readying up
+        if (playerName.trim().length >= 2 && !playerNameSubmitted) {
+            onSetPlayerName(playerName.trim());
+            setPlayerNameSubmitted(true);
+        }
         setIsReady(true);
         onReady();
+    };
+
+    const handleSubmitPlayerName = () => {
+        const trimmed = playerName.trim();
+        if (trimmed.length < 2) return;
+        onSetPlayerName(trimmed);
+        setPlayerNameSubmitted(true);
     };
 
     // If local nameSubmitted is false but the lobby already has a team name 
@@ -218,6 +234,54 @@ export default function Lobby({
                         👑 You are the Leader
                     </p>
 
+                    {/* Leader player name input */}
+                    {!playerNameSubmitted ? (
+                        <div style={{ marginBottom: '1.5rem' }}>
+                            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '0.5rem', fontWeight: 600 }}>Your display name</p>
+                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                <input
+                                    type="text"
+                                    value={playerName}
+                                    onChange={(e) => setPlayerName(e.target.value)}
+                                    onKeyDown={(e) => e.key === 'Enter' && handleSubmitPlayerName()}
+                                    placeholder="Enter your name..."
+                                    maxLength={20}
+                                    style={{
+                                        flex: 1,
+                                        padding: '0.65rem 0.8rem',
+                                        fontSize: '0.9rem',
+                                        fontWeight: 700,
+                                        background: 'rgba(255,255,255,0.06)',
+                                        border: '2px solid var(--glass-border)',
+                                        borderRadius: 'var(--radius-sm)',
+                                        color: '#fff',
+                                        outline: 'none',
+                                        textAlign: 'center',
+                                        fontFamily: 'var(--font-main)',
+                                    }}
+                                />
+                                <button
+                                    onClick={handleSubmitPlayerName}
+                                    disabled={playerName.trim().length < 2}
+                                    style={{
+                                        padding: '0.65rem 1rem',
+                                        fontSize: '0.85rem',
+                                        fontWeight: 800,
+                                        background: playerName.trim().length >= 2 ? 'var(--accent-primary)' : 'rgba(255,255,255,0.1)',
+                                        border: 'none',
+                                        borderRadius: 'var(--radius-sm)',
+                                        color: 'white',
+                                        cursor: playerName.trim().length >= 2 ? 'pointer' : 'not-allowed',
+                                    }}
+                                >✓</button>
+                            </div>
+                        </div>
+                    ) : (
+                        <p style={{ color: 'var(--accent-success)', fontSize: '0.85rem', marginBottom: '1rem', fontWeight: 600 }}>
+                            ✓ Playing as "{playerName.trim()}"
+                        </p>
+                    )}
+
                     {/* Gyro Setup — with highlight for first-time users */}
                     <div style={{ marginBottom: '1.5rem', position: 'relative' }}>
                         <button
@@ -281,7 +345,7 @@ export default function Lobby({
                                 }}
                             >
                                 <span style={{ fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                    {m.role === 'leader' ? '👑' : '🎮'} Player {m.role === 'leader' ? '(You)' : ''}
+                                    {m.role === 'leader' ? '👑' : '🎮'} {m.name || (m.role === 'leader' ? 'Leader' : 'Player')} {m.role === 'leader' ? '(You)' : ''}
                                     <span
                                         style={{
                                             width: '10px',
@@ -408,6 +472,54 @@ export default function Lobby({
                     )}
                 </div>
 
+                {/* Member player name input */}
+                {!playerNameSubmitted ? (
+                    <div style={{ marginBottom: '1.5rem' }}>
+                        <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '0.5rem', fontWeight: 600 }}>Your display name</p>
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            <input
+                                type="text"
+                                value={playerName}
+                                onChange={(e) => setPlayerName(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && handleSubmitPlayerName()}
+                                placeholder="Enter your name..."
+                                maxLength={20}
+                                style={{
+                                    flex: 1,
+                                    padding: '0.65rem 0.8rem',
+                                    fontSize: '0.9rem',
+                                    fontWeight: 700,
+                                    background: 'rgba(255,255,255,0.06)',
+                                    border: '2px solid var(--glass-border)',
+                                    borderRadius: 'var(--radius-sm)',
+                                    color: '#fff',
+                                    outline: 'none',
+                                    textAlign: 'center',
+                                    fontFamily: 'var(--font-main)',
+                                }}
+                            />
+                            <button
+                                onClick={handleSubmitPlayerName}
+                                disabled={playerName.trim().length < 2}
+                                style={{
+                                    padding: '0.65rem 1rem',
+                                    fontSize: '0.85rem',
+                                    fontWeight: 800,
+                                    background: playerName.trim().length >= 2 ? 'var(--accent-primary)' : 'rgba(255,255,255,0.1)',
+                                    border: 'none',
+                                    borderRadius: 'var(--radius-sm)',
+                                    color: 'white',
+                                    cursor: playerName.trim().length >= 2 ? 'pointer' : 'not-allowed',
+                                }}
+                            >✓</button>
+                        </div>
+                    </div>
+                ) : (
+                    <p style={{ color: 'var(--accent-success)', fontSize: '0.85rem', marginBottom: '1rem', fontWeight: 600 }}>
+                        ✓ Playing as "{playerName.trim()}"
+                    </p>
+                )}
+
                 {/* Members list */}
                 <div style={{ marginBottom: '2rem' }}>
                     {lobby?.team.members.map((m) => (
@@ -425,7 +537,7 @@ export default function Lobby({
                             }}
                         >
                             <span style={{ fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                {m.role === 'leader' ? '👑 Leader' : '🎮 Player'}
+                                {m.role === 'leader' ? '👑' : '🎮'} {m.name || (m.role === 'leader' ? 'Leader' : 'Player')}
                                 <span
                                     style={{
                                         width: '10px',

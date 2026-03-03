@@ -1,130 +1,34 @@
 {
     "topic": "animals-easy-and-simple",
-    "generatedAt": "2026-02-26T13:55:49.988Z",
+    "generatedAt": "2026-03-03T13:42:48.491Z",
     "questions": [
         {
-            "id": 11,
-            "text": "What is the average lifespan of a goldfish in captivity?",
+            "id": 1,
+            "text": "What is the average lifespan of a butterfly in the wild?",
             "options": [
                 {
                     "id": "A",
-                    "text": "10-15 years"
+                    "text": "1-4 months"
                 },
                 {
                     "id": "B",
-                    "text": "5-7 years"
-                },
-                {
-                    "id": "C",
-                    "text": "20-25 years"
-                },
-                {
-                    "id": "D",
                     "text": "1-2 years"
-                }
-            ],
-            "correct": "B",
-            "category": "animals-easy-and-simple"
-        },
-        {
-            "id": 12,
-            "text": "Which of the following birds is known for its distinctive call that sounds like laughter?",
-            "options": [
-                {
-                    "id": "A",
-                    "text": "Flamingo"
-                },
-                {
-                    "id": "B",
-                    "text": "Kookaburra"
                 },
                 {
                     "id": "C",
-                    "text": "Penguin"
+                    "text": "1-2 weeks"
                 },
                 {
                     "id": "D",
-                    "text": "Pelican"
+                    "text": "6-8 months"
                 }
             ],
-            "correct": "B",
+            "correct": "A",
             "category": "animals-easy-and-simple"
         },
         {
-            "id": 13,
-            "text": "What is the fastest land animal, which can reach speeds of up to 70 mph?",
-            "options": [
-                {
-                    "id": "A",
-                    "text": "Lion"
-                },
-                {
-                    "id": "B",
-                    "text": "Elephant"
-                },
-                {
-                    "id": "C",
-                    "text": "Cheetah"
-                },
-                {
-                    "id": "D",
-                    "text": "Giraffe"
-                }
-            ],
-            "correct": "C",
-            "category": "animals-easy-and-simple"
-        },
-        {
-            "id": 14,
-            "text": "Which insect is known for its unique ability to turn its body into a wheel and roll away from predators?",
-            "options": [
-                {
-                    "id": "A",
-                    "text": "Bee"
-                },
-                {
-                    "id": "B",
-                    "text": "Dung Beetle"
-                },
-                {
-                    "id": "C",
-                    "text": "Ant"
-                },
-                {
-                    "id": "D",
-                    "text": "Butterfly"
-                }
-            ],
-            "correct": "B",
-            "category": "animals-easy-and-simple"
-        },
-        {
-            "id": 15,
-            "text": "What is the largest species of snake, which can grow up to 30 feet in length?",
-            "options": [
-                {
-                    "id": "A",
-                    "text": "Viper"
-                },
-                {
-                    "id": "B",
-                    "text": "Reticulated Python"
-                },
-                {
-                    "id": "C",
-                    "text": "Cobra"
-                },
-                {
-                    "id": "D",
-                    "text": "Boa Constrictor"
-                }
-            ],
-            "correct": "B",
-            "category": "animals-easy-and-simple"
-        },
-        {
-            "id": 16,
-            "text": "Which of the following animals has the longest migration pattern, with some species traveling over 40,000 miles per year?",
+            "id": 2,
+            "text": "Which of the following animals has the longest migration pattern?",
             "options": [
                 {
                     "id": "A",
@@ -132,7 +36,7 @@
                 },
                 {
                     "id": "B",
-                    "text": "Gray Whale"
+                    "text": "Caribou"
                 },
                 {
                     "id": "C",
@@ -140,106 +44,202 @@
                 },
                 {
                     "id": "D",
-                    "text": "Caribou"
+                    "text": "Gray Whale"
                 }
             ],
             "correct": "A",
             "category": "animals-easy-and-simple"
         },
         {
-            "id": 17,
-            "text": "What is the smallest species of mammal, which weighs less than 2 grams?",
+            "id": 3,
+            "text": "What is unique about the axolotl's ability to regrow its limbs?",
             "options": [
                 {
                     "id": "A",
-                    "text": "Etruscan Shrew"
+                    "text": "It can only regrow its limbs in water"
                 },
                 {
                     "id": "B",
-                    "text": "Bats"
+                    "text": "It can regrow its limbs due to the presence of stem cells"
                 },
                 {
                     "id": "C",
-                    "text": "Rat"
+                    "text": "It can only regrow one limb at a time"
                 },
                 {
                     "id": "D",
-                    "text": "Mouse"
+                    "text": "It can regrow its limbs due to its ability to photosynthesize"
+                }
+            ],
+            "correct": "B",
+            "category": "animals-easy-and-simple"
+        },
+        {
+            "id": 4,
+            "text": "Which of the following birds is known for its distinctive call that sounds like laughter?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Kookaburra"
+                },
+                {
+                    "id": "B",
+                    "text": "Pelican"
+                },
+                {
+                    "id": "C",
+                    "text": "Flamingo"
+                },
+                {
+                    "id": "D",
+                    "text": "Penguin"
                 }
             ],
             "correct": "A",
             "category": "animals-easy-and-simple"
         },
         {
-            "id": 18,
-            "text": "Which of the following animals is known for its unique ability to change its body color to blend in with its surroundings?",
+            "id": 5,
+            "text": "What is the primary source of food for the Giant Panda?",
             "options": [
                 {
                     "id": "A",
-                    "text": "Octopus"
+                    "text": "Fish"
                 },
                 {
                     "id": "B",
-                    "text": "Squid"
+                    "text": "Bamboo"
                 },
                 {
                     "id": "C",
-                    "text": "Flounder"
+                    "text": "Small mammals"
                 },
                 {
                     "id": "D",
-                    "text": "Chameleon"
+                    "text": "Insects"
                 }
             ],
-            "correct": "D",
+            "correct": "B",
             "category": "animals-easy-and-simple"
         },
         {
-            "id": 19,
-            "text": "What is the largest species of turtle, which can weigh up to 2,000 pounds?",
+            "id": 6,
+            "text": "Which of the following animals has the strongest bite force relative to its size?",
             "options": [
                 {
                     "id": "A",
-                    "text": "Loggerhead Sea Turtle"
+                    "text": "Hyena"
                 },
                 {
                     "id": "B",
-                    "text": "Green Sea Turtle"
+                    "text": "Great White Shark"
                 },
                 {
                     "id": "C",
-                    "text": "Leatherback Sea Turtle"
+                    "text": " Trap-Jaw Ant"
                 },
                 {
                     "id": "D",
-                    "text": "Hawksbill Sea Turtle"
+                    "text": "Saltwater Crocodile"
                 }
             ],
             "correct": "C",
             "category": "animals-easy-and-simple"
         },
         {
-            "id": 20,
-            "text": "Which of the following animals has the strongest bite force, with some species exerting a force of over 5,000 pounds per square inch?",
+            "id": 7,
+            "text": "What is unique about the sea cucumber's defense mechanism?",
             "options": [
                 {
                     "id": "A",
-                    "text": "Great White Shark"
+                    "text": "It can change its body color to blend in with its surroundings"
                 },
                 {
                     "id": "B",
-                    "text": "Saltwater Crocodile"
+                    "text": "It can regrow its internal organs"
                 },
                 {
                     "id": "C",
-                    "text": "Tiger"
+                    "text": "It releases a cloud of ink to confuse predators"
                 },
                 {
                     "id": "D",
-                    "text": "Lion"
+                    "text": "It can expel its internal organs as a defense mechanism"
                 }
             ],
-            "correct": "B",
+            "correct": "D",
+            "category": "animals-easy-and-simple"
+        },
+        {
+            "id": 8,
+            "text": "Which of the following animals is known for its ability to change its body color to blend in with its surroundings?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "All of the above"
+                },
+                {
+                    "id": "B",
+                    "text": "Chameleon"
+                },
+                {
+                    "id": "C",
+                    "text": "Cuttlefish"
+                },
+                {
+                    "id": "D",
+                    "text": "Octopus"
+                }
+            ],
+            "correct": "A",
+            "category": "animals-easy-and-simple"
+        },
+        {
+            "id": 9,
+            "text": "What is the fastest land animal?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Lion"
+                },
+                {
+                    "id": "B",
+                    "text": "Leopard"
+                },
+                {
+                    "id": "C",
+                    "text": "Cheetah"
+                },
+                {
+                    "id": "D",
+                    "text": "Pronghorn"
+                }
+            ],
+            "correct": "C",
+            "category": "animals-easy-and-simple"
+        },
+        {
+            "id": 10,
+            "text": "Which of the following animals has a unique communication system that involves dancing?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Honeybees"
+                },
+                {
+                    "id": "B",
+                    "text": "Butterflies"
+                },
+                {
+                    "id": "C",
+                    "text": "Peacocks"
+                },
+                {
+                    "id": "D",
+                    "text": "Flamingos"
+                }
+            ],
+            "correct": "A",
             "category": "animals-easy-and-simple"
         }
     ]

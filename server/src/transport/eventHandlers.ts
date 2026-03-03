@@ -98,6 +98,19 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
             broadcastLobbyUpdate(roomManager, roomId);
         });
 
+        channel.on(EVENTS.SET_PLAYER_NAME, (data: { name: string }) => {
+            const { roomId, clientId } = channel.userData || {};
+            if (!roomId || !clientId) return;
+
+            const trimmedName = (data.name || '').trim();
+            if (trimmedName.length < 1 || trimmedName.length > 20) return;
+
+            const success = roomManager.setPlayerName(roomId, clientId, trimmedName);
+            if (success) {
+                broadcastLobbyUpdate(roomManager, roomId);
+            }
+        });
+
         channel.on(EVENTS.START_GAME, async () => {
             const { roomId, clientId } = channel.userData || {};
 
@@ -225,9 +238,16 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
                     },
                     // Reveal result
                     (result: RevealResultPayload) => {
-                        // Award points if any correct
+                        // Award team points if any correct
                         if (result.anyCorrect) {
                             room.teamManager.addScore(result.points);
+                        }
+
+                        // Award individual player scores — each correct selector gets +100
+                        for (const sel of result.selections) {
+                            if (sel.orbId === result.correctOrbId) {
+                                roomManager.addPlayerScore(roomId, sel.controllerId, 100);
+                            }
                         }
 
                         // Broadcast reveal to all
@@ -257,6 +277,7 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
                         room.teamManager.saveGameResult(roomId, room.quizEngine.getQuestionsAnswered());
 
                         const leaderboard = TeamManager.getLeaderboard(10);
+                        const playerScores = roomManager.getPlayerScores(roomId);
 
                         // Determine reason from quiz engine
                         const reason = room.quizEngine.getLastGameOverReason();
@@ -267,6 +288,7 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
                             leaderboard,
                             reason,
                             questionsAnswered,
+                            playerScores,
                         };
 
                         room.screenChannel.emit(EVENTS.GAME_OVER, gameOverPayload);
@@ -306,12 +328,14 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
                         room.teamManager.saveGameResult(roomId, room.quizEngine.getQuestionsAnswered());
 
                         const leaderboard = TeamManager.getLeaderboard(10);
+                        const playerScores = roomManager.getPlayerScores(roomId);
                         const gameOverPayload = {
                             finalScore,
                             teamName: room.teamManager.getTeamName(),
                             leaderboard,
                             reason: room.quizEngine.getLastGameOverReason(),
                             questionsAnswered,
+                            playerScores,
                         };
 
                         room.screenChannel.emit(EVENTS.GAME_OVER, gameOverPayload);
@@ -401,9 +425,12 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
                     // Validate answer server-side
                     const result = room.quizEngine.validateAnswer(hitOrb);
 
-                    // Award points only for correct answers
+                    // Award individual score for correct singleplayer hit
                     if (result.correct) {
                         room.teamManager.addScore(result.points);
+                        if (clientId) {
+                            roomManager.addPlayerScore(roomId, clientId, result.points);
+                        }
                     }
 
                     const hitPayload = {
@@ -605,6 +632,9 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
                 }
             }
 
+            // Reset individual player scores for new game
+            roomManager.resetPlayerScores(roomId);
+
             room.screenChannel.emit(EVENTS.GAME_RESTARTED, {});
             for (const c of room.controllers) {
                 c.channel.emit(EVENTS.GAME_RESTARTED, {});
@@ -647,6 +677,7 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
                             leaderboard,
                             reason: 'time',
                             questionsAnswered: room.quizEngine.getSessionQuestionsAnswered(),
+                            playerScores: roomManager.getPlayerScores(roomId),
                         });
                     }
                 }
