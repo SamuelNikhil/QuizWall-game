@@ -508,94 +508,108 @@ export default function Screen() {
     // ---- Game Over ----
     if (phase === 'game-over' && gameOverData) {
         const isCompleted = gameOverData.reason === 'completed';
+        const hasPlayerScores = gameOverData.playerScores && gameOverData.playerScores.length > 0;
         return (
             <div className="screen-container">
                 <div
                     className="game-over-screen"
                     style={{
-                        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                        height: '100vh', textAlign: 'center',
+                        display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+                        height: '100vh',
                         animation: 'bounceIn 0.8s cubic-bezier(0.34, 1.56, 0.64, 1)',
                         position: 'relative', scale: '0.8',
+                        gap: '3rem', padding: '2rem',
                     }}
                 >
-                    <h1 style={{
-                        fontSize: isCompleted ? '3.5rem' : '5rem',
-                        fontWeight: '900',
-                        color: isCompleted ? '#10b981' : '#ff4444',
-                        textShadow: isCompleted ? '0 0 40px rgba(16, 185, 129, 0.5)' : '0 0 40px rgba(255, 0, 0, 0.5)',
-                        marginBottom: '0.5rem',
-                        lineHeight: 1.2,
-                    }}>
-                        {isCompleted ? 'ALL QUESTIONS COMPLETED!' : "TIME'S UP!"}
-                    </h1>
-
-                    {isCompleted && (
-                        <p style={{ fontSize: '1.2rem', color: '#90e0ef', marginBottom: '1rem' }}>
-                            Great job! You answered all 10 questions.
-                        </p>
-                    )}
-
-                    <div style={{ background: 'rgba(255, 255, 255, 0.05)', padding: '2.5rem', borderRadius: '30px', border: '1px solid rgba(255, 255, 255, 0.1)', backdropFilter: 'blur(20px)', minWidth: '350px', marginBottom: '1.5rem' }}>
-                        <p style={{ fontSize: '1.2rem', color: 'var(--accent-secondary)', fontWeight: 700, marginBottom: '0.5rem' }}>{gameOverData.teamName}</p>
-                        <h2 style={{ fontSize: '1.5rem', marginBottom: '0.5rem', color: 'rgba(255, 255, 255, 0.8)', fontWeight: '600' }}>Final Score</h2>
-                        <p style={{ fontSize: '4.5rem', fontWeight: '900', color: '#90e0ef', margin: 0 }}>{gameOverData.finalScore}</p>
-                        <p style={{ fontSize: '1rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
-                            Questions answered: {gameOverData.questionsAnswered}/10
-                        </p>
-                    </div>
-
-                    {/* Individual Player Scoreboard */}
-                    {gameOverData.playerScores && gameOverData.playerScores.length > 0 && (
-                        <div style={{ background: 'var(--glass-bg)', padding: '1.5rem', borderRadius: 'var(--radius-lg)', minWidth: '350px', border: '1px solid var(--glass-border)', marginBottom: '1.5rem' }}>
-                            <h3 style={{ color: '#90e0ef', fontWeight: 800, marginBottom: '1rem', fontSize: '1.1rem', letterSpacing: '2px', textTransform: 'uppercase' }}>Player Scoreboard</h3>
-                            {gameOverData.playerScores.map((ps, idx) => (
-                                <div key={ps.controllerId} style={{
-                                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                                    padding: '0.6rem 1rem', marginBottom: '0.35rem', borderRadius: '10px',
-                                    background: idx === 0 ? 'rgba(103, 80, 164, 0.2)' : 'rgba(255,255,255,0.03)',
-                                    border: idx === 0 ? '1px solid rgba(103, 80, 164, 0.4)' : '1px solid transparent',
-                                }}>
-                                    <span style={{ fontWeight: 700, fontSize: '1rem', color: '#fff', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                        <span style={{
-                                            width: '10px', height: '10px', borderRadius: '50%',
-                                            background: CROSSHAIR_COLORS[ps.colorIndex] || CROSSHAIR_COLORS[0],
-                                            boxShadow: `0 0 6px ${CROSSHAIR_COLORS[ps.colorIndex] || CROSSHAIR_COLORS[0]}`,
-                                        }} />
-                                        {idx === 0 ? '🏆' : `#${idx + 1}`} {ps.name}
-                                    </span>
-                                    <span style={{ color: 'var(--accent-secondary)', fontWeight: 800, fontSize: '1rem' }}>
-                                        {ps.score} pts
-                                    </span>
-                                </div>
-                            ))}
+                    {/* LEFT SIDE — Player Scoreboard */}
+                    {hasPlayerScores && (
+                        <div style={{
+                            display: 'flex', flexDirection: 'column', gap: '1rem',
+                            minWidth: '280px', maxWidth: '320px', alignSelf: 'center',
+                        }}>
+                            <div style={{
+                                background: 'var(--glass-bg)', padding: '1.5rem', borderRadius: 'var(--radius-lg)',
+                                border: '1px solid var(--glass-border)', backdropFilter: 'blur(20px)',
+                                boxShadow: 'var(--glass-glow)',
+                            }}>
+                                <h3 style={{ color: '#90e0ef', fontWeight: 800, marginBottom: '1rem', fontSize: '1.1rem', letterSpacing: '2px', textTransform: 'uppercase', textAlign: 'center' }}>Player Scoreboard</h3>
+                                {gameOverData.playerScores!.map((ps, idx) => (
+                                    <div key={ps.controllerId} style={{
+                                        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                                        padding: '0.7rem 1rem', marginBottom: '0.35rem', borderRadius: '10px',
+                                        background: idx === 0 ? 'rgba(103, 80, 164, 0.2)' : 'rgba(255,255,255,0.03)',
+                                        border: idx === 0 ? '1px solid rgba(103, 80, 164, 0.4)' : '1px solid transparent',
+                                    }}>
+                                        <span style={{ fontWeight: 700, fontSize: '1rem', color: '#fff', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                            <span style={{
+                                                width: '10px', height: '10px', borderRadius: '50%',
+                                                background: CROSSHAIR_COLORS[ps.colorIndex] || CROSSHAIR_COLORS[0],
+                                                boxShadow: `0 0 6px ${CROSSHAIR_COLORS[ps.colorIndex] || CROSSHAIR_COLORS[0]}`,
+                                            }} />
+                                            {idx === 0 ? '🏆' : `#${idx + 1}`} {ps.name}
+                                        </span>
+                                        <span style={{ color: 'var(--accent-secondary)', fontWeight: 800, fontSize: '1rem' }}>
+                                            {ps.score} pts
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     )}
 
-                    {/* Leaderboard */}
-                    {gameOverData.leaderboard.length > 0 && (
-                        <div style={{ background: 'var(--glass-bg)', padding: '1.5rem', borderRadius: 'var(--radius-lg)', minWidth: '350px', border: '1px solid var(--glass-border)', marginBottom: '1.5rem' }}>
-                            <h3 style={{ color: 'var(--accent-primary)', fontWeight: 800, marginBottom: '1rem', fontSize: '1.1rem', letterSpacing: '2px', textTransform: 'uppercase' }}>Leaderboard</h3>
-                            {gameOverData.leaderboard.slice(0, 5).map((entry: LeaderboardEntry) => (
-                                <div key={entry.rank} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0.75rem', marginBottom: '0.25rem', borderRadius: '8px', background: entry.rank === 1 ? 'rgba(103, 80, 164, 0.2)' : 'transparent' }}>
-                                    <span style={{ fontWeight: 700 }}>{entry.rank === 1 ? '👑' : `#${entry.rank}`} {entry.teamName}</span>
-                                    <span style={{ color: 'var(--accent-secondary)', fontWeight: 800 }}>{entry.totalScore} pts</span>
-                                </div>
-                            ))}
-                        </div>
-                    )}
+                    {/* CENTER — Main Content */}
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+                        <h1 style={{
+                            fontSize: isCompleted ? '3.5rem' : '5rem',
+                            fontWeight: '900',
+                            color: isCompleted ? '#10b981' : '#ff4444',
+                            textShadow: isCompleted ? '0 0 40px rgba(16, 185, 129, 0.5)' : '0 0 40px rgba(255, 0, 0, 0.5)',
+                            marginBottom: '0.5rem',
+                            lineHeight: 1.2,
+                        }}>
+                            {isCompleted ? 'ALL QUESTIONS COMPLETED!' : "TIME'S UP!"}
+                        </h1>
 
-                    {/* Controller Actions Indicator */}
-                    <div style={{
-                        background: 'var(--glass-bg)',
-                        padding: '1rem 2rem',
-                        borderRadius: 'var(--radius-md)',
-                        border: '1px solid var(--glass-border)',
-                        marginTop: '1rem'
-                    }}>
-                        <p style={{ color: 'var(--text-secondary)', fontSize: '1rem', fontWeight: 600 }}>
-                            📱 Use your controller to <span style={{ color: 'var(--accent-primary)' }}>Play Again</span> or <span style={{ color: 'var(--accent-secondary)' }}>Close</span>
-                        </p>
+                        {isCompleted && (
+                            <p style={{ fontSize: '1.2rem', color: '#90e0ef', marginBottom: '1rem' }}>
+                                Great job! You answered all 10 questions.
+                            </p>
+                        )}
+
+                        <div style={{ background: 'rgba(255, 255, 255, 0.05)', padding: '2.5rem', borderRadius: '30px', border: '1px solid rgba(255, 255, 255, 0.1)', backdropFilter: 'blur(20px)', minWidth: '350px', marginBottom: '1.5rem' }}>
+                            <p style={{ fontSize: '1.2rem', color: 'var(--accent-secondary)', fontWeight: 700, marginBottom: '0.5rem' }}>{gameOverData.teamName}</p>
+                            <h2 style={{ fontSize: '1.5rem', marginBottom: '0.5rem', color: 'rgba(255, 255, 255, 0.8)', fontWeight: '600' }}>Final Score</h2>
+                            <p style={{ fontSize: '4.5rem', fontWeight: '900', color: '#90e0ef', margin: 0 }}>{gameOverData.finalScore}</p>
+                            <p style={{ fontSize: '1rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
+                                Questions answered: {gameOverData.questionsAnswered}/10
+                            </p>
+                        </div>
+
+                        {/* Leaderboard */}
+                        {gameOverData.leaderboard.length > 0 && (
+                            <div style={{ background: 'var(--glass-bg)', padding: '1.5rem', borderRadius: 'var(--radius-lg)', minWidth: '350px', border: '1px solid var(--glass-border)', marginBottom: '1.5rem' }}>
+                                <h3 style={{ color: 'var(--accent-primary)', fontWeight: 800, marginBottom: '1rem', fontSize: '1.1rem', letterSpacing: '2px', textTransform: 'uppercase' }}>Leaderboard</h3>
+                                {gameOverData.leaderboard.slice(0, 5).map((entry: LeaderboardEntry) => (
+                                    <div key={entry.rank} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0.75rem', marginBottom: '0.25rem', borderRadius: '8px', background: entry.rank === 1 ? 'rgba(103, 80, 164, 0.2)' : 'transparent' }}>
+                                        <span style={{ fontWeight: 700 }}>{entry.rank === 1 ? '👑' : `#${entry.rank}`} {entry.teamName}</span>
+                                        <span style={{ color: 'var(--accent-secondary)', fontWeight: 800 }}>{entry.totalScore} pts</span>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        {/* Controller Actions Indicator */}
+                        <div style={{
+                            background: 'var(--glass-bg)',
+                            padding: '1rem 2rem',
+                            borderRadius: 'var(--radius-md)',
+                            border: '1px solid var(--glass-border)',
+                            marginTop: '1rem'
+                        }}>
+                            <p style={{ color: 'var(--text-secondary)', fontSize: '1rem', fontWeight: 600 }}>
+                                📱 Use your controller to <span style={{ color: 'var(--accent-primary)' }}>Play Again</span> or <span style={{ color: 'var(--accent-secondary)' }}>Close</span>
+                            </p>
+                        </div>
                     </div>
                 </div>
             </div>

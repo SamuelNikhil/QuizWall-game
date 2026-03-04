@@ -49,6 +49,7 @@ export default function Controller() {
     const [currentPhase, setCurrentPhase] = useState<QuestionPhase | null>(null);
     const [phaseTimeLeft, setPhaseTimeLeft] = useState(0);
     const [hasSelectedThisRound, setHasSelectedThisRound] = useState(false);
+    const [selectedOrbId, setSelectedOrbId] = useState<string | null>(null);
     const [isMultiplayer, setIsMultiplayer] = useState(false);
     const currentPhaseRef = useRef<QuestionPhase | null>(null);
     const hasSelectedRef = useRef(false);
@@ -190,6 +191,7 @@ export default function Controller() {
                 if (data.phase === 'analysis' && data.timeLeft === 2) {
                     setHasSelectedThisRound(false);
                     hasSelectedRef.current = false;
+                    setSelectedOrbId(null);
                 }
             });
 
@@ -199,6 +201,9 @@ export default function Controller() {
                     console.log('[Controller] My selection confirmed by server, locking sling');
                     setHasSelectedThisRound(true);
                     hasSelectedRef.current = true;
+                    setSelectedOrbId(_data.orbId);
+                    // Haptic feedback when selection is confirmed
+                    try { navigator?.vibrate?.([30, 20, 30]); } catch { /* unsupported */ }
                 } else {
                     console.log('[Controller] Other player selection:', _data.controllerId.substring(0, 8));
                 }
@@ -995,7 +1000,7 @@ export default function Controller() {
                     pointerEvents: 'none',
                     animation: 'bounceIn 0.5s ease-out',
                 }}>
-                    <p style={{ fontSize: '1.1rem', fontWeight: 900, color: '#6ee7b7', textAlign: 'center' }}>✅ Answer Locked!</p>
+                    <p style={{ fontSize: '1.1rem', fontWeight: 900, color: '#6ee7b7', textAlign: 'center' }}>✅ Answer Locked — Option {selectedOrbId || '?'}</p>
                     <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', textAlign: 'center', marginTop: '0.2rem' }}>Waiting for reveal...</p>
                 </div>
             )}

@@ -632,8 +632,7 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
                 }
             }
 
-            // Reset individual player scores for new game
-            roomManager.resetPlayerScores(roomId);
+            // Player scores are intentionally NOT reset — they persist across games in the same lobby
 
             room.screenChannel.emit(EVENTS.GAME_RESTARTED, {});
             for (const c of room.controllers) {
