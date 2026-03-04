@@ -709,8 +709,8 @@ export default function Screen() {
     // ---- Tutorial Phase (Interactive Virtual Phone Display) ----
     if (phase === 'tutorial') {
         const playerCount = tutorialPlayers.length || controllerCount || 1;
-        // Grid layout: 1 player = full, 2 = side-by-side, 3 = 2+1
-        const gridTemplate = playerCount <= 1 ? '1fr' : playerCount === 2 ? '1fr 1fr' : '1fr 1fr';
+        // Grid layout: 1 player = full, 2 = side-by-side, 3 = all in one row
+        const gridTemplate = playerCount <= 1 ? '1fr' : playerCount === 2 ? '1fr 1fr' : '1fr 1fr 1fr';
 
         return (
             <div className="screen-container" style={{
@@ -747,7 +747,6 @@ export default function Screen() {
                         const tiltRotateZ = ((player.tiltX - 50) / 50) * 25; // -25deg to +25deg
                         const tiltRotateX = ((player.tiltY - 50) / 50) * 15; // -15deg to +15deg
                         const isComplete = player.currentStep === 'complete';
-                        const spanFull = playerCount === 3 && idx === 2;
 
                         return (
                             <div
@@ -759,7 +758,7 @@ export default function Screen() {
                                     border: `1px solid ${isComplete ? `${color}60` : 'var(--glass-border)'}`,
                                     padding: '2rem', backdropFilter: 'blur(20px)',
                                     boxShadow: isComplete ? `0 0 30px ${color}20` : 'var(--glass-glow)',
-                                    gridColumn: spanFull ? '1 / -1' : 'auto',
+                                    gridColumn: 'auto',
                                     animation: 'bounceIn 0.5s ease-out',
                                     transition: 'all 0.3s ease',
                                 }}
