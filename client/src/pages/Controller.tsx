@@ -143,6 +143,18 @@ export default function Controller() {
                 tutorialSlingDetected.current = false;
                 tutorialTiltLeftDetected.current = false;
                 tutorialTiltRightDetected.current = false;
+
+                // If gyro is disabled, auto-complete the tutorial immediately
+                if (!gyroEnabledRef.current) {
+                    console.log('[Controller] Gyro disabled — auto-completing tutorial');
+                    setTimeout(() => {
+                        client.sendTutorialProgress({ step: 'sling' });
+                        client.sendTutorialProgress({ step: 'tilt-left', tiltX: 10, tiltY: 50 });
+                        client.sendTutorialProgress({ step: 'tilt-right', tiltX: 90, tiltY: 50 });
+                        client.sendTutorialProgress({ step: 'tilt-up', tiltX: 50, tiltY: 10 });
+                        client.sendTutorialProgress({ step: 'tilt-down', tiltX: 50, tiltY: 90 });
+                    }, 300); // Small delay for server to register tutorial state
+                }
             });
 
             client.onTutorialEnd(() => {
@@ -661,6 +673,33 @@ export default function Controller() {
     // ---- Calibration Tutorial (Interactive) ----
     if (phase === 'calibrating') {
         const myColor = CROSSHAIR_COLORS[colorIndex];
+
+        // Non-gyro player: show loading screen while questions are generated
+        if (!gyroEnabled) {
+            return (
+                <div className="controller-container" style={{
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                    height: '100%', textAlign: 'center', padding: '2rem',
+                }}>
+                    <div style={{
+                        background: 'var(--glass-bg)', padding: '2rem',
+                        borderRadius: 'var(--radius-lg)', border: '1px solid var(--glass-border)',
+                        backdropFilter: 'blur(20px)', maxWidth: '320px', width: '100%',
+                    }}>
+                        <div style={{
+                            width: '40px', height: '40px', margin: '0 auto 1rem',
+                            border: '3px solid rgba(255,255,255,0.1)', borderTop: `3px solid ${myColor}`,
+                            borderRadius: '50%', animation: 'spin 1s linear infinite',
+                        }} />
+                        <h2 style={{ fontSize: '1.2rem', fontWeight: 900, color: '#fff', margin: '0 0 0.5rem' }}>Loading Questions...</h2>
+                        <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: 0 }}>
+                            AI is generating your questions
+                        </p>
+                    </div>
+                </div>
+            );
+        }
+
         const isSlingPhase = tutorialStep === 'waiting' || tutorialStep === 'sling';
         const isTiltPhase = tutorialStep === 'tilt';
         const isComplete = tutorialStep === 'complete';
