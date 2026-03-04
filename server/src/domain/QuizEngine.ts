@@ -531,6 +531,7 @@ export class QuizEngine {
         if (this.totalQuestionsAttempted >= this.sessionQuestionLimit) {
             console.log(`[QuizEngine] All ${this.sessionQuestionLimit} questions attempted! Triggering game over.`);
             this.allQuestionsCompleted = true;
+            this.lastGameOverReason = 'completed';
             this.stopTimer();
             this.stopPhaseTimer();
             this.onGameOver?.();
