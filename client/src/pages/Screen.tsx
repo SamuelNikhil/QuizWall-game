@@ -1,4 +1,4 @@
-// ==========================================
+﻿// ==========================================
 // Screen Page — Presentation Layer
 // Displays game arena, questions, effects
 // ALL logic comes from server events
@@ -14,10 +14,15 @@ import type {
     LobbyState,
     GameOverPayload,
     LeaderboardEntry,
+    QuestionPhase,
+    PlayerSelectionPayload,
+    RevealResultPayload,
+    TutorialPlayerStatus,
+    TutorialStatusUpdatePayload,
 } from '../shared/types';
 import '../animations.css';
 
-type GamePhase = 'connecting' | 'qr-lobby' | 'team-lobby' | 'playing' | 'game-over' | 'exit-scores';
+type GamePhase = 'connecting' | 'qr-lobby' | 'team-lobby' | 'tutorial' | 'playing' | 'game-over' | 'exit-scores';
 
 interface Particle { id: string; x: number; y: number; size: number; color: string; '--tx': string; '--ty': string; }
 interface ScorePopup { id: string; x: number; y: number; text: string; type: string; }
@@ -28,11 +33,14 @@ interface Projectile { id: string; x: number; y: number; targetX: number; target
 export default function Screen() {
     // ---- State ----
     const [phase, setPhase] = useState<GamePhase>('connecting');
+    // Keep a ref in sync for use inside event-handler closures (avoids stale state reads)
+    const phaseRef = useRef<GamePhase>('connecting');
+    const setPhaseSync = (p: GamePhase) => { phaseRef.current = p; setPhase(p); };
     const [roomId, setRoomId] = useState<string | null>(null);
     const [joinToken, setJoinToken] = useState<string | null>(null);
     const [lobby, setLobby] = useState<LobbyState | null>(null);
     const [question, setQuestion] = useState<ClientQuestion | null>(null);
-    const [timeLeft, setTimeLeft] = useState(30);
+    const [timeLeft, setTimeLeft] = useState(20);
     const [teamScore, setTeamScore] = useState(0);
     const [teamName, setTeamName] = useState('');
     const [gameOverData, setGameOverData] = useState<GameOverPayload | null>(null);
@@ -48,19 +56,29 @@ export default function Screen() {
     const [crosshairs, setCrosshairs] = useState<Map<string, { x: number; y: number }>>(new Map());
     const [targetedOrbId, setTargetedOrbId] = useState<string | null>(null);
 
-    // Per-player crosshair colors
+    // Per-player crosshair colors - must match types.ts CROSSHAIR_COLORS
     const CROSSHAIR_COLORS = ['#00f2ff', '#ff6b6b', '#7cff6b'];
-    const crosshairColorMap = useRef<Map<string, string>>(new Map());
+    // Store color index from server when controller joins
+    const crosshairColorMap = useRef<Map<string, number>>(new Map());
     const getPlayerColor = useCallback((controllerId: string): string => {
-        if (!crosshairColorMap.current.has(controllerId)) {
-            const idx = crosshairColorMap.current.size % CROSSHAIR_COLORS.length;
-            crosshairColorMap.current.set(controllerId, CROSSHAIR_COLORS[idx]);
-        }
-        return crosshairColorMap.current.get(controllerId)!;
+        const colorIndex = crosshairColorMap.current.get(controllerId) ?? 0;
+        return CROSSHAIR_COLORS[colorIndex] || CROSSHAIR_COLORS[0];
     }, []);
     const [isTransitioning, setIsTransitioning] = useState(false);
     const [controllerCount, setControllerCount] = useState(0);
     const [sessionEnding, setSessionEnding] = useState(false);
+
+    // Phase-based multiplayer state
+    const [currentPhase, setCurrentPhase] = useState<QuestionPhase | null>(null);
+    const [phaseTimeLeft, setPhaseTimeLeft] = useState(0);
+    const [questionNumber, setQuestionNumber] = useState(0);
+    const [playerSelections, setPlayerSelections] = useState<PlayerSelectionPayload[]>([]);
+    const [revealResult, setRevealResult] = useState<RevealResultPayload | null>(null);
+    const [isMultiplayer, setIsMultiplayer] = useState(false);
+
+    // Interactive tutorial state
+    const [tutorialPlayers, setTutorialPlayers] = useState<TutorialPlayerStatus[]>([]);
+    const [tutorialAllComplete, setTutorialAllComplete] = useState(false);
 
     const arenaRef = useRef<HTMLDivElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -68,6 +86,7 @@ export default function Screen() {
     const clientRef = useRef<GameClient | null>(null);
     const hadControllersRef = useRef(false);
     const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const gameOverIdleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // ---- Visual effect helpers (identical to original) ----
 
@@ -177,20 +196,24 @@ export default function Screen() {
                 setRoomId(data.roomId);
                 setJoinToken(data.joinToken);
                 if (data.leaderboard) setLeaderboard(data.leaderboard);
-                setPhase('qr-lobby');
+                setPhaseSync('qr-lobby');
             });
 
             client.onLobbyUpdate((data) => {
                 setLobby(data);
                 setTeamName(data.team.name);
                 setControllerCount(data.team.members.length);
-                if (data.team.members.length > 0 && phase !== 'playing' && phase !== 'game-over') {
-                    setPhase('team-lobby');
+                // Use phaseRef.current (not stale 'phase' closure) to avoid switching away from gameplay
+                const livePhase = phaseRef.current;
+                if (data.team.members.length > 0 && livePhase !== 'playing' && livePhase !== 'game-over' && livePhase !== 'tutorial') {
+                    setPhaseSync('team-lobby');
                 }
             });
 
-            client.onControllerJoined(() => {
+            client.onControllerJoined((data) => {
                 setControllerCount((prev) => prev + 1);
+                // Store the color index from server for this controller
+                crosshairColorMap.current.set(data.controllerId, data.colorIndex ?? 0);
             });
 
             client.onControllerLeft((data) => {
@@ -203,16 +226,96 @@ export default function Screen() {
                 console.log('Controller left:', data.controllerId);
             });
 
+            client.onTutorialStart((_data: { duration: number }) => {
+                console.log('[Screen] Tutorial started, interactive mode');
+                setPhaseSync('tutorial');
+                setTutorialPlayers([]);
+                setTutorialAllComplete(false);
+            });
+
+            // Listen for tutorial status updates with per-player progress
+            client.onTutorialStatusUpdate((data: TutorialStatusUpdatePayload) => {
+                setTutorialPlayers(data.players);
+                setTutorialAllComplete(data.allComplete);
+            });
+
+            client.onTutorialEnd(() => {
+                console.log('[Screen] Tutorial ended, waiting for game data...');
+                // Phase will change to 'playing' when GAME_STARTED arrives
+            });
+
             client.onGameStarted((data) => {
                 console.log('[Screen] Game Started event received:', data);
                 setQuestion(data.question);
                 setTimeLeft(data.timeLeft);
                 setTeamScore(0);
-                setPhase('playing');
+                setQuestionNumber(1);
+                setPhaseSync('playing');
+            });
+
+            // Phase-based multiplayer events
+            client.onPhaseChange((data) => {
+                setCurrentPhase(data.phase);
+                setPhaseTimeLeft(data.timeLeft);
+                setQuestionNumber(data.questionNumber);
+                setIsMultiplayer(true);
+                // Clear selections when entering analysis phase (new question)
+                if (data.phase === 'analysis' && data.timeLeft === 2) {
+                    setPlayerSelections([]);
+                    setRevealResult(null);
+                }
+            });
+
+            client.onPlayerSelection((data) => {
+                setPlayerSelections(prev => [...prev, data]);
+            });
+
+            client.onRevealResult((data) => {
+                setRevealResult(data);
+
+                // Trigger the classic correct/wrong orb animations
+                const correctOrb = ORB_POSITIONS.find((o) => o.id === data.correctOrbId);
+                const correctX = correctOrb ? (correctOrb.x / 100) * window.innerWidth : window.innerWidth / 2;
+                const correctY = correctOrb ? (correctOrb.y / 100) * window.innerHeight : window.innerHeight / 2;
+
+                // Orb DOM class animations
+                const orbElements = document.querySelectorAll('.orb');
+                orbElements.forEach((orb) => {
+                    const orbEl = orb as HTMLElement;
+                    if (orbEl.dataset.option === data.correctOrbId) {
+                        orb.classList.add('correct-answer', 'hit-orb');
+                    } else {
+                        orb.classList.add('wrong-answer');
+                    }
+                });
+                setTimeout(() => {
+                    orbElements.forEach((orb) => {
+                        orb.classList.remove('correct-answer', 'wrong-answer', 'hit-orb');
+                    });
+                }, 2500);
+
+                if (data.anyCorrect) {
+                    createParticles(correctX, correctY, 20, '#10b981');
+                    createScorePopup(correctX, correctY, `+${data.points}`, 'correct');
+                    createRipple(correctX, correctY, '#10b981');
+                    createConfetti(correctX, correctY);
+
+                    // Transition animation before next question
+                    setTimeout(() => setIsTransitioning(true), 1800);
+                    setTimeout(() => setIsTransitioning(false), 2500);
+                } else {
+                    createParticles(correctX, correctY, 15, '#ef4444');
+                    createScorePopup(correctX, correctY, '✗', 'wrong');
+                    createRipple(correctX, correctY, '#ef4444');
+                }
             });
 
             client.onQuestion((data) => {
                 setQuestion(data);
+                // Increment question counter for singleplayer
+                if (!isMultiplayer) {
+                    setQuestionNumber(prev => prev + 1);
+                }
             });
 
             client.onTimerSync((data) => {
@@ -278,15 +381,27 @@ export default function Screen() {
             client.onGameOver((data) => {
                 setGameOverData(data);
                 if (data.leaderboard) setLeaderboard(data.leaderboard);
-                setPhase('game-over');
+                setPhaseSync('game-over');
+                // Start 60-second idle timer: if nobody interacts, reload after 1 min
+                if (gameOverIdleTimerRef.current) clearTimeout(gameOverIdleTimerRef.current);
+                gameOverIdleTimerRef.current = setTimeout(() => {
+                    console.log('[Screen] Game-over idle timeout (1 min), refreshing...');
+                    window.location.reload();
+                }, 60 * 1000);
             });
 
             client.onGameRestarted(() => {
-                setPhase('team-lobby');
+                setPhaseSync('team-lobby');
                 setQuestion(null);
                 setTeamScore(0);
-                setTimeLeft(30);
+                setTimeLeft(20);
                 setGameOverData(null);
+                setPlayerSelections([]);
+                setRevealResult(null);
+                setCurrentPhase(null);
+                setIsMultiplayer(false);
+                // Cancel any pending game-over idle timer
+                if (gameOverIdleTimerRef.current) { clearTimeout(gameOverIdleTimerRef.current); gameOverIdleTimerRef.current = null; }
             });
         }).catch((err) => {
             console.error('Connection failed:', err);
@@ -305,12 +420,11 @@ export default function Screen() {
         if (controllerCount > 0) {
             hadControllersRef.current = true;
         }
-        // All controllers left after at least one was present
-        if (hadControllersRef.current && controllerCount === 0 && !sessionEnding && phase !== 'connecting' && phase !== 'qr-lobby') {
+        // End session if ALL controllers leave (including during gameplay)
+        if (hadControllersRef.current && controllerCount === 0 && !sessionEnding
+            && phase !== 'connecting' && phase !== 'qr-lobby') {
             setSessionEnding(true);
-            setTimeout(() => {
-                window.location.reload();
-            }, 3000);
+            setTimeout(() => { window.location.reload(); }, 3000);
         }
     }, [controllerCount, sessionEnding, phase]);
 
@@ -393,63 +507,110 @@ export default function Screen() {
 
     // ---- Game Over ----
     if (phase === 'game-over' && gameOverData) {
+        const isCompleted = gameOverData.reason === 'completed';
+        const hasPlayerScores = gameOverData.playerScores && gameOverData.playerScores.length > 0;
         return (
             <div className="screen-container">
                 <div
                     className="game-over-screen"
                     style={{
-                        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                        height: '100vh', textAlign: 'center',
+                        display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+                        height: '100vh',
                         animation: 'bounceIn 0.8s cubic-bezier(0.34, 1.56, 0.64, 1)',
                         position: 'relative', scale: '0.8',
+                        gap: '3rem', padding: '2rem',
                     }}
                 >
-                    <h1 style={{ fontSize: '5rem', fontWeight: '900', color: '#ff4444', textShadow: '0 0 40px rgba(255, 0, 0, 0.5)', marginBottom: '0.5rem' }}>
-                        TIME'S UP!
-                    </h1>
-                    <div style={{ background: 'rgba(255, 255, 255, 0.05)', padding: '2.5rem', borderRadius: '30px', border: '1px solid rgba(255, 255, 255, 0.1)', backdropFilter: 'blur(20px)', minWidth: '350px', marginBottom: '1.5rem' }}>
-                        <p style={{ fontSize: '1.2rem', color: 'var(--accent-secondary)', fontWeight: 700, marginBottom: '0.5rem' }}>{gameOverData.teamName}</p>
-                        <h2 style={{ fontSize: '1.5rem', marginBottom: '0.5rem', color: 'rgba(255, 255, 255, 0.8)', fontWeight: '600' }}>Final Score</h2>
-                        <p style={{ fontSize: '4.5rem', fontWeight: '900', color: '#90e0ef', margin: 0 }}>{gameOverData.finalScore}</p>
-                    </div>
-
-                    {/* Leaderboard */}
-                    {gameOverData.leaderboard.length > 0 && (
-                        <div style={{ background: 'var(--glass-bg)', padding: '1.5rem', borderRadius: 'var(--radius-lg)', minWidth: '350px', border: '1px solid var(--glass-border)', marginBottom: '1.5rem' }}>
-                            <h3 style={{ color: 'var(--accent-primary)', fontWeight: 800, marginBottom: '1rem', fontSize: '1.1rem', letterSpacing: '2px', textTransform: 'uppercase' }}>Leaderboard</h3>
-                            {gameOverData.leaderboard.slice(0, 5).map((entry: LeaderboardEntry) => (
-                                <div key={entry.rank} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0.75rem', marginBottom: '0.25rem', borderRadius: '8px', background: entry.rank === 1 ? 'rgba(103, 80, 164, 0.2)' : 'transparent' }}>
-                                    <span style={{ fontWeight: 700 }}>{entry.rank === 1 ? '👑' : `#${entry.rank}`} {entry.teamName}</span>
-                                    <span style={{ color: 'var(--accent-secondary)', fontWeight: 800 }}>{entry.totalScore} pts</span>
-                                </div>
-                            ))}
+                    {/* LEFT SIDE — Player Scoreboard */}
+                    {hasPlayerScores && (
+                        <div style={{
+                            display: 'flex', flexDirection: 'column', gap: '1rem',
+                            minWidth: '280px', maxWidth: '320px', alignSelf: 'center',
+                        }}>
+                            <div style={{
+                                background: 'var(--glass-bg)', padding: '1.5rem', borderRadius: 'var(--radius-lg)',
+                                border: '1px solid var(--glass-border)', backdropFilter: 'blur(20px)',
+                                boxShadow: 'var(--glass-glow)',
+                            }}>
+                                <h3 style={{ color: '#90e0ef', fontWeight: 800, marginBottom: '1rem', fontSize: '1.1rem', letterSpacing: '2px', textTransform: 'uppercase', textAlign: 'center' }}>Player Scoreboard</h3>
+                                {gameOverData.playerScores!.map((ps, idx) => (
+                                    <div key={ps.controllerId} style={{
+                                        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                                        padding: '0.7rem 1rem', marginBottom: '0.35rem', borderRadius: '10px',
+                                        background: idx === 0 ? 'rgba(103, 80, 164, 0.2)' : 'rgba(255,255,255,0.03)',
+                                        border: idx === 0 ? '1px solid rgba(103, 80, 164, 0.4)' : '1px solid transparent',
+                                    }}>
+                                        <span style={{ fontWeight: 700, fontSize: '1rem', color: '#fff', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                            <span style={{
+                                                width: '10px', height: '10px', borderRadius: '50%',
+                                                background: CROSSHAIR_COLORS[ps.colorIndex] || CROSSHAIR_COLORS[0],
+                                                boxShadow: `0 0 6px ${CROSSHAIR_COLORS[ps.colorIndex] || CROSSHAIR_COLORS[0]}`,
+                                            }} />
+                                            {idx === 0 ? '🏆' : `#${idx + 1}`} {ps.name}
+                                        </span>
+                                        <span style={{ color: 'var(--accent-secondary)', fontWeight: 800, fontSize: '1rem' }}>
+                                            {ps.score} pts
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     )}
 
-                    <div style={{ marginTop: '1rem', padding: '1rem 3rem', background: '#6750a4', borderRadius: '20px', boxShadow: '0 0 30px rgba(103, 80, 164, 0.6)', border: '2px solid rgba(255, 255, 255, 0.1)', animation: 'pulse 2s ease-in-out infinite' }}>
-                        <h2 style={{ color: '#fff', margin: 0, fontSize: '1.8rem', fontWeight: '900', letterSpacing: '1.5px' }}>
-                            WAITING FOR LEADER...
-                        </h2>
-                    </div>
+                    {/* CENTER — Main Content */}
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+                        <h1 style={{
+                            fontSize: isCompleted ? '3.5rem' : '5rem',
+                            fontWeight: '900',
+                            color: isCompleted ? '#10b981' : '#ff4444',
+                            textShadow: isCompleted ? '0 0 40px rgba(16, 185, 129, 0.5)' : '0 0 40px rgba(255, 0, 0, 0.5)',
+                            marginBottom: '0.5rem',
+                            lineHeight: 1.2,
+                        }}>
+                            {isCompleted ? 'ALL QUESTIONS COMPLETED!' : "TIME'S UP!"}
+                        </h1>
 
-                    {/* Crosshairs visible during Game Over */}
-                    {Array.from(crosshairs.entries()).map(([cid, pos]) => {
-                        const color = getPlayerColor(cid);
-                        return (
-                            <div key={cid} style={{ position: 'absolute', left: `${pos.x}%`, top: `${pos.y}%`, transform: 'translate(-50%, -50%)', width: '50px', height: '50px', pointerEvents: 'none', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'left 0.08s linear, top 0.08s linear' }}>
-                                <div style={{ position: 'absolute', width: '100%', height: '100%', borderRadius: '50%', border: `2px dashed ${color}55`, boxShadow: `0 0 20px ${color}40, inset 0 0 15px ${color}15` }} />
-                                {[0, 90, 180, 270].map((deg) => (
-                                    <div key={deg} style={{ position: 'absolute', width: '2px', height: '10px', background: color, transform: `rotate(${deg}deg) translateY(-22px)`, boxShadow: `0 0 10px ${color}` }} />
+                        {isCompleted && (
+                            <p style={{ fontSize: '1.2rem', color: '#90e0ef', marginBottom: '1rem' }}>
+                                Great job! You answered all 10 questions.
+                            </p>
+                        )}
+
+                        <div style={{ background: 'rgba(255, 255, 255, 0.05)', padding: '2.5rem', borderRadius: '30px', border: '1px solid rgba(255, 255, 255, 0.1)', backdropFilter: 'blur(20px)', minWidth: '350px', marginBottom: '1.5rem' }}>
+                            <p style={{ fontSize: '1.2rem', color: 'var(--accent-secondary)', fontWeight: 700, marginBottom: '0.5rem' }}>{gameOverData.teamName}</p>
+                            <h2 style={{ fontSize: '1.5rem', marginBottom: '0.5rem', color: 'rgba(255, 255, 255, 0.8)', fontWeight: '600' }}>Final Score</h2>
+                            <p style={{ fontSize: '4.5rem', fontWeight: '900', color: '#90e0ef', margin: 0 }}>{gameOverData.finalScore}</p>
+                            <p style={{ fontSize: '1rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
+                                Questions answered: {gameOverData.questionsAnswered}/10
+                            </p>
+                        </div>
+
+                        {/* Leaderboard */}
+                        {gameOverData.leaderboard.length > 0 && (
+                            <div style={{ background: 'var(--glass-bg)', padding: '1.5rem', borderRadius: 'var(--radius-lg)', minWidth: '350px', border: '1px solid var(--glass-border)', marginBottom: '1.5rem' }}>
+                                <h3 style={{ color: 'var(--accent-primary)', fontWeight: 800, marginBottom: '1rem', fontSize: '1.1rem', letterSpacing: '2px', textTransform: 'uppercase' }}>Leaderboard</h3>
+                                {gameOverData.leaderboard.slice(0, 5).map((entry: LeaderboardEntry) => (
+                                    <div key={entry.rank} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0.75rem', marginBottom: '0.25rem', borderRadius: '8px', background: entry.rank === 1 ? 'rgba(103, 80, 164, 0.2)' : 'transparent' }}>
+                                        <span style={{ fontWeight: 700 }}>{entry.rank === 1 ? '👑' : `#${entry.rank}`} {entry.teamName}</span>
+                                        <span style={{ color: 'var(--accent-secondary)', fontWeight: 800 }}>{entry.totalScore} pts</span>
+                                    </div>
                                 ))}
-                                <div style={{ width: '6px', height: '6px', background: '#fff', borderRadius: '50%', boxShadow: `0 0 12px #fff, 0 0 24px ${color}` }} />
                             </div>
-                        );
-                    })}
+                        )}
 
-                    {/* Particles during game over */}
-                    {particles.map((p) => (
-                        <div key={p.id} className="particle particle-explode" style={{ left: p.x, top: p.y, width: p.size, height: p.size, backgroundColor: p.color, '--tx': p['--tx'], '--ty': p['--ty'] } as React.CSSProperties} />
-                    ))}
+                        {/* Controller Actions Indicator */}
+                        <div style={{
+                            background: 'var(--glass-bg)',
+                            padding: '1rem 2rem',
+                            borderRadius: 'var(--radius-md)',
+                            border: '1px solid var(--glass-border)',
+                            marginTop: '1rem'
+                        }}>
+                            <p style={{ color: 'var(--text-secondary)', fontSize: '1rem', fontWeight: 600 }}>
+                                📱 Use your controller to <span style={{ color: 'var(--accent-primary)' }}>Play Again</span> or <span style={{ color: 'var(--accent-secondary)' }}>Close</span>
+                            </p>
+                        </div>
+                    </div>
                 </div>
             </div>
         );
@@ -528,7 +689,7 @@ export default function Screen() {
                         <h3 style={{ fontFamily: 'var(--font-main)', fontWeight: '800' }}>Team Roster</h3>
                         {lobby?.team.members.map((m, i) => (
                             <div key={m.id} className="qr-leaderboard-item" style={{ borderRadius: 'var(--radius-md)', border: m.role === 'leader' ? '2px solid var(--accent-primary)' : '1px solid var(--glass-border)', background: m.role === 'leader' ? 'rgba(103, 80, 164, 0.2)' : 'var(--glass-bg)' }}>
-                                <span style={{ fontSize: '0.9rem' }}>{m.role === 'leader' ? '👑' : `#${i + 1}`} Player</span>
+                                <span style={{ fontSize: '0.9rem' }}>{m.role === 'leader' ? '👑' : `#${i + 1}`} {m.name || 'Player'}</span>
                                 <span style={{ color: m.isReady ? 'var(--accent-success)' : 'var(--text-secondary)', fontWeight: '800', fontSize: '1rem' }}>
                                     {m.isReady ? '✓ Ready' : '⏳ Waiting'}
                                 </span>
@@ -545,15 +706,187 @@ export default function Screen() {
         );
     }
 
-    // ---- Playing (Game Arena) ---- (identical UI to original)
+    // ---- Tutorial Phase (Interactive Virtual Phone Display) ----
+    if (phase === 'tutorial') {
+        const playerCount = tutorialPlayers.length || controllerCount || 1;
+        // Grid layout: 1 player = full, 2 = side-by-side, 3 = all in one row
+        const gridTemplate = playerCount <= 1 ? '1fr' : playerCount === 2 ? '1fr 1fr' : '1fr 1fr 1fr';
+
+        return (
+            <div className="screen-container" style={{
+                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                height: '100vh', background: 'linear-gradient(135deg, #1C1B1F 0%, #2D2C31 100%)',
+                padding: '2rem',
+            }}>
+                {/* Title */}
+                <h1 style={{
+                    fontSize: '2.5rem', fontWeight: 900, color: '#fff',
+                    textShadow: '0 0 40px rgba(103, 80, 164, 0.5)',
+                    marginBottom: '1rem', textAlign: 'center',
+                    animation: 'fadeIn 0.5s ease-out',
+                    fontFamily: 'var(--font-main)',
+                }}>
+                    {tutorialAllComplete ? '✅ All Players Ready!' : '📱 Calibrate Your Controls'}
+                </h1>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '1.1rem', marginBottom: '2rem', textAlign: 'center' }}>
+                    {tutorialAllComplete ? 'Game starting...' : 'Follow the steps on your phone'}
+                </p>
+
+                {/* Player Phone Grid */}
+                <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: gridTemplate,
+                    gap: '2rem',
+                    maxWidth: '1100px',
+                    width: '100%',
+                    flex: 1,
+                    maxHeight: '70vh',
+                }}>
+                    {(tutorialPlayers.length > 0 ? tutorialPlayers : [{ controllerId: 'waiting', colorIndex: 0, currentStep: 'waiting' as const, completedSling: false, completedTiltLeft: false, completedTiltRight: false, completedTiltUp: false, completedTiltDown: false, tiltX: 50, tiltY: 50 }]).map((player, idx) => {
+                        const color = CROSSHAIR_COLORS[player.colorIndex] || CROSSHAIR_COLORS[0];
+                        const tiltRotateZ = ((player.tiltX - 50) / 50) * 25; // -25deg to +25deg
+                        const tiltRotateX = ((player.tiltY - 50) / 50) * 15; // -15deg to +15deg
+                        const isComplete = player.currentStep === 'complete';
+
+                        return (
+                            <div
+                                key={player.controllerId}
+                                style={{
+                                    display: 'flex', flexDirection: 'column', alignItems: 'center',
+                                    justifyContent: 'center', gap: '1.5rem',
+                                    background: 'var(--glass-bg)', borderRadius: 'var(--radius-lg)',
+                                    border: `1px solid ${isComplete ? `${color}60` : 'var(--glass-border)'}`,
+                                    padding: '2rem', backdropFilter: 'blur(20px)',
+                                    boxShadow: isComplete ? `0 0 30px ${color}20` : 'var(--glass-glow)',
+                                    gridColumn: 'auto',
+                                    animation: 'bounceIn 0.5s ease-out',
+                                    transition: 'all 0.3s ease',
+                                }}
+                            >
+                                {/* Player label */}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                    <div style={{
+                                        width: '14px', height: '14px', borderRadius: '50%',
+                                        background: color, boxShadow: `0 0 10px ${color}`,
+                                    }} />
+                                    <span style={{ fontWeight: 800, fontSize: '1.1rem', color: '#fff' }}>
+                                        Player {idx + 1}
+                                    </span>
+                                </div>
+
+                                {/* Virtual Phone */}
+                                <div style={{
+                                    width: '140px', height: '260px',
+                                    perspective: '600px',
+                                }}>
+                                    <div style={{
+                                        width: '100%', height: '100%',
+                                        background: 'linear-gradient(180deg, #2a2a2e 0%, #1a1a1e 100%)',
+                                        borderRadius: '20px',
+                                        border: `3px solid ${color}50`,
+                                        boxShadow: `0 10px 40px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1), 0 0 20px ${color}15`,
+                                        transform: `rotateZ(${tiltRotateZ}deg) rotateX(${tiltRotateX}deg)`,
+                                        transition: 'transform 0.15s ease-out',
+                                        display: 'flex', flexDirection: 'column',
+                                        alignItems: 'center', justifyContent: 'center',
+                                        position: 'relative', overflow: 'hidden',
+                                    }}>
+                                        {/* Phone notch */}
+                                        <div style={{
+                                            position: 'absolute', top: '8px',
+                                            width: '50px', height: '6px',
+                                            background: 'rgba(255,255,255,0.15)',
+                                            borderRadius: '3px',
+                                        }} />
+
+                                        {/* Phone screen content */}
+                                        {player.currentStep === 'tilt' ? (
+                                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+                                                <span style={{ fontSize: '1rem', opacity: player.completedTiltUp ? 1 : 0.25, transition: 'opacity 0.3s' }}>⬆️</span>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                    <span style={{ fontSize: '1rem', opacity: player.completedTiltLeft ? 1 : 0.25, transition: 'opacity 0.3s' }}>⬅️</span>
+                                                    <div style={{ width: '44px', height: '44px', borderRadius: '50%', border: `2px solid ${color}60`, position: 'relative', background: 'rgba(0,0,0,0.3)' }}>
+                                                        <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: color, boxShadow: `0 0 8px ${color}`, position: 'absolute', left: `${player.tiltX}%`, top: `${player.tiltY}%`, transform: 'translate(-50%,-50%)', transition: 'left 0.1s linear, top 0.1s linear' }} />
+                                                    </div>
+                                                    <span style={{ fontSize: '1rem', opacity: player.completedTiltRight ? 1 : 0.25, transition: 'opacity 0.3s' }}>➡️</span>
+                                                </div>
+                                                <span style={{ fontSize: '1rem', opacity: player.completedTiltDown ? 1 : 0.25, transition: 'opacity 0.3s' }}>⬇️</span>
+                                            </div>
+                                        ) : (
+                                            <div style={{ fontSize: '2.2rem', animation: player.currentStep === 'complete' ? 'none' : 'pulse 1.5s ease-in-out infinite' }}>
+                                                {player.currentStep === 'complete' ? '✅' : '🏹'}
+                                            </div>
+                                        )}
+                                        <p style={{ color: isComplete ? color : 'rgba(255,255,255,0.7)', fontSize: '0.65rem', fontWeight: 700, textAlign: 'center', padding: '0 0.5rem', marginTop: '0.4rem' }}>
+                                            {isComplete ? 'READY' : player.currentStep === 'tilt' ? 'TILT 4 WAYS!' : 'SLING IT!'}
+                                        </p>
+
+                                        {/* Home indicator */}
+                                        <div style={{ position: 'absolute', bottom: '8px', width: '40px', height: '5px', background: 'rgba(255,255,255,0.2)', borderRadius: '3px' }} />
+                                    </div>{/* end phone body */}
+                                </div>{/* end perspective wrapper */}
+
+                                {/* Step badges — 5 total */}
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem', justifyContent: 'center' }}>
+                                    {[
+                                        { label: 'Sling', done: player.completedSling },
+                                        { label: '⬅️', done: player.completedTiltLeft },
+                                        { label: '➡️', done: player.completedTiltRight },
+                                        { label: '⬆️', done: player.completedTiltUp },
+                                        { label: '⬇️', done: player.completedTiltDown },
+                                    ].map(({ label, done }) => (
+                                        <div key={label} style={{
+                                            padding: '0.2rem 0.5rem',
+                                            borderRadius: '999px',
+                                            background: done ? `${color}25` : 'rgba(255,255,255,0.05)',
+                                            border: `1px solid ${done ? color : 'rgba(255,255,255,0.1)'}`,
+                                            fontSize: '0.65rem', fontWeight: 700,
+                                            color: done ? color : 'rgba(255,255,255,0.4)',
+                                            transition: 'all 0.3s ease',
+                                        }}>
+                                            {done ? '✓' : ''} {label}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+
+                {/* Loading indicator */}
+                {!tutorialAllComplete && (
+                    <div style={{
+                        display: 'flex', alignItems: 'center', gap: '1rem',
+                        marginTop: '1.5rem', opacity: 0.6,
+                    }}>
+                        <div style={{
+                            width: '24px', height: '24px',
+                            border: '3px solid rgba(103, 80, 164, 0.3)',
+                            borderTop: '3px solid var(--accent-primary)',
+                            borderRadius: '50%', animation: 'spin 1s linear infinite',
+                        }} />
+                        <span style={{ color: 'var(--text-secondary)', fontSize: '1rem' }}>
+                            Waiting for all players...
+                        </span>
+                    </div>
+                )}
+            </div>
+        );
+    }
+
+    // ---- Playing (Game Arena) ----
+    // Phase-aware header: multiplayer shows phase indicator and phase timer; singleplayer shows classic timer
+    const phaseLabel = currentPhase === 'analysis' ? '🔍 ANALYZE' : currentPhase === 'selection' ? '🎯 SELECT NOW!' : currentPhase === 'reveal' ? '✨ REVEAL' : '';
+    const phaseColor = currentPhase === 'analysis' ? 'var(--accent-primary)' : currentPhase === 'selection' ? '#ff9500' : currentPhase === 'reveal' ? 'var(--accent-success)' : 'var(--accent-primary)';
+
     return (
         <div className="screen-container" ref={containerRef}>
-            <header className="screen-header" style={{ justifyContent: 'flex-end', padding: '2rem' }}>
+            <header className="screen-header">
                 <div className="player-count-badge">
-                    <span style={{ fontSize: '1.2rem', filter: 'drop-shadow(0 0 10px rgba(103, 80, 164, 0.5))' }}>👥</span>
-                    <span style={{ fontWeight: '900', color: 'var(--text-primary)' }}>{controllerCount}</span>
-                    <div style={{ display: 'flex', gap: '20px', borderLeft: '2px solid var(--glass-border)', paddingLeft: '20px' }}>
-                        <span style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <span style={{ fontSize: '1.2rem', filter: 'drop-shadow(0 0 0.6rem rgba(103, 80, 164, 0.5))' }}>👥</span>
+                    <span style={{ fontWeight: '900', color: 'var(--text-primary)', fontSize: '1.4rem' }}>{controllerCount}</span>
+                    <div style={{ display: 'flex', gap: '1.25rem', borderLeft: '2px solid var(--glass-border)', paddingLeft: '1.25rem', marginLeft: '0.5rem' }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
                             <span style={{ color: 'var(--accent-secondary)', fontWeight: 700, fontSize: '0.9rem' }}>{teamName}</span>
                             <span style={{ color: 'var(--accent-secondary)', fontWeight: '800', fontSize: '1.1rem' }}>
                                 Score: {teamScore}
@@ -561,13 +894,45 @@ export default function Screen() {
                         </span>
                     </div>
                 </div>
-                {/* Timer Bar */}
-                <div style={{ position: 'absolute', top: '0', left: '0', width: '100%', height: '8px', background: 'rgba(255,255,255,0.1)', zIndex: 1000 }}>
-                    <div style={{ width: `${(timeLeft / 30) * 100}%`, height: '100%', background: timeLeft <= 10 ? 'var(--accent-error)' : 'var(--accent-primary)', transition: 'width 1s linear, background 0.3s ease', boxShadow: `0 0 20px ${timeLeft <= 10 ? 'var(--accent-error)' : 'var(--accent-primary)'}` }} />
-                </div>
-                <div style={{ position: 'absolute', top: '3rem', left: '2rem', fontSize: '1.8rem', fontWeight: '900', color: timeLeft <= 10 ? 'var(--accent-error)' : 'var(--text-primary)', zIndex: 1000 }}>
-                    {timeLeft}s
-                </div>
+
+                {/* Timer Bar / Phase Indicator — phase-aware for multiplayer, classic for singleplayer */}
+                {isMultiplayer && currentPhase ? (
+                    <>
+                        {/* Premium Phase & Timer HUD */}
+                        <div style={{ position: 'absolute', top: '2rem', left: '50%', transform: 'translateX(-50%)', display: 'flex', alignItems: 'center', background: 'rgba(255,255,255,0.05)', padding: '0.4rem', borderRadius: 'var(--radius-full)', border: '1px solid var(--glass-border)', backdropFilter: 'blur(16px)', boxShadow: 'var(--glass-glow)', zIndex: 1000, gap: '1rem' }}>
+                            <div style={{
+                                padding: '0.5rem 1.5rem', borderRadius: 'var(--radius-full)',
+                                background: phaseColor, color: '#fff',
+                                fontWeight: 900, fontSize: '1rem', letterSpacing: '0.15rem',
+                                boxShadow: `0 4px 15px ${phaseColor}40`,
+                                animation: currentPhase === 'selection' ? 'pulse 1.2s ease-in-out infinite' : 'none',
+                                display: 'flex', alignItems: 'center', gap: '0.5rem'
+                            }}>
+                                {phaseLabel}
+                            </div>
+                            <span style={{ fontSize: '1.8rem', fontWeight: '900', color: phaseTimeLeft <= 3 ? '#ff4444' : '#fff', paddingRight: '1.25rem', minWidth: '3.5rem', textAlign: 'center', fontVariantNumeric: 'tabular-nums' }}>
+                                {phaseTimeLeft}s
+                            </span>
+                        </div>
+                    </>
+                ) : (
+                    <>
+                        <div style={{ position: 'absolute', top: '0', left: '0', width: '100%', height: '0.5rem', background: 'rgba(255,255,255,0.1)', zIndex: 1000 }}>
+                            <div style={{ width: `${(timeLeft / 20) * 100}%`, height: '100%', background: timeLeft <= 10 ? 'var(--accent-error)' : 'var(--accent-primary)', transition: 'width 1s linear, background 0.3s ease', boxShadow: `0 0 1.25rem ${timeLeft <= 10 ? 'var(--accent-error)' : 'var(--accent-primary)'}` }} />
+                        </div>
+                        <div style={{ position: 'absolute', top: '2rem', left: '50%', transform: 'translateX(-50%)', background: 'rgba(255,255,255,0.05)', padding: '0.6rem 2rem', borderRadius: 'var(--radius-full)', border: '1px solid var(--glass-border)', backdropFilter: 'blur(16px)', boxShadow: 'var(--glass-glow)', fontSize: '1.8rem', fontWeight: '900', color: timeLeft <= 10 ? 'var(--accent-error)' : 'var(--text-primary)', zIndex: 1000, fontVariantNumeric: 'tabular-nums' }}>
+                            {timeLeft}s
+                        </div>
+                    </>
+                )}
+
+                {/* Unified Premium Question Badge */}
+                {questionNumber > 0 && (
+                    <div style={{ position: 'absolute', top: '2.5rem', right: '2.5rem', background: 'rgba(255,255,255,0.08)', padding: '0.8rem 1.7rem', borderRadius: 'var(--radius-full)', border: '1px solid var(--glass-border)', backdropFilter: 'blur(12px)', boxShadow: 'var(--glass-glow)', display: 'flex', alignItems: 'center', gap: '0.75rem', zIndex: 1000 }}>
+                        <span style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--accent-secondary)', letterSpacing: '2px' }}>QUESTION</span>
+                        <span style={{ fontSize: '1.4rem', fontWeight: 900, color: '#fff' }}>{questionNumber}<span style={{ color: 'var(--text-secondary)', fontSize: '1.1rem' }}>/10</span></span>
+                    </div>
+                )}
             </header>
 
             <div className="game-arena" ref={arenaRef}>
@@ -580,24 +945,55 @@ export default function Screen() {
                     </div>
                 )}
 
-                {/* Answer Orbs */}
-                {question?.options.map((opt, i) => (
-                    <div key={opt.id}
-                        className={`orb orb-${opt.id.toLowerCase()} ${targetedOrbId === opt.id ? 'targeted' : ''} ${isTransitioning ? 'exit-animation' : 'entry-animation'}`}
-                        style={{ left: ORB_POSITIONS[i].left, top: ORB_POSITIONS[i].top, animationDelay: isTransitioning ? '0s' : `${i * 0.15}s` }}
-                        data-option={opt.id}
-                    >
-                        {opt.id}: {opt.text}
-                    </div>
-                ))}
+                {/* Answer Orbs — with multiplayer selection markers and reveal highlights */}
+                {question?.options.map((opt, i) => {
+                    // Find players who selected this orb
+                    const selectionsForOrb = playerSelections.filter(s => s.orbId === opt.id);
+                    // Reveal styling
+                    const isCorrectOrb = revealResult?.correctOrbId === opt.id;
+                    const isRevealPhase = currentPhase === 'reveal' && revealResult;
+                    let revealBorder = '';
+                    if (isRevealPhase) {
+                        revealBorder = isCorrectOrb ? '3px solid #10b981' : selectionsForOrb.length > 0 ? '3px solid #ef4444' : '';
+                    }
+
+                    return (
+                        <div key={opt.id}
+                            className={`orb orb-${opt.id.toLowerCase()} ${targetedOrbId === opt.id ? 'targeted' : ''} ${isTransitioning ? 'exit-animation' : 'entry-animation'}`}
+                            style={{
+                                left: ORB_POSITIONS[i].left, top: ORB_POSITIONS[i].top,
+                                animationDelay: isTransitioning ? '0s' : `${i * 0.15}s`,
+                                border: revealBorder || undefined,
+                                boxShadow: isRevealPhase && isCorrectOrb ? '0 0 30px rgba(16, 185, 129, 0.6)' : isRevealPhase && selectionsForOrb.length > 0 ? '0 0 30px rgba(239, 68, 68, 0.4)' : undefined,
+                                transition: 'border 0.3s ease, box-shadow 0.3s ease',
+                            }}
+                            data-option={opt.id}
+                        >
+                            {opt.id}: {opt.text}
+                            {/* Player selection markers */}
+                            {selectionsForOrb.length > 0 && (
+                                <div style={{ position: 'absolute', bottom: '-12px', left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: '4px' }}>
+                                    {selectionsForOrb.map(sel => (
+                                        <div key={sel.controllerId} style={{
+                                            width: '12px', height: '12px', borderRadius: '50%',
+                                            background: CROSSHAIR_COLORS[sel.colorIndex] || CROSSHAIR_COLORS[0],
+                                            border: '2px solid rgba(255,255,255,0.8)',
+                                            boxShadow: `0 0 8px ${CROSSHAIR_COLORS[sel.colorIndex] || CROSSHAIR_COLORS[0]}`,
+                                        }} />
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    );
+                })}
 
                 {/* Projectiles */}
                 {projectiles.map((p) => (
                     <div key={p.id} className="projectile" style={{ left: p.targetX - 10, top: p.targetY - 10, transition: 'all 0.3s ease-out' }} />
                 ))}
 
-                {/* Per-player Crosshairs */}
-                {Array.from(crosshairs.entries()).map(([cid, pos]) => {
+                {/* Per-player Crosshairs — hidden during analysis phase in multiplayer */}
+                {(!isMultiplayer || currentPhase === 'selection') && Array.from(crosshairs.entries()).map(([cid, pos]) => {
                     const color = getPlayerColor(cid);
                     return (
                         <div key={cid} style={{ position: 'absolute', left: `${pos.x}%`, top: `${pos.y}%`, transform: 'translate(-50%, -50%)', width: '50px', height: '50px', pointerEvents: 'none', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'left 0.08s linear, top 0.08s linear' }}>
@@ -609,6 +1005,7 @@ export default function Screen() {
                         </div>
                     );
                 })}
+
 
                 {/* Hit Effects */}
                 {hitEffects.map((e) => (
@@ -635,6 +1032,6 @@ export default function Screen() {
                     <div key={c.id} className="confetti" style={{ left: c.x, top: c.y, width: c.width, height: c.height, backgroundColor: c.color, '--dx': c['--dx'], '--dy': c['--dy'], '--rot': c['--rot'] } as React.CSSProperties} />
                 ))}
             </div>
-        </div>
+        </div >
     );
 }

@@ -29,6 +29,8 @@ export interface PlayerInfo {
     id: string;        // channel id
     role: PlayerRole;
     isReady: boolean;
+    colorIndex?: number; // For crosshair color indicator
+    name?: string;       // Individual player name
 }
 
 export interface TeamInfo {
@@ -72,6 +74,16 @@ export interface GameOverPayload {
     finalScore: number;
     teamName: string;
     leaderboard: LeaderboardEntry[];
+    reason: 'time' | 'completed' | 'all_wrong'; // Why the game ended
+    questionsAnswered: number; // Questions answered in this session (accumulated across restarts)
+    playerScores?: PlayerScoreEntry[]; // Individual player scores for scoreboard
+}
+
+export interface PlayerScoreEntry {
+    controllerId: string;
+    name: string;
+    colorIndex: number;
+    score: number;
 }
 
 export interface LeaderboardEntry {
@@ -97,6 +109,63 @@ export interface TargetingPayload {
 export interface StartAimingPayload {
     controllerId: string;
     gyroEnabled: boolean;
+}
+
+// ---------- Phase-based Multiplayer ----------
+
+export type QuestionPhase = 'analysis' | 'selection' | 'reveal';
+
+export interface PhaseChangePayload {
+    phase: QuestionPhase;
+    timeLeft: number;       // Remaining seconds in this phase
+    questionNumber: number; // 1-indexed for UI display
+}
+
+export interface PlayerSelectionPayload {
+    controllerId: string;
+    orbId: string;          // Which orb the player selected
+    colorIndex: number;     // Player's crosshair color for visual marking
+}
+
+export interface RevealResultPayload {
+    correctOrbId: string;                    // The correct answer
+    selections: PlayerSelectionPayload[];    // All player selections
+    anyCorrect: boolean;                     // Did at least one player get it right?
+    points: number;                          // Points awarded (if any correct)
+    noSelection: boolean;                    // True if NO player selected anything (Time's Up)
+}
+
+// ---------- Interactive Tutorial ----------
+
+export type TutorialStep = 'waiting' | 'sling' | 'tilt' | 'complete';
+
+/** Progress events sent from controller → server */
+export type TutorialProgressStep = 'sling' | 'tilt-left' | 'tilt-right' | 'tilt-up' | 'tilt-down';
+
+/** Sent from controller → server when a player completes a tutorial step */
+export interface TutorialProgressPayload {
+    step: TutorialProgressStep;
+    tiltX?: number;
+    tiltY?: number;
+}
+
+/** Broadcast from server → all clients with each player's tutorial status */
+export interface TutorialStatusUpdatePayload {
+    players: TutorialPlayerStatus[];
+    allComplete: boolean;
+}
+
+export interface TutorialPlayerStatus {
+    controllerId: string;
+    colorIndex: number;
+    currentStep: TutorialStep;
+    completedSling: boolean;
+    completedTiltLeft: boolean;
+    completedTiltRight: boolean;
+    completedTiltUp: boolean;
+    completedTiltDown: boolean;
+    tiltX: number;
+    tiltY: number;
 }
 
 // ---------- Orb positions (shared constant) ----------

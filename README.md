@@ -101,11 +101,7 @@ Server runs on port `3000` by default. Configure via environment variables or `s
 
 ### Build and Run Locally
 
-```bash
-cd server
-docker build -t slingshot-server .
-docker run -p 3000:3000 slingshot-server
-```
+Read server/docker.md
 
 ### AWS EC2 Deployment
 
@@ -117,9 +113,7 @@ docker run -p 3000:3000 slingshot-server
 
 ```bash
 # On EC2
-docker pull <your-image>
-docker run -d -p 3000:3000 -p 9000-9100:9000-9100/udp slingshot-server
-```
+Read server/docker.md
 
 ## 🛠️ Tech Stack
 

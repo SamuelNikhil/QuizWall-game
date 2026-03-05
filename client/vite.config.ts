@@ -16,6 +16,22 @@ export default defineConfig(({ mode }) => {
 
     return {
         plugins: [react()],
+        build: {
+            // Target modern browsers including TV browsers (WebOS, Tizen)
+            target: 'es2020',
+            // Source maps for production debugging
+            sourcemap: true,
+            rollupOptions: {
+                output: {
+                    // Separate vendor chunks for better caching
+                    manualChunks: {
+                        'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+                        'vendor-network': ['@geckos.io/client'],
+                        'vendor-qr': ['qrcode.react'],
+                    },
+                },
+            },
+        },
         server: {
             host: true,
             proxy: {

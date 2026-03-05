@@ -1,0 +1,246 @@
+{
+    "topic": "animals-easy-and-simple",
+    "generatedAt": "2026-03-04T04:48:51.457Z",
+    "questions": [
+        {
+            "id": 1,
+            "text": "What is the primary source of food for giant pandas?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Small mammals and birds"
+                },
+                {
+                    "id": "B",
+                    "text": "Bamboo and small insects"
+                },
+                {
+                    "id": "C",
+                    "text": "Fruits and nuts"
+                },
+                {
+                    "id": "D",
+                    "text": "Bamboo"
+                }
+            ],
+            "correct": "D",
+            "category": "animals-easy-and-simple"
+        },
+        {
+            "id": 2,
+            "text": "Which of the following animals has the longest migration route?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Elephant seal"
+                },
+                {
+                    "id": "B",
+                    "text": "Arctic tern"
+                },
+                {
+                    "id": "C",
+                    "text": "Caribou"
+                },
+                {
+                    "id": "D",
+                    "text": "Gray whale"
+                }
+            ],
+            "correct": "B",
+            "category": "animals-easy-and-simple"
+        },
+        {
+            "id": 3,
+            "text": "What is unique about the axolotl's ability to regrow its limbs?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "It can only regrow its back limbs"
+                },
+                {
+                    "id": "B",
+                    "text": "It can only regrow its limbs during a specific season"
+                },
+                {
+                    "id": "C",
+                    "text": "It can only regrow its front limbs"
+                },
+                {
+                    "id": "D",
+                    "text": "It can regrow its limbs throughout its entire lifetime"
+                }
+            ],
+            "correct": "D",
+            "category": "animals-easy-and-simple"
+        },
+        {
+            "id": 4,
+            "text": "Which of the following birds is known for its distinctive call that sounds like laughter?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Pelican"
+                },
+                {
+                    "id": "B",
+                    "text": "Ostrich"
+                },
+                {
+                    "id": "C",
+                    "text": "Kookaburra"
+                },
+                {
+                    "id": "D",
+                    "text": "Penguin"
+                }
+            ],
+            "correct": "C",
+            "category": "animals-easy-and-simple"
+        },
+        {
+            "id": 5,
+            "text": "What is the fastest land animal?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Lion"
+                },
+                {
+                    "id": "B",
+                    "text": "Jaguar"
+                },
+                {
+                    "id": "C",
+                    "text": "Leopard"
+                },
+                {
+                    "id": "D",
+                    "text": "Cheetah"
+                }
+            ],
+            "correct": "D",
+            "category": "animals-easy-and-simple"
+        },
+        {
+            "id": 6,
+            "text": "Which of the following animals has a built-in 'parachute' to help it fall from trees?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Koala"
+                },
+                {
+                    "id": "B",
+                    "text": "Squirrel"
+                },
+                {
+                    "id": "C",
+                    "text": "Chipmunk"
+                },
+                {
+                    "id": "D",
+                    "text": "Sugar glider"
+                }
+            ],
+            "correct": "D",
+            "category": "animals-easy-and-simple"
+        },
+        {
+            "id": 7,
+            "text": "What is the largest species of lizard?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Green iguana"
+                },
+                {
+                    "id": "B",
+                    "text": "Black mamba"
+                },
+                {
+                    "id": "C",
+                    "text": "Saltwater crocodile"
+                },
+                {
+                    "id": "D",
+                    "text": "Komodo dragon"
+                }
+            ],
+            "correct": "D",
+            "category": "animals-easy-and-simple"
+        },
+        {
+            "id": 8,
+            "text": "Which of the following animals can change its body color to blend in with its surroundings?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Cuttlefish"
+                },
+                {
+                    "id": "B",
+                    "text": "Squid"
+                },
+                {
+                    "id": "C",
+                    "text": "Octopus"
+                },
+                {
+                    "id": "D",
+                    "text": "Chameleon"
+                }
+            ],
+            "correct": "D",
+            "category": "animals-easy-and-simple"
+        },
+        {
+            "id": 9,
+            "text": "What is the only mammal that can fly?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Sugar glider"
+                },
+                {
+                    "id": "B",
+                    "text": "Bat"
+                },
+                {
+                    "id": "C",
+                    "text": "Colugo"
+                },
+                {
+                    "id": "D",
+                    "text": "Flying squirrel"
+                }
+            ],
+            "correct": "B",
+            "category": "animals-easy-and-simple"
+        },
+        {
+            "id": 10,
+            "text": "Which of the following animals has the strongest sense of smell?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Shark"
+                },
+                {
+                    "id": "B",
+                    "text": "Bloodhound"
+                },
+                {
+                    "id": "C",
+                    "text": "Rhinoceros"
+                },
+                {
+                    "id": "D",
+                    "text": "Elephant"
+                }
+            ],
+            "correct": "B",
+            "category": "animals-easy-and-simple"
+        }
+    ]
+}

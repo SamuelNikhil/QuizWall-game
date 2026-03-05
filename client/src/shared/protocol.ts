@@ -17,6 +17,7 @@ export const EVENTS = {
     TEAM_INFO: 'teamInfo',
     LOBBY_UPDATE: 'lobbyUpdate',
     PLAYER_READY: 'playerReady',
+    SET_PLAYER_NAME: 'setPlayerName',
     START_GAME: 'startGame',
     GAME_STARTED: 'gameStarted',
 
@@ -38,10 +39,22 @@ export const EVENTS = {
 
     // --- Feedback (server → controller/screen) ---
     HIT_RESULT: 'hitResult',
+    WRONG_CHOICES_UPDATE: 'wrongChoicesUpdate',
     PROJECTILE: 'projectile',
+
+    // --- Phase-based multiplayer ---
+    PHASE_CHANGE: 'phaseChange',
+    PLAYER_SELECTION: 'playerSelection',
+    REVEAL_RESULT: 'revealResult',
 
     // --- Leaderboard ---
     LEADERBOARD: 'leaderboard',
+
+    // --- Tutorial ---
+    TUTORIAL_START: 'tutorialStart',
+    TUTORIAL_END: 'tutorialEnd',
+    TUTORIAL_PROGRESS: 'tutorialProgress',
+    TUTORIAL_STATUS_UPDATE: 'tutorialStatusUpdate',
 } as const;
 
 export type EventName = (typeof EVENTS)[keyof typeof EVENTS];

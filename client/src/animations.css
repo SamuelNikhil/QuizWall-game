@@ -6,6 +6,7 @@
         transform: translate(-50%, -150%);
         opacity: 0;
     }
+
     100% {
         transform: translate(-50%, 0%);
         opacity: 1;
@@ -17,6 +18,7 @@
         transform: translate(-50%, 0%);
         opacity: 1;
     }
+
     100% {
         transform: translate(-50%, -150%);
         opacity: 0;
@@ -29,9 +31,11 @@
         transform: scale(0);
         opacity: 0;
     }
+
     60% {
         transform: scale(1.1);
     }
+
     100% {
         transform: scale(1);
         opacity: 1;
@@ -43,6 +47,7 @@
         transform: scale(1);
         opacity: 1;
     }
+
     100% {
         transform: scale(0);
         opacity: 0;
@@ -92,10 +97,12 @@
         transform: scale(1);
         box-shadow: 0 0 0 0 rgba(103, 80, 164, 0.7);
     }
+
     70% {
         transform: scale(1.05);
         box-shadow: 0 0 0 20px rgba(103, 80, 164, 0);
     }
+
     100% {
         transform: scale(1);
         box-shadow: 0 0 0 0 rgba(103, 80, 164, 0);
@@ -104,6 +111,7 @@
 
 /* More expressive float with horizontal sway */
 @keyframes expressiveFloat {
+
     0%,
     100% {
         transform: translate(0, 0) rotate(0deg);
@@ -124,6 +132,7 @@
 
 /* Squash and Stretch for orbs/balls */
 @keyframes squashStretch {
+
     0%,
     100% {
         transform: scale(1, 1);
@@ -223,6 +232,7 @@
 
 /* Wrong Answer Shake Animation */
 @keyframes wrongShake {
+
     0%,
     100% {
         transform: translateX(0) scale(1);
@@ -287,6 +297,8 @@
     border-radius: 50%;
     pointer-events: none;
     animation-timing-function: ease-out;
+    will-change: transform, opacity;
+    contain: layout style;
 }
 
 @keyframes particleExplode {
@@ -314,6 +326,7 @@
     pointer-events: none;
     z-index: 1000;
     text-shadow: 0 0 20px currentColor;
+    will-change: transform, opacity;
 }
 
 @keyframes scoreFloatUp {
@@ -352,6 +365,7 @@
     border-radius: 50%;
     pointer-events: none;
     animation: rippleExpand 1s ease-out forwards;
+    will-change: transform, opacity;
 }
 
 @keyframes rippleExpand {
@@ -373,6 +387,8 @@
     height: 10px;
     pointer-events: none;
     animation: confettiFall 1.5s ease-out forwards;
+    will-change: transform, opacity;
+    contain: layout style;
 }
 
 @keyframes confettiFall {
@@ -383,5 +399,16 @@
     100% {
         opacity: 0;
         transform: translate(var(--dx), var(--dy)) rotate(var(--rot));
+    }
+}
+
+/* --- Loading Spinner --- */
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
     }
 }

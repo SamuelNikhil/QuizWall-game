@@ -8,6 +8,7 @@ import { EVENTS } from '../shared/protocol';
 import type {
     ClientQuestion,
     HitResultPayload,
+    WrongChoicesUpdate,
     ScoreUpdate,
     TimerSync,
     GameOverPayload,
@@ -17,6 +18,11 @@ import type {
     StartAimingPayload,
     PlayerRole,
     LeaderboardEntry,
+    PhaseChangePayload,
+    PlayerSelectionPayload,
+    RevealResultPayload,
+    TutorialProgressPayload,
+    TutorialStatusUpdatePayload,
 } from '../shared/types';
 
 // --------------- Config ---------------
@@ -124,11 +130,28 @@ export class GameClient {
         return this.connected;
     }
 
+    /** Get geckos channel ID (used as controllerId on the server) */
+    getClientId(): string | null {
+        return this.channel?.id ?? null;
+    }
+
     close(): void {
         if (this.connected && this.channel) {
+            this.removeAllListeners();
             try { this.channel.close(); } catch { /* ignore */ }
             this.connected = false;
         }
+    }
+
+    /** Remove all event listeners from the channel (for cleanup on unmount) */
+    removeAllListeners(): void {
+        if (!this.channel) return;
+        try {
+            // Geckos.io channels support removeAllListeners
+            if (typeof this.channel.removeAllListeners === 'function') {
+                this.channel.removeAllListeners();
+            }
+        } catch { /* ignore */ }
     }
 
     // ---- Emit methods ----
@@ -151,6 +174,10 @@ export class GameClient {
 
     startGame(): void {
         this.channel?.emit(EVENTS.START_GAME);
+    }
+
+    setPlayerName(name: string): void {
+        this.channel?.emit(EVENTS.SET_PLAYER_NAME, { name });
     }
 
     shoot(targetXPercent: number, targetYPercent: number, power: number): void {
@@ -183,11 +210,11 @@ export class GameClient {
         this.channel?.on(EVENTS.ROOM_CREATED, cb);
     }
 
-    onJoinedRoom(cb: (data: { roomId: string; success: boolean; error?: string; role?: PlayerRole }) => void): void {
+    onJoinedRoom(cb: (data: { roomId: string; success: boolean; error?: string; role?: PlayerRole; colorIndex?: number }) => void): void {
         this.channel?.on(EVENTS.JOINED_ROOM, cb);
     }
 
-    onControllerJoined(cb: (data: { controllerId: string; role: PlayerRole }) => void): void {
+    onControllerJoined(cb: (data: { controllerId: string; role: PlayerRole; colorIndex?: number }) => void): void {
         this.channel?.on(EVENTS.CONTROLLER_JOINED, cb);
     }
 
@@ -219,6 +246,10 @@ export class GameClient {
         this.channel?.on(EVENTS.HIT_RESULT, cb);
     }
 
+    onWrongChoicesUpdate(cb: (data: { wrongChoicesLeft: number }) => void): void {
+        this.channel?.on(EVENTS.WRONG_CHOICES_UPDATE, cb);
+    }
+
     onProjectile(cb: (data: { controllerId: string; targetXPercent: number; targetYPercent: number }) => void): void {
         this.channel?.on(EVENTS.PROJECTILE, cb);
     }
@@ -245,5 +276,37 @@ export class GameClient {
 
     onTargeting(cb: (data: TargetingPayload) => void): void {
         this.channel?.on(EVENTS.TARGETING, cb);
+    }
+
+    onTutorialStart(cb: (data: { duration: number }) => void): void {
+        this.channel?.on(EVENTS.TUTORIAL_START, cb);
+    }
+
+    onTutorialEnd(cb: () => void): void {
+        this.channel?.on(EVENTS.TUTORIAL_END, cb);
+    }
+
+    // ---- Phase-based multiplayer ----
+
+    onPhaseChange(cb: (data: PhaseChangePayload) => void): void {
+        this.channel?.on(EVENTS.PHASE_CHANGE, cb);
+    }
+
+    onPlayerSelection(cb: (data: PlayerSelectionPayload) => void): void {
+        this.channel?.on(EVENTS.PLAYER_SELECTION, cb);
+    }
+
+    onRevealResult(cb: (data: RevealResultPayload) => void): void {
+        this.channel?.on(EVENTS.REVEAL_RESULT, cb);
+    }
+
+    // ---- Interactive Tutorial ----
+
+    sendTutorialProgress(data: TutorialProgressPayload): void {
+        this.channel?.emit(EVENTS.TUTORIAL_PROGRESS, data);
+    }
+
+    onTutorialStatusUpdate(cb: (data: TutorialStatusUpdatePayload) => void): void {
+        this.channel?.on(EVENTS.TUTORIAL_STATUS_UPDATE, cb);
     }
 }

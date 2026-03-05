@@ -1,0 +1,38 @@
+# docker-compose.yml
+# Usage: docker-compose up -d
+#
+# This configuration:
+# - Mounts the data folder from the host (persists database across container restarts)
+# - Loads environment variables from .env file on the host
+# - Uses host network mode for WebRTC UDP ports
+#
+# Prerequisites:
+# 1. Place this docker-compose.yml in the server folder (next to .env)
+# 2. Ensure your QuizzWall.sqlite is in ./src/data/ on the host
+# 3. Run: docker-compose up -d --build
+
+services:
+  quizwall-server:
+    build: .
+    container_name: quizwall-server
+    restart: unless-stopped
+    
+    # Load environment variables from .env file on host
+    env_file:
+      - .env
+    
+    # Set environment variables for paths on host
+    environment:
+      # Database file path - will be in src/data folder
+      - DB_PATH=/app/src/data/QuizzWall.sqlite
+    
+    # Mount host data folder to container's src/data
+    # The host folder should contain QuizzWall.sqlite
+    volumes:
+      - ./src/data:/app/src/data:rw
+    
+    # Use host network for UDP ports (WebRTC)
+    network_mode: host
+
+# Note: With network_mode: host, ports are not mapped.
+# The server runs directly on host ports 3000 (HTTP) and 9000-9100 (UDP)
