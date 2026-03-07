@@ -142,6 +142,7 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
                 tutorialState.players.set(c.clientId, {
                     controllerId: c.clientId,
                     colorIndex: c.colorIndex,
+                    name: c.name || undefined,
                     currentStep: 'waiting' as TutorialStep,
                     completedSling: false,
                     completedTiltLeft: false,
