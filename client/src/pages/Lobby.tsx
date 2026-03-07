@@ -4,7 +4,7 @@
 // Member: I'm Ready button
 // ==========================================
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { LobbyState, PlayerRole } from '../shared/types';
 import { CROSSHAIR_COLORS } from '../shared/types';
 import '../index.css';
@@ -51,8 +51,48 @@ export default function Lobby({
     const [teamName, setTeamName] = useState('');
     const [nameSubmitted, setNameSubmitted] = useState(false);
     const [isReady, setIsReady] = useState(false);
-    const [playerName, setPlayerName] = useState('');
-    const [playerNameSubmitted, setPlayerNameSubmitted] = useState(false);
+    
+    // Persist player name in sessionStorage so it survives game restarts
+    const savedPlayerName = sessionStorage.getItem('slingshot_player_name') || '';
+    const [playerName, setPlayerName] = useState(savedPlayerName);
+    const [playerNameSubmitted, setPlayerNameSubmitted] = useState(savedPlayerName.length >= 2);
+    const [isFadingOut, setIsFadingOut] = useState(false);
+    const fadeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    // Cleanup timeout on unmount
+    useEffect(() => {
+        return () => {
+            if (fadeTimeoutRef.current) {
+                clearTimeout(fadeTimeoutRef.current);
+            }
+        };
+    }, []);
+
+    // Auto-submit saved player name on mount (for game restarts)
+    useEffect(() => {
+        if (savedPlayerName.length >= 2 && !playerNameSubmitted) {
+            onSetPlayerName(savedPlayerName);
+            setPlayerNameSubmitted(true);
+        }
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+    const handleSubmitPlayerName = () => {
+        const trimmed = playerName.trim();
+        if (trimmed.length < 2) return;
+        
+        // Save to sessionStorage for persistence across game restarts
+        sessionStorage.setItem('slingshot_player_name', trimmed);
+        
+        // Start fade out animation
+        setIsFadingOut(true);
+        
+        // After animation, submit and hide
+        fadeTimeoutRef.current = setTimeout(() => {
+            onSetPlayerName(trimmed);
+            setPlayerNameSubmitted(true);
+            setIsFadingOut(false);
+        }, 300); // Match animation duration
+    };
 
     const handleSubmitName = () => {
         const trimmed = teamName.trim();
@@ -64,18 +104,13 @@ export default function Lobby({
     const handleReady = () => {
         // Submit player name before readying up
         if (playerName.trim().length >= 2 && !playerNameSubmitted) {
-            onSetPlayerName(playerName.trim());
+            const trimmed = playerName.trim();
+            sessionStorage.setItem('slingshot_player_name', trimmed);
+            onSetPlayerName(trimmed);
             setPlayerNameSubmitted(true);
         }
         setIsReady(true);
         onReady();
-    };
-
-    const handleSubmitPlayerName = () => {
-        const trimmed = playerName.trim();
-        if (trimmed.length < 2) return;
-        onSetPlayerName(trimmed);
-        setPlayerNameSubmitted(true);
     };
 
     // If local nameSubmitted is false but the lobby already has a team name 
@@ -211,8 +246,18 @@ export default function Lobby({
 
                     {/* Leader player name input */}
                     {!playerNameSubmitted ? (
-                        <div style={{ marginBottom: '1.5rem' }}>
-                            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '0.5rem', fontWeight: 600 }}>Your display name</p>
+                        <div style={{
+                            marginBottom: '1.5rem',
+                            padding: '1rem',
+                            background: 'rgba(139, 92, 246, 0.08)',
+                            borderRadius: 'var(--radius-md)',
+                            border: '2px solid rgba(139, 92, 246, 0.5)',
+                            boxShadow: '0 0 20px rgba(139, 92, 246, 0.3)',
+                            animation: isFadingOut ? 'fadeOut 0.3s ease-out forwards' : 'fadeIn 0.3s ease-out',
+                        }}>
+                            <p style={{ color: '#a78bfa', fontSize: '0.9rem', marginBottom: '0.75rem', fontWeight: 700, animation: 'pulse 2s infinite' }}>
+                                ⚡ Enter your name to continue
+                            </p>
                             <div style={{ display: 'flex', gap: '0.5rem' }}>
                                 <input
                                     type="text"
@@ -221,13 +266,14 @@ export default function Lobby({
                                     onKeyDown={(e) => e.key === 'Enter' && handleSubmitPlayerName()}
                                     placeholder="Enter your name..."
                                     maxLength={20}
+                                    autoFocus
                                     style={{
                                         flex: 1,
                                         padding: '0.65rem 0.8rem',
                                         fontSize: '0.9rem',
                                         fontWeight: 700,
                                         background: 'rgba(255,255,255,0.06)',
-                                        border: '2px solid var(--glass-border)',
+                                        border: '2px solid rgba(139, 92, 246, 0.6)',
                                         borderRadius: 'var(--radius-sm)',
                                         color: '#fff',
                                         outline: 'none',
@@ -237,25 +283,21 @@ export default function Lobby({
                                 />
                                 <button
                                     onClick={handleSubmitPlayerName}
-                                    disabled={playerName.trim().length < 2}
+                                    disabled={playerName.trim().length < 2 || isFadingOut}
                                     style={{
                                         padding: '0.65rem 1rem',
                                         fontSize: '0.85rem',
                                         fontWeight: 800,
-                                        background: playerName.trim().length >= 2 ? 'var(--accent-primary)' : 'rgba(255,255,255,0.1)',
+                                        background: playerName.trim().length >= 2 ? 'var(--accent-success)' : 'rgba(255,255,255,0.1)',
                                         border: 'none',
                                         borderRadius: 'var(--radius-sm)',
                                         color: 'white',
-                                        cursor: playerName.trim().length >= 2 ? 'pointer' : 'not-allowed',
+                                        cursor: playerName.trim().length >= 2 && !isFadingOut ? 'pointer' : 'not-allowed',
                                     }}
                                 >✓</button>
                             </div>
                         </div>
-                    ) : (
-                        <p style={{ color: 'var(--accent-success)', fontSize: '0.85rem', marginBottom: '1rem', fontWeight: 600 }}>
-                            ✓ Playing as "{playerName.trim()}"
-                        </p>
-                    )}
+                    ) : null}
 
                     {/* Members list */}
                     <div style={{ marginBottom: '2rem' }}>
@@ -305,20 +347,27 @@ export default function Lobby({
                         </p>
                     )}
 
+                    {/* Show name confirmation after submission */}
+                    {playerNameSubmitted && (
+                        <p style={{ color: 'var(--accent-success)', fontSize: '0.85rem', marginBottom: '1rem', fontWeight: 600 }}>
+                            ✓ Playing as "{playerName.trim()}"
+                        </p>
+                    )}
+
                     <button
                         onClick={onStartGame}
-                        disabled={!allReady}
+                        disabled={!allReady || !playerNameSubmitted}
                         style={{
                             width: '100%',
                             padding: '1.25rem 2rem',
                             fontSize: '1.3rem',
                             fontWeight: 900,
-                            background: allReady ? 'var(--accent-primary)' : 'rgba(255,255,255,0.08)',
+                            background: allReady && playerNameSubmitted ? 'var(--accent-primary)' : 'rgba(255,255,255,0.08)',
                             border: 'none',
                             borderRadius: 'var(--radius-md)',
-                            color: allReady ? 'white' : 'var(--text-secondary)',
-                            cursor: allReady ? 'pointer' : 'not-allowed',
-                            boxShadow: allReady ? '0 8px 25px rgba(103, 80, 164, 0.5)' : 'none',
+                            color: allReady && playerNameSubmitted ? 'white' : 'var(--text-secondary)',
+                            cursor: allReady && playerNameSubmitted ? 'pointer' : 'not-allowed',
+                            boxShadow: allReady && playerNameSubmitted ? '0 8px 25px rgba(103, 80, 164, 0.5)' : 'none',
                             transition: 'all 0.3s ease',
                             letterSpacing: '1px',
                         }}
@@ -357,8 +406,18 @@ export default function Lobby({
 
                 {/* Member player name input */}
                 {!playerNameSubmitted ? (
-                    <div style={{ marginBottom: '1.5rem' }}>
-                        <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '0.5rem', fontWeight: 600 }}>Your display name</p>
+                    <div style={{
+                        marginBottom: '1.5rem',
+                        padding: '1rem',
+                        background: 'rgba(139, 92, 246, 0.08)',
+                        borderRadius: 'var(--radius-md)',
+                        border: '2px solid rgba(139, 92, 246, 0.5)',
+                        boxShadow: '0 0 20px rgba(139, 92, 246, 0.3)',
+                        animation: isFadingOut ? 'fadeOut 0.3s ease-out forwards' : 'fadeIn 0.3s ease-out',
+                    }}>
+                        <p style={{ color: '#a78bfa', fontSize: '0.9rem', marginBottom: '0.75rem', fontWeight: 700, animation: 'pulse 2s infinite' }}>
+                            ⚡ Enter your name to continue
+                        </p>
                         <div style={{ display: 'flex', gap: '0.5rem' }}>
                             <input
                                 type="text"
@@ -367,13 +426,14 @@ export default function Lobby({
                                 onKeyDown={(e) => e.key === 'Enter' && handleSubmitPlayerName()}
                                 placeholder="Enter your name..."
                                 maxLength={20}
+                                autoFocus
                                 style={{
                                     flex: 1,
                                     padding: '0.65rem 0.8rem',
                                     fontSize: '0.9rem',
                                     fontWeight: 700,
                                     background: 'rgba(255,255,255,0.06)',
-                                    border: '2px solid var(--glass-border)',
+                                    border: '2px solid rgba(139, 92, 246, 0.6)',
                                     borderRadius: 'var(--radius-sm)',
                                     color: '#fff',
                                     outline: 'none',
@@ -383,25 +443,21 @@ export default function Lobby({
                             />
                             <button
                                 onClick={handleSubmitPlayerName}
-                                disabled={playerName.trim().length < 2}
+                                disabled={playerName.trim().length < 2 || isFadingOut}
                                 style={{
                                     padding: '0.65rem 1rem',
                                     fontSize: '0.85rem',
                                     fontWeight: 800,
-                                    background: playerName.trim().length >= 2 ? 'var(--accent-primary)' : 'rgba(255,255,255,0.1)',
+                                    background: playerName.trim().length >= 2 ? 'var(--accent-success)' : 'rgba(255,255,255,0.1)',
                                     border: 'none',
                                     borderRadius: 'var(--radius-sm)',
                                     color: 'white',
-                                    cursor: playerName.trim().length >= 2 ? 'pointer' : 'not-allowed',
+                                    cursor: playerName.trim().length >= 2 && !isFadingOut ? 'pointer' : 'not-allowed',
                                 }}
                             >✓</button>
                         </div>
                     </div>
-                ) : (
-                    <p style={{ color: 'var(--accent-success)', fontSize: '0.85rem', marginBottom: '1rem', fontWeight: 600 }}>
-                        ✓ Playing as "{playerName.trim()}"
-                    </p>
-                )}
+                ) : null}
 
                 {/* Members list */}
                 <div style={{ marginBottom: '2rem' }}>
@@ -445,21 +501,28 @@ export default function Lobby({
                     ))}
                 </div>
 
+                {/* Show name confirmation after submission */}
+                {playerNameSubmitted && (
+                    <p style={{ color: 'var(--accent-success)', fontSize: '0.85rem', marginBottom: '1rem', fontWeight: 600 }}>
+                        ✓ Playing as "{playerName.trim()}"
+                    </p>
+                )}
+
                 {!isReady ? (
                     <button
                         onClick={handleReady}
-                        disabled={false}
+                        disabled={!playerNameSubmitted}
                         style={{
                             width: '100%',
                             padding: '1.25rem 2rem',
                             fontSize: '1.3rem',
                             fontWeight: 900,
-                            background: 'var(--accent-success)',
+                            background: playerNameSubmitted ? 'var(--accent-success)' : 'rgba(255,255,255,0.08)',
                             border: 'none',
                             borderRadius: 'var(--radius-md)',
-                            color: 'white',
-                            cursor: 'pointer',
-                            boxShadow: '0 8px 25px rgba(16, 185, 129, 0.4)',
+                            color: playerNameSubmitted ? 'white' : 'var(--text-secondary)',
+                            cursor: playerNameSubmitted ? 'pointer' : 'not-allowed',
+                            boxShadow: playerNameSubmitted ? '0 8px 25px rgba(16, 185, 129, 0.4)' : 'none',
                             letterSpacing: '1px',
                         }}
                     >
