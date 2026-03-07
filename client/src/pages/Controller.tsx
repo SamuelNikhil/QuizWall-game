@@ -76,11 +76,17 @@ export default function Controller() {
     const tutorialTiltDownDetected = useRef(false);
     const lastTiltSendRef = useRef<number>(0); // throttle tilt position sends
 
-    // ---- Gyroscope ----
+    // ---- Gyroscope state - KEPT FOR FUTURE USE (currently disabled) ----
+    // These are kept for potential future gyro re-enablement
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const [gyroEnabled, setGyroEnabled] = useState(false);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const [gyroCalibrated, setGyroCalibrated] = useState(false);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const [gyroCalibration, setGyroCalibration] = useState({ alpha: 0, beta: 0, gamma: 0 });
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const gyroPermissionRequested = useRef(false);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const orientationListenerActive = useRef(false);
 
     // Use refs for real-time values to avoid stale closures in gyro handler
@@ -88,9 +94,10 @@ export default function Controller() {
     const gyroCalibrationRef = useRef({ alpha: 0, beta: 0, gamma: 0 });
     const gyroEnabledRef = useRef(false);
 
-    // Sync refs with state
+    // Sync refs with state - gyro is always disabled so these stay false
     useEffect(() => { isDraggingRef.current = isDragging; }, [isDragging]);
     useEffect(() => { gyroCalibrationRef.current = gyroCalibration; }, [gyroCalibration]);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     useEffect(() => { gyroEnabledRef.current = gyroEnabled; }, [gyroEnabled]);
     useEffect(() => { tutorialStepRef.current = tutorialStep; }, [tutorialStep]);
 
@@ -133,6 +140,11 @@ export default function Controller() {
 
             client.onLobbyUpdate((data) => {
                 setLobby(data);
+            });
+
+            client.onRolePromoted((data) => {
+                console.log('[Room] Role promoted to:', data.role);
+                setRole(data.role);
             });
 
             client.onTutorialStart((_data: { duration: number }) => {
@@ -427,7 +439,8 @@ export default function Controller() {
         throttledSendCrosshair(x, y);
     }, [phase, throttledSendCrosshair]); // Only depend on phase and throttled function, use refs for everything else
 
-    // ---- Unified Gyro permission request (iOS + Android) ----
+    // ---- Gyro permission request - DISABLED FOR NOW, KEPT FOR FUTURE USE ----
+    /*
     const requestGyroPermission = useCallback(async () => {
         // Prevent double requests
         if (gyroPermissionRequested.current) return;
@@ -517,6 +530,7 @@ export default function Controller() {
             calibrateGyro();
         }
     }, [gyroEnabled, gyroCalibrated, calibrateGyro]);
+    */
 
     // ---- Slingshot touch handlers ----
 
@@ -538,7 +552,7 @@ export default function Controller() {
         try { navigator?.vibrate?.(15); } catch { /* unsupported */ }
 
         if (phase === 'playing') {
-            clientRef.current?.sendStartAiming(gyroEnabled);
+            clientRef.current?.sendStartAiming();
         }
     }, [phase, gyroEnabled, isMultiplayer]);
 
@@ -654,9 +668,6 @@ export default function Controller() {
                     clientRef.current?.close();
                     window.location.href = '/';
                 }}
-                gyroEnabled={gyroEnabled}
-                gyroCalibrated={gyroCalibrated}
-                onRequestGyro={requestGyroPermission}
             />
         );
     }
