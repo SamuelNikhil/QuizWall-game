@@ -770,7 +770,7 @@ export default function Screen() {
                                         background: color, boxShadow: `0 0 10px ${color}`,
                                     }} />
                                     <span style={{ fontWeight: 800, fontSize: '1.1rem', color: '#fff' }}>
-                                        Player {idx + 1}
+                                        {player.name || `Player ${idx + 1}`}
                                     </span>
                                 </div>
 
