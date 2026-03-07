@@ -166,6 +166,7 @@ export interface TutorialStatusUpdatePayload {
 export interface TutorialPlayerStatus {
     controllerId: string;
     colorIndex: number;
+    name?: string; // Player display name
     currentStep: TutorialStep;
     completedSling: boolean;
     completedTiltLeft: boolean;
