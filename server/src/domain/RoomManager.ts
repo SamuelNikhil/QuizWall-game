@@ -126,8 +126,13 @@ export class RoomManager {
         // First controller = leader, rest = members
         const role: PlayerRole = room.controllers.length === 0 ? 'leader' : 'member';
 
-        // Assign color index based on position (0, 1, 2 for up to 3 players)
-        const colorIndex = room.controllers.length;
+        // Find the first available color index (for when players leave and rejoin)
+        const usedColorIndices = new Set(room.controllers.map(c => c.colorIndex));
+        let colorIndex = 0;
+        while (usedColorIndices.has(colorIndex) && colorIndex < 3) {
+            colorIndex++;
+        }
+        // If all 3 slots are taken, use the next available (shouldn't happen with max 3 players)
 
         // Assign default name based on position
         const playerNumber = room.controllers.length + 1;
@@ -248,23 +253,33 @@ export class RoomManager {
     }
 
     /** Remove a controller from its room */
-    removeController(channelId: string): { room: Room | null; wasLeader: boolean } {
+    removeController(channelId: string): { room: Room | null; wasLeader: boolean; promotedControllerId?: string } {
         for (const [, room] of this.rooms) {
             const idx = room.controllers.findIndex((c) => c.id === channelId);
             if (idx !== -1) {
                 const wasLeader = room.controllers[idx].role === 'leader';
+                const leftColorIndex = room.controllers[idx].colorIndex;
                 room.controllers.splice(idx, 1);
                 room.lastActivity = Date.now();
+
+                // Reassign color indices to remaining controllers (fill the gap)
+                room.controllers.forEach((c, i) => {
+                    c.colorIndex = i;
+                });
+
+                let promotedControllerId: string | undefined;
 
                 // If leader left and there are still members, promote first member
                 if (wasLeader && room.controllers.length > 0) {
                     room.controllers[0].role = 'leader';
-                    room.controllers[0].isReady = true;
-
+                    room.controllers[0].isReady = true; // New leader is always ready
+                    promotedControllerId = room.controllers[0].clientId;
+                    console.log(`[Room] Leader left - promoted controller ${room.controllers[0].clientId} as new leader`);
                 }
 
+                console.log(`[Room] Controller left (colorIndex: ${leftColorIndex}), remaining: ${room.controllers.length}`);
 
-                return { room, wasLeader };
+                return { room, wasLeader, promotedControllerId };
             }
         }
         return { room: null, wasLeader: false };

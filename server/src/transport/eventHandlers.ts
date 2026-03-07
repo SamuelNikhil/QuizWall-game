@@ -681,11 +681,20 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
                     }
                 }
             } else if (role === 'controller') {
-                const { room, wasLeader } = roomManager.removeController(channel.id);
+                const { room, wasLeader, promotedControllerId } = roomManager.removeController(channel.id);
                 if (room) {
 
                     room.screenChannel.emit(EVENTS.CONTROLLER_LEFT, { controllerId: channel.id });
                     broadcastLobbyUpdate(roomManager, room.roomId);
+
+                    // Notify the promoted controller of their new role
+                    if (promotedControllerId) {
+                        const promotedController = room.controllers.find(c => c.clientId === promotedControllerId);
+                        if (promotedController) {
+                            promotedController.channel.emit(EVENTS.ROLE_PROMOTED, { role: 'leader' });
+                            console.log(`[Events] Emitted ROLE_PROMOTED to ${promotedControllerId}`);
+                        }
+                    }
                 } else {
 
                 }

@@ -11,6 +11,7 @@ export const EVENTS = {
     JOINED_ROOM: 'joinedRoom',
     CONTROLLER_JOINED: 'controllerJoined',
     CONTROLLER_LEFT: 'controllerLeft',
+    ROLE_PROMOTED: 'rolePromoted',
 
     // --- Team & Lobby ---
     SET_TEAM_NAME: 'setTeamName',

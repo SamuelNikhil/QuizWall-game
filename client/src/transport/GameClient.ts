@@ -188,8 +188,9 @@ export class GameClient {
         this.channel?.emit(EVENTS.CROSSHAIR, { x, y }, { reliable: false });
     }
 
-    sendStartAiming(gyroEnabled: boolean): void {
-        this.channel?.emit(EVENTS.START_AIMING, { gyroEnabled });
+    sendStartAiming(): void {
+        // Gyro is disabled for now - kept for future use
+        this.channel?.emit(EVENTS.START_AIMING, { gyroEnabled: false });
     }
 
     sendCancelAiming(): void {
@@ -220,6 +221,10 @@ export class GameClient {
 
     onControllerLeft(cb: (data: { controllerId: string }) => void): void {
         this.channel?.on(EVENTS.CONTROLLER_LEFT, cb);
+    }
+
+    onRolePromoted(cb: (data: { role: PlayerRole }) => void): void {
+        this.channel?.on(EVENTS.ROLE_PROMOTED, cb);
     }
 
     onLobbyUpdate(cb: (data: LobbyState) => void): void {

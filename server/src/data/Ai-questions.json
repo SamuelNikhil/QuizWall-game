@@ -1,81 +1,33 @@
 {
     "topic": "animals-easy-and-simple",
-    "generatedAt": "2026-03-04T04:48:51.457Z",
+    "generatedAt": "2026-03-07T07:24:25.418Z",
     "questions": [
         {
-            "id": 1,
-            "text": "What is the primary source of food for giant pandas?",
+            "id": 21,
+            "text": "What is the typical lifespan of a goldfish in captivity?",
             "options": [
                 {
                     "id": "A",
-                    "text": "Small mammals and birds"
+                    "text": "1-2 years"
                 },
                 {
                     "id": "B",
-                    "text": "Bamboo and small insects"
+                    "text": "5-7 years"
                 },
                 {
                     "id": "C",
-                    "text": "Fruits and nuts"
+                    "text": "15-20 years"
                 },
                 {
                     "id": "D",
-                    "text": "Bamboo"
-                }
-            ],
-            "correct": "D",
-            "category": "animals-easy-and-simple"
-        },
-        {
-            "id": 2,
-            "text": "Which of the following animals has the longest migration route?",
-            "options": [
-                {
-                    "id": "A",
-                    "text": "Elephant seal"
-                },
-                {
-                    "id": "B",
-                    "text": "Arctic tern"
-                },
-                {
-                    "id": "C",
-                    "text": "Caribou"
-                },
-                {
-                    "id": "D",
-                    "text": "Gray whale"
+                    "text": "10-12 years"
                 }
             ],
             "correct": "B",
             "category": "animals-easy-and-simple"
         },
         {
-            "id": 3,
-            "text": "What is unique about the axolotl's ability to regrow its limbs?",
-            "options": [
-                {
-                    "id": "A",
-                    "text": "It can only regrow its back limbs"
-                },
-                {
-                    "id": "B",
-                    "text": "It can only regrow its limbs during a specific season"
-                },
-                {
-                    "id": "C",
-                    "text": "It can only regrow its front limbs"
-                },
-                {
-                    "id": "D",
-                    "text": "It can regrow its limbs throughout its entire lifetime"
-                }
-            ],
-            "correct": "D",
-            "category": "animals-easy-and-simple"
-        },
-        {
-            "id": 4,
+            "id": 22,
             "text": "Which of the following birds is known for its distinctive call that sounds like laughter?",
             "options": [
                 {
@@ -84,7 +36,7 @@
                 },
                 {
                     "id": "B",
-                    "text": "Ostrich"
+                    "text": "Penguin"
                 },
                 {
                     "id": "C",
@@ -92,15 +44,15 @@
                 },
                 {
                     "id": "D",
-                    "text": "Penguin"
+                    "text": "Flamingo"
                 }
             ],
             "correct": "C",
             "category": "animals-easy-and-simple"
         },
         {
-            "id": 5,
-            "text": "What is the fastest land animal?",
+            "id": 23,
+            "text": "What is the fastest land animal, capable of reaching speeds of up to 70 mph?",
             "options": [
                 {
                     "id": "A",
@@ -108,71 +60,119 @@
                 },
                 {
                     "id": "B",
-                    "text": "Jaguar"
+                    "text": "Elephant"
                 },
                 {
                     "id": "C",
-                    "text": "Leopard"
-                },
-                {
-                    "id": "D",
                     "text": "Cheetah"
-                }
-            ],
-            "correct": "D",
-            "category": "animals-easy-and-simple"
-        },
-        {
-            "id": 6,
-            "text": "Which of the following animals has a built-in 'parachute' to help it fall from trees?",
-            "options": [
-                {
-                    "id": "A",
-                    "text": "Koala"
-                },
-                {
-                    "id": "B",
-                    "text": "Squirrel"
-                },
-                {
-                    "id": "C",
-                    "text": "Chipmunk"
                 },
                 {
                     "id": "D",
-                    "text": "Sugar glider"
+                    "text": "Giraffe"
                 }
             ],
-            "correct": "D",
+            "correct": "C",
             "category": "animals-easy-and-simple"
         },
         {
-            "id": 7,
-            "text": "What is the largest species of lizard?",
+            "id": 24,
+            "text": "Which insect is known for its distinctive 'waggle dance' to communicate with its colony?",
             "options": [
                 {
                     "id": "A",
-                    "text": "Green iguana"
+                    "text": "Grasshopper"
                 },
                 {
                     "id": "B",
-                    "text": "Black mamba"
+                    "text": "Butterfly"
                 },
                 {
                     "id": "C",
-                    "text": "Saltwater crocodile"
+                    "text": "Ant"
                 },
                 {
                     "id": "D",
-                    "text": "Komodo dragon"
+                    "text": "Bee"
                 }
             ],
             "correct": "D",
             "category": "animals-easy-and-simple"
         },
         {
-            "id": 8,
-            "text": "Which of the following animals can change its body color to blend in with its surroundings?",
+            "id": 25,
+            "text": "What is the largest species of shark, which can grow up to 40 feet in length?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Great White Shark"
+                },
+                {
+                    "id": "B",
+                    "text": "Hammerhead Shark"
+                },
+                {
+                    "id": "C",
+                    "text": "Tiger Shark"
+                },
+                {
+                    "id": "D",
+                    "text": "Whale Shark"
+                }
+            ],
+            "correct": "D",
+            "category": "animals-easy-and-simple"
+        },
+        {
+            "id": 26,
+            "text": "Which of the following animals has the longest migration pattern, traveling over 12,000 miles each year?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Caribou"
+                },
+                {
+                    "id": "B",
+                    "text": "Arctic Tern"
+                },
+                {
+                    "id": "C",
+                    "text": "Gray Whale"
+                },
+                {
+                    "id": "D",
+                    "text": "Monarch Butterfly"
+                }
+            ],
+            "correct": "B",
+            "category": "animals-easy-and-simple"
+        },
+        {
+            "id": 27,
+            "text": "What is the smallest species of bear, which is found in the forests of North America?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Brown Bear"
+                },
+                {
+                    "id": "B",
+                    "text": "Polar Bear"
+                },
+                {
+                    "id": "C",
+                    "text": "Black Bear"
+                },
+                {
+                    "id": "D",
+                    "text": "Sun Bear"
+                }
+            ],
+            "correct": "D",
+            "category": "animals-easy-and-simple"
+        },
+        {
+            "id": 28,
+            "text": "Which of the following animals is known for its unique ability to change its body color to blend in with its surroundings?",
             "options": [
                 {
                     "id": "A",
@@ -195,51 +195,51 @@
             "category": "animals-easy-and-simple"
         },
         {
-            "id": 9,
-            "text": "What is the only mammal that can fly?",
+            "id": 29,
+            "text": "What is the largest species of cat, which is found in the mountains of Central Asia?",
             "options": [
                 {
                     "id": "A",
-                    "text": "Sugar glider"
+                    "text": "Leopard"
                 },
                 {
                     "id": "B",
-                    "text": "Bat"
+                    "text": "Snow Leopard"
                 },
                 {
                     "id": "C",
-                    "text": "Colugo"
+                    "text": "Tiger"
                 },
                 {
                     "id": "D",
-                    "text": "Flying squirrel"
+                    "text": "Lion"
                 }
             ],
             "correct": "B",
             "category": "animals-easy-and-simple"
         },
         {
-            "id": 10,
-            "text": "Which of the following animals has the strongest sense of smell?",
+            "id": 30,
+            "text": "Which of the following animals has the strongest sense of smell, with some species able to detect scents from over a mile away?",
             "options": [
                 {
                     "id": "A",
-                    "text": "Shark"
+                    "text": "German Shepherd"
                 },
                 {
                     "id": "B",
-                    "text": "Bloodhound"
+                    "text": "Elephant"
                 },
                 {
                     "id": "C",
-                    "text": "Rhinoceros"
+                    "text": "Shark"
                 },
                 {
                     "id": "D",
-                    "text": "Elephant"
+                    "text": "Bloodhound"
                 }
             ],
-            "correct": "B",
+            "correct": "D",
             "category": "animals-easy-and-simple"
         }
     ]
