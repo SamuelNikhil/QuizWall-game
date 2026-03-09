@@ -44,6 +44,7 @@ export default function Controller() {
     const [gameOverReason, setGameOverReason] = useState<'time' | 'completed' | 'all_wrong'>('time');
     const [lastHit, setLastHit] = useState<{ correct: boolean } | null>(null);
     const [playerScores, setPlayerScores] = useState<PlayerScoreEntry[]>([]);
+    const [scorePopups, setScorePopups] = useState<{ id: string; score: number; bonus: number; colorIndex: number }[]>([]);
 
     // Phase-based multiplayer state
     const [currentPhase, setCurrentPhase] = useState<QuestionPhase | null>(null);
@@ -212,7 +213,7 @@ export default function Controller() {
                 setPhaseTimeLeft(data.timeLeft);
                 setIsMultiplayer(true);
                 // Reset selection lock when entering analysis phase (new question)
-                if (data.phase === 'analysis' && data.timeLeft === 2) {
+                if (data.phase === 'analysis' && data.timeLeft === 1) {
                     setHasSelectedThisRound(false);
                     hasSelectedRef.current = false;
                     setSelectedOrbId(null);
@@ -240,6 +241,24 @@ export default function Controller() {
                 // Show visual hit feedback
                 setLastHit({ correct: data.anyCorrect });
                 setTimeout(() => setLastHit(null), 1500);
+
+                // Show score popup ONLY for this player (not all players)
+                if (data.playerScores) {
+                    const myScore = data.playerScores.find(ps => ps.controllerId === clientIdRef.current);
+                    if (myScore && myScore.correct && myScore.score > 0) {
+                        const popupId = `score-${Date.now()}-${myScore.controllerId}`;
+                        setScorePopups(prev => [...prev, { 
+                            id: popupId, 
+                            score: myScore.score, 
+                            bonus: myScore.bonus, 
+                            colorIndex: myScore.colorIndex 
+                        }]);
+                        // Remove popup after animation
+                        setTimeout(() => {
+                            setScorePopups(prev => prev.filter(p => p.id !== popupId));
+                        }, 2000);
+                    }
+                }
             });
 
             client.onGameRestarted(() => {
@@ -578,8 +597,8 @@ export default function Controller() {
         setAimAngle(angle);
 
         if (!gyroEnabled) {
-            // Map pull direction to screen target
-            const tX = Math.max(0, Math.min(100, 50 + (dx / maxPull) * 50));
+            // Map pull direction to screen target (x-axis inverted)
+            const tX = Math.max(0, Math.min(100, 50 - (dx / maxPull) * 50));
             const tY = Math.max(0, Math.min(100, 50 - (dy / maxPull) * 50));
             setTargetXPercent(tX);
             setTargetYPercent(tY);
@@ -977,6 +996,56 @@ export default function Controller() {
                     }}
                 />
             )}
+
+            {/* Score Popups - show bonus points with player colors */}
+            {scorePopups.map((popup) => (
+                <div
+                    key={popup.id}
+                    style={{
+                        position: 'absolute',
+                        top: '30%',
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        zIndex: 3000,
+                        pointerEvents: 'none',
+                        animation: 'scorePopup 2s ease-out forwards',
+                    }}
+                >
+                    <div style={{
+                        background: `linear-gradient(135deg, ${CROSSHAIR_COLORS[popup.colorIndex]}22, ${CROSSHAIR_COLORS[popup.colorIndex]}44)`,
+                        border: `2px solid ${CROSSHAIR_COLORS[popup.colorIndex]}`,
+                        borderRadius: '12px',
+                        padding: '0.75rem 1.5rem',
+                        boxShadow: `0 0 20px ${CROSSHAIR_COLORS[popup.colorIndex]}66`,
+                        backdropFilter: 'blur(10px)',
+                    }}>
+                        <div style={{ 
+                            display: 'flex', 
+                            flexDirection: 'column', 
+                            alignItems: 'center',
+                            color: '#fff',
+                        }}>
+                            <span style={{ 
+                                fontSize: '1.8rem', 
+                                fontWeight: 900,
+                                textShadow: `0 0 10px ${CROSSHAIR_COLORS[popup.colorIndex]}`,
+                            }}>
+                                +{popup.score}
+                            </span>
+                            {popup.bonus > 0 && (
+                                <span style={{ 
+                                    fontSize: '0.85rem', 
+                                    fontWeight: 700,
+                                    color: CROSSHAIR_COLORS[popup.colorIndex],
+                                    marginTop: '-0.25rem',
+                                }}>
+                                    (+{popup.bonus} bonus!)
+                                </span>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            ))}
 
             {/* Header — phase-aware for multiplayer, classic for singleplayer */}
             <div style={{ position: 'absolute', top: 0, left: 0, right: 0, padding: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 10 }}>

@@ -20,6 +20,13 @@ export interface RoomController {
     channel: any; // Geckos.io ServerChannel
 }
 
+export interface DisconnectedPlayerScore {
+    clientId: string;
+    name: string;
+    colorIndex: number;
+    score: number;
+}
+
 export interface Room {
     roomId: string;
     joinToken: string;
@@ -30,6 +37,7 @@ export interface Room {
     teamManager: TeamManager;
     gameStarted: boolean;
     lastActivity: number; // Timestamp of last activity for idle reaping
+    disconnectedPlayerScores: Map<string, DisconnectedPlayerScore>; // Scores of players who left during gameplay
 }
 
 export class RoomManager {
@@ -71,6 +79,7 @@ export class RoomManager {
             teamManager: new TeamManager(),
             gameStarted: false,
             lastActivity: Date.now(),
+            disconnectedPlayerScores: new Map(),
         };
 
         this.rooms.set(roomId, room);
@@ -110,6 +119,15 @@ export class RoomManager {
             return { success: true, role: existing.role, colorIndex: existing.colorIndex };
         }
 
+        // 1.5 Check if this player had a previous score (rejoining after disconnect)
+        const previousScore = room.disconnectedPlayerScores.get(clientId);
+        
+        // If rejoining, remove from disconnected scores (will be added back if they leave again)
+        if (previousScore) {
+            room.disconnectedPlayerScores.delete(clientId);
+            console.log(`[Room] Player ${clientId} rejoining, clearing disconnected score entry`);
+        }
+
         // 2. Also check if this CHANNEL (connection) is in ANY other room and clean up
         this.removeController(channel.id);
 
@@ -127,16 +145,23 @@ export class RoomManager {
         const role: PlayerRole = room.controllers.length === 0 ? 'leader' : 'member';
 
         // Find the first available color index (for when players leave and rejoin)
+        // But prefer to restore the previous colorIndex if available
         const usedColorIndices = new Set(room.controllers.map(c => c.colorIndex));
         let colorIndex = 0;
-        while (usedColorIndices.has(colorIndex) && colorIndex < 3) {
-            colorIndex++;
+        
+        if (previousScore && !usedColorIndices.has(previousScore.colorIndex)) {
+            // Restore previous colorIndex if it's still available
+            colorIndex = previousScore.colorIndex;
+        } else {
+            // Find first available color index
+            while (usedColorIndices.has(colorIndex) && colorIndex < 3) {
+                colorIndex++;
+            }
         }
-        // If all 3 slots are taken, use the next available (shouldn't happen with max 3 players)
 
-        // Assign default name based on position
+        // Assign default name based on position, or restore previous name
         const playerNumber = room.controllers.length + 1;
-        const defaultName = playerNumber === 1 ? 'Leader' : `Player ${playerNumber}`;
+        const defaultName = previousScore?.name || (playerNumber === 1 ? 'Leader' : `Player ${playerNumber}`);
 
         const controller: RoomController = {
             id: channel.id,
@@ -145,9 +170,12 @@ export class RoomManager {
             isReady: role === 'leader', // Leader is always "ready"
             colorIndex,
             name: defaultName,
-            score: 0,
+            score: previousScore?.score || 0,
             channel,
         };
+
+        // Remove from disconnected scores since they've rejoined
+        // (Already handled above, keeping for clarity)
 
         room.controllers.push(controller);
         room.lastActivity = Date.now();
@@ -258,14 +286,30 @@ export class RoomManager {
             const idx = room.controllers.findIndex((c) => c.id === channelId);
             if (idx !== -1) {
                 const wasLeader = room.controllers[idx].role === 'leader';
-                const leftColorIndex = room.controllers[idx].colorIndex;
+                const leftController = room.controllers[idx];
+                const leftColorIndex = leftController.colorIndex;
+                
+                // If game is in progress, save the player's score so it's preserved on the scoreboard
+                if (room.gameStarted && leftController.score > 0) {
+                    room.disconnectedPlayerScores.set(leftController.clientId, {
+                        clientId: leftController.clientId,
+                        name: leftController.name,
+                        colorIndex: leftController.colorIndex,
+                        score: leftController.score,
+                    });
+                    console.log(`[Room] Saved score ${leftController.score} for disconnected player ${leftController.name} (${leftController.clientId})`);
+                }
+                
                 room.controllers.splice(idx, 1);
                 room.lastActivity = Date.now();
 
-                // Reassign color indices to remaining controllers (fill the gap)
-                room.controllers.forEach((c, i) => {
-                    c.colorIndex = i;
-                });
+                // Only reassign color indices if game hasn't started (in lobby)
+                // During gameplay, preserve color indices to avoid duplicate colors on scoreboard
+                if (!room.gameStarted) {
+                    room.controllers.forEach((c, i) => {
+                        c.colorIndex = i;
+                    });
+                }
 
                 let promotedControllerId: string | undefined;
 
@@ -351,14 +395,24 @@ export class RoomManager {
         const room = this.rooms.get(roomId);
         if (!room) return [];
 
-        return room.controllers
-            .map((c) => ({
-                controllerId: c.clientId,
-                name: c.name,
-                colorIndex: c.colorIndex,
-                score: c.score,
-            }))
-            .sort((a, b) => b.score - a.score);
+        // Get scores from active controllers
+        const activeScores = room.controllers.map((c) => ({
+            controllerId: c.clientId,
+            name: c.name,
+            colorIndex: c.colorIndex,
+            score: c.score,
+        }));
+
+        // Include scores from disconnected players
+        const disconnectedScores = Array.from(room.disconnectedPlayerScores.values()).map((p) => ({
+            controllerId: p.clientId,
+            name: p.name,
+            colorIndex: p.colorIndex,
+            score: p.score,
+        }));
+
+        // Combine and sort by score
+        return [...activeScores, ...disconnectedScores].sort((a, b) => b.score - a.score);
     }
 
     /** Reset all player scores (for game restart) */
@@ -369,6 +423,15 @@ export class RoomManager {
         for (const c of room.controllers) {
             c.score = 0;
         }
+    }
+
+    /** Clear disconnected player scores (called after game over) */
+    clearDisconnectedScores(roomId: string): void {
+        const room = this.rooms.get(roomId);
+        if (!room) return;
+        
+        room.disconnectedPlayerScores.clear();
+        console.log(`[Room] Cleared disconnected scores in ${roomId}`);
     }
 
     /** Reap idle rooms that have no controllers and haven't been active */

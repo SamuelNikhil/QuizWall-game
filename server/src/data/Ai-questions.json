@@ -1,42 +1,42 @@
 {
     "topic": "animals-easy-and-simple",
-    "generatedAt": "2026-03-07T07:24:25.418Z",
+    "generatedAt": "2026-03-09T13:30:28.635Z",
     "questions": [
         {
             "id": 21,
-            "text": "What is the typical lifespan of a goldfish in captivity?",
+            "text": "What is the primary source of food for giant pandas?",
             "options": [
                 {
                     "id": "A",
-                    "text": "1-2 years"
+                    "text": "Insects and small reptiles"
                 },
                 {
                     "id": "B",
-                    "text": "5-7 years"
+                    "text": "Fruits and berries"
                 },
                 {
                     "id": "C",
-                    "text": "15-20 years"
+                    "text": "Grasses and small mammals"
                 },
                 {
                     "id": "D",
-                    "text": "10-12 years"
+                    "text": "Bamboo shoots and leaves"
                 }
             ],
-            "correct": "B",
+            "correct": "D",
             "category": "animals-easy-and-simple"
         },
         {
             "id": 22,
-            "text": "Which of the following birds is known for its distinctive call that sounds like laughter?",
+            "text": "Which species of bird is known for its distinctive call that sounds like laughter?",
             "options": [
                 {
                     "id": "A",
-                    "text": "Pelican"
+                    "text": "Penguin"
                 },
                 {
                     "id": "B",
-                    "text": "Penguin"
+                    "text": "Pelican"
                 },
                 {
                     "id": "C",
@@ -44,7 +44,7 @@
                 },
                 {
                     "id": "D",
-                    "text": "Flamingo"
+                    "text": "Parrot"
                 }
             ],
             "correct": "C",
@@ -52,79 +52,31 @@
         },
         {
             "id": 23,
-            "text": "What is the fastest land animal, capable of reaching speeds of up to 70 mph?",
+            "text": "What is the fastest land animal?",
             "options": [
                 {
                     "id": "A",
-                    "text": "Lion"
-                },
-                {
-                    "id": "B",
-                    "text": "Elephant"
-                },
-                {
-                    "id": "C",
                     "text": "Cheetah"
                 },
                 {
-                    "id": "D",
+                    "id": "B",
+                    "text": "Leopard"
+                },
+                {
+                    "id": "C",
                     "text": "Giraffe"
+                },
+                {
+                    "id": "D",
+                    "text": "Lion"
                 }
             ],
-            "correct": "C",
+            "correct": "A",
             "category": "animals-easy-and-simple"
         },
         {
             "id": 24,
-            "text": "Which insect is known for its distinctive 'waggle dance' to communicate with its colony?",
-            "options": [
-                {
-                    "id": "A",
-                    "text": "Grasshopper"
-                },
-                {
-                    "id": "B",
-                    "text": "Butterfly"
-                },
-                {
-                    "id": "C",
-                    "text": "Ant"
-                },
-                {
-                    "id": "D",
-                    "text": "Bee"
-                }
-            ],
-            "correct": "D",
-            "category": "animals-easy-and-simple"
-        },
-        {
-            "id": 25,
-            "text": "What is the largest species of shark, which can grow up to 40 feet in length?",
-            "options": [
-                {
-                    "id": "A",
-                    "text": "Great White Shark"
-                },
-                {
-                    "id": "B",
-                    "text": "Hammerhead Shark"
-                },
-                {
-                    "id": "C",
-                    "text": "Tiger Shark"
-                },
-                {
-                    "id": "D",
-                    "text": "Whale Shark"
-                }
-            ],
-            "correct": "D",
-            "category": "animals-easy-and-simple"
-        },
-        {
-            "id": 26,
-            "text": "Which of the following animals has the longest migration pattern, traveling over 12,000 miles each year?",
+            "text": "Which animal has the longest migration route?",
             "options": [
                 {
                     "id": "A",
@@ -132,39 +84,87 @@
                 },
                 {
                     "id": "B",
-                    "text": "Arctic Tern"
+                    "text": "Gray whale"
                 },
                 {
                     "id": "C",
-                    "text": "Gray Whale"
+                    "text": "Monarch butterfly"
                 },
                 {
                     "id": "D",
-                    "text": "Monarch Butterfly"
+                    "text": "Arctic tern"
                 }
             ],
-            "correct": "B",
+            "correct": "D",
+            "category": "animals-easy-and-simple"
+        },
+        {
+            "id": 25,
+            "text": "What is the largest species of shark?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Great white shark"
+                },
+                {
+                    "id": "B",
+                    "text": "Tiger shark"
+                },
+                {
+                    "id": "C",
+                    "text": "Hammerhead shark"
+                },
+                {
+                    "id": "D",
+                    "text": "Whale shark"
+                }
+            ],
+            "correct": "D",
+            "category": "animals-easy-and-simple"
+        },
+        {
+            "id": 26,
+            "text": "Which animal has the strongest bite force?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Saltwater crocodile"
+                },
+                {
+                    "id": "B",
+                    "text": "Great white shark"
+                },
+                {
+                    "id": "C",
+                    "text": "Black mamba"
+                },
+                {
+                    "id": "D",
+                    "text": "Lion"
+                }
+            ],
+            "correct": "A",
             "category": "animals-easy-and-simple"
         },
         {
             "id": 27,
-            "text": "What is the smallest species of bear, which is found in the forests of North America?",
+            "text": "What is the smallest species of mammal?",
             "options": [
                 {
                     "id": "A",
-                    "text": "Brown Bear"
+                    "text": "Mouse"
                 },
                 {
                     "id": "B",
-                    "text": "Polar Bear"
+                    "text": "Squirrel"
                 },
                 {
                     "id": "C",
-                    "text": "Black Bear"
+                    "text": "Rabbit"
                 },
                 {
                     "id": "D",
-                    "text": "Sun Bear"
+                    "text": "Bumblebee bat"
                 }
             ],
             "correct": "D",
@@ -172,47 +172,47 @@
         },
         {
             "id": 28,
-            "text": "Which of the following animals is known for its unique ability to change its body color to blend in with its surroundings?",
+            "text": "Which animal is known for its unique ability to change its body color?",
             "options": [
                 {
                     "id": "A",
-                    "text": "Cuttlefish"
+                    "text": "Chameleon"
                 },
                 {
                     "id": "B",
-                    "text": "Squid"
+                    "text": "Cuttlefish"
                 },
                 {
                     "id": "C",
-                    "text": "Octopus"
+                    "text": "Squid"
                 },
                 {
                     "id": "D",
-                    "text": "Chameleon"
+                    "text": "Octopus"
                 }
             ],
-            "correct": "D",
+            "correct": "A",
             "category": "animals-easy-and-simple"
         },
         {
             "id": 29,
-            "text": "What is the largest species of cat, which is found in the mountains of Central Asia?",
+            "text": "What is the largest species of turtle?",
             "options": [
                 {
                     "id": "A",
-                    "text": "Leopard"
+                    "text": "Aldabra tortoise"
                 },
                 {
                     "id": "B",
-                    "text": "Snow Leopard"
+                    "text": "Leatherback sea turtle"
                 },
                 {
                     "id": "C",
-                    "text": "Tiger"
+                    "text": "Green sea turtle"
                 },
                 {
                     "id": "D",
-                    "text": "Lion"
+                    "text": "Loggerhead sea turtle"
                 }
             ],
             "correct": "B",
@@ -220,26 +220,26 @@
         },
         {
             "id": 30,
-            "text": "Which of the following animals has the strongest sense of smell, with some species able to detect scents from over a mile away?",
+            "text": "Which animal has the longest lifespan?",
             "options": [
                 {
                     "id": "A",
-                    "text": "German Shepherd"
+                    "text": "Whale"
                 },
                 {
                     "id": "B",
-                    "text": "Elephant"
+                    "text": "Ocean quahog"
                 },
                 {
                     "id": "C",
-                    "text": "Shark"
+                    "text": "Tortoise"
                 },
                 {
                     "id": "D",
-                    "text": "Bloodhound"
+                    "text": "Elephant"
                 }
             ],
-            "correct": "D",
+            "correct": "B",
             "category": "animals-easy-and-simple"
         }
     ]

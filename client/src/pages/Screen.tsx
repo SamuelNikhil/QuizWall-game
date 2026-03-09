@@ -260,7 +260,7 @@ export default function Screen() {
                 setQuestionNumber(data.questionNumber);
                 setIsMultiplayer(true);
                 // Clear selections when entering analysis phase (new question)
-                if (data.phase === 'analysis' && data.timeLeft === 2) {
+                if (data.phase === 'analysis' && data.timeLeft === 1) {
                     setPlayerSelections([]);
                     setRevealResult(null);
                 }

@@ -132,6 +132,7 @@ export interface PlayerSelectionPayload {
     controllerId: string;
     orbId: string;          // Which orb the player selected
     colorIndex: number;     // Player's crosshair color for visual marking
+    selectionTime?: number; // Seconds elapsed since selection phase started (for bonus scoring) - set by server
 }
 
 export interface RevealResultPayload {
@@ -140,6 +141,16 @@ export interface RevealResultPayload {
     anyCorrect: boolean;                     // Did at least one player get it right?
     points: number;                          // Points awarded (if any correct)
     noSelection: boolean;                    // True if NO player selected anything (Time's Up)
+    playerScores: PlayerScoreResult[];       // Individual player scores for this round
+}
+
+export interface PlayerScoreResult {
+    controllerId: string;
+    colorIndex: number;
+    score: number;           // Total score for this round (base + bonus)
+    baseScore: number;       // Base score (50)
+    bonus: number;           // Time bonus (0, 10, or 20)
+    correct: boolean;        // Whether they answered correctly
 }
 
 // ---------- Interactive Tutorial ----------

@@ -11,8 +11,8 @@ import type { ServerQuestion, ClientQuestion, QuestionPhase, PlayerSelectionPayl
 
 // Phase durations in seconds
 const PHASE_DURATIONS: Record<QuestionPhase, number> = {
-    analysis: 2,
-    selection: 15,
+    analysis: 1,
+    selection: 16,
     reveal: 3,
 };
 
@@ -40,6 +40,7 @@ export class QuizEngine {
     private phaseInterval: ReturnType<typeof setInterval> | null = null;
     private playerSelections: Map<string, PlayerSelectionPayload> = new Map(); // controllerId -> selection
     private questionNumberForUI: number = 0; // 1-indexed question counter for UI
+    private selectionPhaseStartTime: number = 0; // Timestamp when selection phase started (for bonus scoring)
 
     // Callbacks
     private onTimerTick?: (timeLeft: number) => void;
@@ -228,6 +229,11 @@ export class QuizEngine {
             this.playerSelections.clear();
         }
 
+        // Track when selection phase starts for bonus scoring
+        if (phase === 'selection') {
+            this.selectionPhaseStartTime = Date.now();
+        }
+
         console.log(`[QuizEngine] Phase: ${phase}, Time: ${this.phaseTimeLeft}s, Question: ${this.questionNumberForUI}`);
 
         // Notify clients of phase change
@@ -289,8 +295,10 @@ export class QuizEngine {
             return false;
         }
 
-        this.playerSelections.set(controllerId, { controllerId, orbId, colorIndex });
-        console.log(`[QuizEngine] Player ${controllerId.substring(0, 8)}... selected orb ${orbId}`);
+        // Calculate time elapsed since selection phase started (in seconds)
+        const selectionTime = (Date.now() - this.selectionPhaseStartTime) / 1000;
+        this.playerSelections.set(controllerId, { controllerId, orbId, colorIndex, selectionTime });
+        console.log(`[QuizEngine] Player ${controllerId.substring(0, 8)}... selected orb ${orbId} at ${selectionTime.toFixed(2)}s`);
         return true;
     }
 
@@ -311,7 +319,7 @@ export class QuizEngine {
         const correctOrbId = currentQuestion.correct;
         const selections = Array.from(this.playerSelections.values());
         const anyCorrect = selections.some(s => s.orbId === correctOrbId);
-        const points = anyCorrect ? 100 : 0;
+        const points = anyCorrect ? 50 : 0; // Base team score for correct answer
 
         // Track all questions attempted (correct + wrong)
         this.totalQuestionsAttempted++;

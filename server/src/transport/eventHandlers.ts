@@ -226,8 +226,8 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
 
                         // When entering analysis for a NEW question (not the first),
                         // send the next question to all clients
-                        // Note: analysis phase duration is 2 seconds, so timeLeft starts at 2
-                        if (phase === 'analysis' && timeLeft === 2 && questionNumber > 1) {
+                        // Note: analysis phase duration is 1 second, so timeLeft starts at 1
+                        if (phase === 'analysis' && timeLeft === 1 && questionNumber > 1) {
                             const nextQ = room.quizEngine.getLastSelectedQuestion();
                             if (nextQ) {
                                 room.screenChannel.emit(EVENTS.QUESTION, nextQ);
@@ -239,22 +239,53 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
                     },
                     // Reveal result
                     (result: RevealResultPayload) => {
-                        // Award team points if any correct
-                        if (result.anyCorrect) {
-                            room.teamManager.addScore(result.points);
+                        // Calculate individual player scores with time-based bonus
+                        // Base: 50 points for correct answer
+                        // Bonus: +20 if selected within first 5 seconds, +10 if within 5-10 seconds
+                        const playerScores: { controllerId: string; colorIndex: number; score: number; baseScore: number; bonus: number; correct: boolean }[] = [];
+                        let teamPointsThisRound = 0;
+                        
+                        for (const sel of result.selections) {
+                            const isCorrect = sel.orbId === result.correctOrbId;
+                            let score = 0;
+                            let baseScore = 0;
+                            let bonus = 0;
+                            
+                            if (isCorrect) {
+                                baseScore = 50; // Base score for correct answer
+                                const time = sel.selectionTime ?? 16; // Default to max time if undefined
+                                if (time <= 5) {
+                                    bonus = 20; // Fast answer bonus
+                                } else if (time <= 10) {
+                                    bonus = 10; // Medium answer bonus
+                                }
+                                score = baseScore + bonus;
+                                roomManager.addPlayerScore(roomId, sel.controllerId, score);
+                                teamPointsThisRound += score;
+                            }
+                            
+                            playerScores.push({
+                                controllerId: sel.controllerId,
+                                colorIndex: sel.colorIndex,
+                                score,
+                                baseScore,
+                                bonus,
+                                correct: isCorrect,
+                            });
                         }
 
-                        // Award individual player scores — each correct selector gets +100
-                        for (const sel of result.selections) {
-                            if (sel.orbId === result.correctOrbId) {
-                                roomManager.addPlayerScore(roomId, sel.controllerId, 100);
-                            }
+                        // Award team points (sum of all individual scores this round)
+                        if (teamPointsThisRound > 0) {
+                            room.teamManager.addScore(teamPointsThisRound);
                         }
+
+                        // Add player scores to result for client display
+                        const resultWithScores = { ...result, playerScores };
 
                         // Broadcast reveal to all
-                        room.screenChannel.emit(EVENTS.REVEAL_RESULT, result);
+                        room.screenChannel.emit(EVENTS.REVEAL_RESULT, resultWithScores);
                         for (const c of room.controllers) {
-                            c.channel.emit(EVENTS.REVEAL_RESULT, result);
+                            c.channel.emit(EVENTS.REVEAL_RESULT, resultWithScores);
                         }
 
                         // Broadcast score update
@@ -296,6 +327,10 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
                         for (const c of room.controllers) {
                             c.channel.emit(EVENTS.GAME_OVER, gameOverPayload);
                         }
+                        
+                        // Clear disconnected player scores after game over
+                        // They've been shown on the scoreboard, now clear for next game
+                        roomManager.clearDisconnectedScores(roomId);
                     }
                 );
 
@@ -343,6 +378,10 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
                         for (const c of room.controllers) {
                             c.channel.emit(EVENTS.GAME_OVER, gameOverPayload);
                         }
+                        
+                        // Clear disconnected player scores after game over
+                        // They've been shown on the scoreboard, now clear for next game
+                        roomManager.clearDisconnectedScores(roomId);
                     }
                 );
 
