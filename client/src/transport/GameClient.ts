@@ -8,7 +8,6 @@ import { EVENTS } from '../shared/protocol';
 import type {
     ClientQuestion,
     HitResultPayload,
-    WrongChoicesUpdate,
     ScoreUpdate,
     TimerSync,
     GameOverPayload,

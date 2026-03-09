@@ -440,3 +440,26 @@
 .fadeOut {
     animation: fadeOut 0.3s ease-out forwards;
 }
+
+/* --- Score Popup Animation --- */
+@keyframes scorePopup {
+    0% {
+        opacity: 0;
+        transform: translateX(-50%) translateY(20px) scale(0.5);
+    }
+    15% {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0) scale(1.2);
+    }
+    30% {
+        transform: translateX(-50%) translateY(-10px) scale(1);
+    }
+    70% {
+        opacity: 1;
+        transform: translateX(-50%) translateY(-30px) scale(1);
+    }
+    100% {
+        opacity: 0;
+        transform: translateX(-50%) translateY(-60px) scale(0.8);
+    }
+}
