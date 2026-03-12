@@ -23,26 +23,22 @@ export async function initDatabase(): Promise<Database> {
   }
 
   // Create tables
+  // Players table - stores individual player high scores
   db.run(`
-    CREATE TABLE IF NOT EXISTS teams (
+    CREATE TABLE IF NOT EXISTS players (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      client_id TEXT NOT NULL UNIQUE,
       name TEXT NOT NULL,
-      total_score INTEGER DEFAULT 0,
+      highest_score INTEGER DEFAULT 0,
       games_played INTEGER DEFAULT 0,
       created_at TEXT DEFAULT (datetime('now')),
       updated_at TEXT DEFAULT (datetime('now'))
     );
   `);
 
+  // Create index for faster client_id lookups
   db.run(`
-    CREATE TABLE IF NOT EXISTS game_sessions (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      room_id TEXT NOT NULL,
-      team_id INTEGER REFERENCES teams(id),
-      score INTEGER DEFAULT 0,
-      questions_answered INTEGER DEFAULT 0,
-      played_at TEXT DEFAULT (datetime('now'))
-    );
+    CREATE INDEX IF NOT EXISTS idx_players_client_id ON players(client_id)
   `);
 
   saveDatabase();

@@ -4,7 +4,6 @@
 
 import { randomBytes } from 'crypto';
 import { QuizEngine } from './QuizEngine.ts';
-import { TeamManager } from './TeamManager.ts';
 import { CONFIG } from '../infrastructure/config.ts';
 import type { PlayerRole, PlayerInfo, PlayerScoreEntry, LobbyState } from '../shared/types.ts';
 
@@ -34,7 +33,6 @@ export interface Room {
     screenChannel: any; // Geckos.io ServerChannel
     controllers: RoomController[];
     quizEngine: QuizEngine;
-    teamManager: TeamManager;
     gameStarted: boolean;
     lastActivity: number; // Timestamp of last activity for idle reaping
     disconnectedPlayerScores: Map<string, DisconnectedPlayerScore>; // Scores of players who left during gameplay
@@ -76,7 +74,6 @@ export class RoomManager {
             screenChannel,
             controllers: [],
             quizEngine,
-            teamManager: new TeamManager(),
             gameStarted: false,
             lastActivity: Date.now(),
             disconnectedPlayerScores: new Map(),
@@ -91,31 +88,27 @@ export class RoomManager {
     joinRoom(
         roomId: string,
         token: string,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         channel: any,
         clientId: string
     ): { success: boolean; error?: string; role?: PlayerRole; colorIndex?: number } {
         const room = this.rooms.get(roomId);
 
         if (!room) {
-
             return { success: false, error: 'Room not found' };
         }
 
         if (room.joinToken !== token) {
-
             return { success: false, error: 'Invalid token' };
         }
 
-        // 1. Check if this CLIENT (device) is already in the room
+        // 1. Check if this CLIENT (device) is already in the room (reconnecting)
         const existingIdx = room.controllers.findIndex(c => c.clientId === clientId);
         if (existingIdx !== -1) {
             const existing = room.controllers[existingIdx];
-
-
             // Re-bind to the new connection but keep role, state, AND colorIndex
             existing.id = channel.id;
             existing.channel = channel;
-
             return { success: true, role: existing.role, colorIndex: existing.colorIndex };
         }
 
@@ -132,12 +125,10 @@ export class RoomManager {
         this.removeController(channel.id);
 
         if (room.controllers.length >= CONFIG.MAX_PLAYERS_PER_ROOM) {
-
             return { success: false, error: 'Room is full (max 3 players)' };
         }
 
         if (room.gameStarted) {
-
             return { success: false, error: 'Game already in progress' };
         }
 
@@ -159,9 +150,9 @@ export class RoomManager {
             }
         }
 
-        // Assign default name based on position, or restore previous name
+        // Assign default name based on position
         const playerNumber = room.controllers.length + 1;
-        const defaultName = previousScore?.name || (playerNumber === 1 ? 'Leader' : `Player ${playerNumber}`);
+        const defaultName = playerNumber === 1 ? 'Leader' : `Player ${playerNumber}`;
 
         const controller: RoomController = {
             id: channel.id,
@@ -174,26 +165,11 @@ export class RoomManager {
             channel,
         };
 
-        // Remove from disconnected scores since they've rejoined
-        // (Already handled above, keeping for clarity)
-
         room.controllers.push(controller);
         room.lastActivity = Date.now();
         console.log(`[Room] ${role.toUpperCase()} joined ${roomId}`);
 
         return { success: true, role, colorIndex };
-    }
-
-    /** Set team name (leader only). Uses clientId for lookup. */
-    setTeamName(roomId: string, clientId: string, name: string): boolean {
-        const room = this.rooms.get(roomId);
-        if (!room) return false;
-
-        const controller = room.controllers.find((c) => c.clientId === clientId);
-        if (!controller || controller.role !== 'leader') return false;
-
-        room.teamManager.setTeamName(name);
-        return true;
     }
 
     /** Mark a player as ready. Uses clientId for lookup. */
@@ -262,7 +238,7 @@ export class RoomManager {
         const room = this.rooms.get(roomId);
         if (!room) return null;
 
-        const members: PlayerInfo[] = room.controllers.map((c) => ({
+        const players: PlayerInfo[] = room.controllers.map((c) => ({
             id: c.id,
             role: c.role,
             isReady: c.isReady,
@@ -272,10 +248,7 @@ export class RoomManager {
 
         return {
             roomId,
-            team: {
-                name: room.teamManager.getTeamName(),
-                members,
-            },
+            players,
             canStart: this.canStartGame(roomId),
         };
     }

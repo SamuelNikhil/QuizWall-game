@@ -25,22 +25,20 @@ export default function Controller() {
     const [lobby, setLobby] = useState<LobbyState | null>(null);
     const [error, setError] = useState<string | null>(null);
 
-    // Persistent clientId to survive reloads/React double-mounts
+    // Persistent clientId to survive reloads/React double-mounts (localStorage for cross-session persistence)
     const clientIdRef = useRef<string>(
-        sessionStorage.getItem('slingshot_client_id') ||
+        localStorage.getItem('slingshot_client_id') ||
         Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
     );
 
     useEffect(() => {
-        if (!sessionStorage.getItem('slingshot_client_id')) {
-            sessionStorage.setItem('slingshot_client_id', clientIdRef.current);
+        if (!localStorage.getItem('slingshot_client_id')) {
+            localStorage.setItem('slingshot_client_id', clientIdRef.current);
         }
     }, []);
 
     // ---- Game state (from server) ----
-    const [teamScore, setTeamScore] = useState(0);
     const [timeLeft, setTimeLeft] = useState(20);
-    const [finalScore, setFinalScore] = useState(0);
     const [gameOverReason, setGameOverReason] = useState<'time' | 'completed' | 'all_wrong'>('time');
     const [lastHit, setLastHit] = useState<{ correct: boolean } | null>(null);
     const [playerScores, setPlayerScores] = useState<PlayerScoreEntry[]>([]);
@@ -181,7 +179,7 @@ export default function Controller() {
 
             client.onGameStarted(() => {
                 // Game started event - tutorial already handled this
-                setTeamScore(0);
+                // Player scores are tracked via SCORE_UPDATE events
             });
 
             client.onTimerSync((data) => {
@@ -189,7 +187,7 @@ export default function Controller() {
             });
 
             client.onScoreUpdate((data: ScoreUpdate) => {
-                setTeamScore(data.teamScore);
+                setPlayerScores(data.playerScores || []);
             });
 
             client.onHitResult((data) => {
@@ -200,7 +198,6 @@ export default function Controller() {
             });
 
             client.onGameOver((data) => {
-                setFinalScore(data.finalScore);
                 setGameOverReason(data.reason || 'time');
                 setPlayerScores(data.playerScores || []);
                 setPhase('game-over');
@@ -263,7 +260,7 @@ export default function Controller() {
 
             client.onGameRestarted(() => {
                 setPhase('lobby');
-                setTeamScore(0);
+                setPlayerScores([]);
                 setTimeLeft(20);
                 setCurrentPhase(null);
                 currentPhaseRef.current = null;
@@ -672,9 +669,8 @@ export default function Controller() {
         return (
             <Lobby
                 role={role}
-                lobby={lobby}
                 colorIndex={colorIndex}
-                onSetTeamName={(name) => clientRef.current?.setTeamName(name)}
+                lobby={lobby}
                 onSetPlayerName={(name) => clientRef.current?.setPlayerName(name)}
                 onReady={() => clientRef.current?.playerReady()}
                 onStartGame={() => {
@@ -892,8 +888,8 @@ export default function Controller() {
                     )}
 
                     <div style={{ background: 'var(--glass-bg)', padding: '2rem', borderRadius: 'var(--radius-lg)', border: '1px solid var(--glass-border)', margin: '1.5rem 0' }}>
-                        <p style={{ color: 'var(--text-secondary)', fontWeight: 600, marginBottom: '0.5rem' }}>Team Score</p>
-                        <p style={{ fontSize: '3.5rem', fontWeight: 900, color: '#90e0ef' }}>{finalScore}</p>
+                        <p style={{ color: 'var(--text-secondary)', fontWeight: 600, marginBottom: '0.5rem' }}>Your Score</p>
+                        <p style={{ fontSize: '3.5rem', fontWeight: 900, color: '#90e0ef' }}>{playerScores.find(p => p.controllerId === clientIdRef.current)?.score ?? 0}</p>
                     </div>
 
                     {/* Individual Player Scoreboard */}
@@ -1051,7 +1047,7 @@ export default function Controller() {
             <div style={{ position: 'absolute', top: 0, left: 0, right: 0, padding: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 10 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', background: 'rgba(255,255,255,0.05)', padding: '0.6rem 1rem', borderRadius: 'var(--radius-md)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.1)' }}>
                     <span style={{ fontSize: '1.4rem' }}>{role === 'leader' ? '👑' : '🎮'}</span>
-                    <span style={{ fontWeight: 800, color: '#fff', fontSize: '1rem', letterSpacing: '0.5px' }}>Score: {teamScore}</span>
+                    <span style={{ fontWeight: 800, color: '#fff', fontSize: '1rem', letterSpacing: '0.5px' }}>Score: {playerScores.find(p => p.controllerId === clientIdRef.current)?.score ?? 0}</span>
                     {/* Crosshair Color Indicator */}
                     <div
                         style={{

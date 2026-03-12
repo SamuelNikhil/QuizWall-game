@@ -10,7 +10,7 @@ import { CONFIG } from './infrastructure/config.ts';
 import { initDatabase } from './data/database.ts';
 import { RoomManager } from './domain/RoomManager.ts';
 import { registerEventHandlers } from './transport/eventHandlers.ts';
-import { getAllTeamsDebug, debugDbPath } from './data/teamRepository.ts';
+import { getPlayerLeaderboard } from './data/playerRepository.ts';
 import { initializeGroqService, isGroqEnabled } from './services/GroqService.ts';
 
 async function main() {
@@ -32,10 +32,9 @@ async function main() {
     console.log('[Boot] Initializing database...');
     await initDatabase();
 
-    // Debug: Log DB path and current teams
-    debugDbPath();
-    const teams = getAllTeamsDebug();
-    console.log('[Boot] Current teams in DB:', teams);
+    // Debug: Log top players
+    const topPlayers = getPlayerLeaderboard(10);
+    console.log('[Boot] Top players in DB:', topPlayers.length);
 
     // 3. Create HTTP server (DO NOT listen yet - routes must be registered first)
     const server = http.createServer();
