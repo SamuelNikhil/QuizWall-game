@@ -13,9 +13,7 @@ export const EVENTS = {
     CONTROLLER_LEFT: 'controllerLeft',
     ROLE_PROMOTED: 'rolePromoted',
 
-    // --- Team & Lobby ---
-    SET_TEAM_NAME: 'setTeamName',
-    TEAM_INFO: 'teamInfo',
+    // --- Lobby ---
     LOBBY_UPDATE: 'lobbyUpdate',
     PLAYER_READY: 'playerReady',
     SET_PLAYER_NAME: 'setPlayerName',

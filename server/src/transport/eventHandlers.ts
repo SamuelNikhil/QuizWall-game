@@ -7,7 +7,7 @@ import { EVENTS } from '../shared/protocol.ts';
 import { ORB_POSITIONS } from '../shared/types.ts';
 import type { PlayerSelectionPayload, RevealResultPayload, TutorialProgressPayload, TutorialPlayerStatus, TutorialStatusUpdatePayload, TutorialStep } from '../shared/types.ts';
 import { RoomManager } from '../domain/RoomManager.ts';
-import { TeamManager } from '../domain/TeamManager.ts';
+import { PlayerManager } from '../domain/PlayerManager.ts';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type GeckosServer = any;
@@ -44,7 +44,7 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
             clearConnectionTimeout(channel.id);
             const { roomId, joinToken } = roomManager.createRoom(channel);
             channel.userData = { role: 'screen', roomId };
-            const leaderboard = TeamManager.getLeaderboard(10);
+            const leaderboard = PlayerManager.getPlayerLeaderboard(5);
             channel.emit(EVENTS.ROOM_CREATED, { roomId, joinToken, leaderboard });
         });
 
@@ -54,7 +54,6 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
 
             // clientId is now required for role persistence
             if (!clientId) {
-
                 channel.emit(EVENTS.JOINED_ROOM, { roomId, success: false, error: 'Client ID required' });
                 return;
             }
@@ -68,7 +67,12 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
 
             // Store clientId in userData so ALL future events can use it
             channel.userData = { role: 'controller', roomId, clientId };
-            channel.emit(EVENTS.JOINED_ROOM, { roomId, success: true, role: result.role, colorIndex: result.colorIndex });
+            channel.emit(EVENTS.JOINED_ROOM, { 
+                roomId, 
+                success: true, 
+                role: result.role, 
+                colorIndex: result.colorIndex,
+            });
 
             // Notify screen with color index so it can assign consistent crosshair color
             const room = roomManager.getRoom(roomId);
@@ -78,17 +82,7 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
             }
         });
 
-        // ---------- Team & Lobby ----------
-
-        channel.on(EVENTS.SET_TEAM_NAME, (data: { name: string }) => {
-            const { roomId, clientId } = channel.userData || {};
-            if (!roomId || !clientId) return;
-
-            const success = roomManager.setTeamName(roomId, clientId, data.name);
-            if (success) {
-                broadcastLobbyUpdate(roomManager, roomId);
-            }
-        });
+        // ---------- Lobby ----------
 
         channel.on(EVENTS.PLAYER_READY, () => {
             const { roomId, clientId } = channel.userData || {};
@@ -243,7 +237,6 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
                         // Base: 50 points for correct answer
                         // Bonus: +20 if selected within first 5 seconds, +10 if within 5-10 seconds
                         const playerScores: { controllerId: string; colorIndex: number; score: number; baseScore: number; bonus: number; correct: boolean }[] = [];
-                        let teamPointsThisRound = 0;
                         
                         for (const sel of result.selections) {
                             const isCorrect = sel.orbId === result.correctOrbId;
@@ -261,7 +254,6 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
                                 }
                                 score = baseScore + bonus;
                                 roomManager.addPlayerScore(roomId, sel.controllerId, score);
-                                teamPointsThisRound += score;
                             }
                             
                             playerScores.push({
@@ -274,11 +266,6 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
                             });
                         }
 
-                        // Award team points (sum of all individual scores this round)
-                        if (teamPointsThisRound > 0) {
-                            room.teamManager.addScore(teamPointsThisRound);
-                        }
-
                         // Add player scores to result for client display
                         const resultWithScores = { ...result, playerScores };
 
@@ -288,10 +275,9 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
                             c.channel.emit(EVENTS.REVEAL_RESULT, resultWithScores);
                         }
 
-                        // Broadcast score update
+                        // Broadcast score update with current player scores
                         const scorePayload = {
-                            teamScore: room.teamManager.getLiveScore(),
-                            teamName: room.teamManager.getTeamName(),
+                            playerScores: roomManager.getPlayerScores(roomId),
                         };
                         room.screenChannel.emit(EVENTS.SCORE_UPDATE, scorePayload);
                         for (const c of room.controllers) {
@@ -304,19 +290,18 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
                     },
                     // Game over
                     () => {
-                        const finalScore = room.teamManager.getLiveScore();
                         const questionsAnswered = room.quizEngine.getSessionQuestionsAnswered();
-                        room.teamManager.saveGameResult(roomId, room.quizEngine.getQuestionsAnswered());
-
-                        const leaderboard = TeamManager.getLeaderboard(10);
                         const playerScores = roomManager.getPlayerScores(roomId);
+
+                        // Save top player to database
+                        PlayerManager.saveTopPlayer(roomId, playerScores);
+
+                        const leaderboard = PlayerManager.getPlayerLeaderboard(5);
 
                         // Determine reason from quiz engine
                         const reason = room.quizEngine.getLastGameOverReason();
 
                         const gameOverPayload = {
-                            finalScore,
-                            teamName: room.teamManager.getTeamName(),
                             leaderboard,
                             reason,
                             questionsAnswered,
@@ -359,15 +344,14 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
                     },
                     // Game over
                     () => {
-                        const finalScore = room.teamManager.getLiveScore();
                         const questionsAnswered = room.quizEngine.getSessionQuestionsAnswered();
-                        room.teamManager.saveGameResult(roomId, room.quizEngine.getQuestionsAnswered());
-
-                        const leaderboard = TeamManager.getLeaderboard(10);
                         const playerScores = roomManager.getPlayerScores(roomId);
+
+                        // Save top player to database
+                        PlayerManager.saveTopPlayer(roomId, playerScores);
+
+                        const leaderboard = PlayerManager.getPlayerLeaderboard(5);
                         const gameOverPayload = {
-                            finalScore,
-                            teamName: room.teamManager.getTeamName(),
                             leaderboard,
                             reason: room.quizEngine.getLastGameOverReason(),
                             questionsAnswered,
@@ -467,7 +451,6 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
 
                     // Award individual score for correct singleplayer hit
                     if (result.correct) {
-                        room.teamManager.addScore(result.points);
                         if (clientId) {
                             roomManager.addPlayerScore(roomId, clientId, result.points);
                         }
@@ -486,8 +469,7 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
 
                     // Send score update
                     const scorePayload = {
-                        teamScore: room.teamManager.getLiveScore(),
-                        teamName: room.teamManager.getTeamName(),
+                        playerScores: roomManager.getPlayerScores(roomId),
                     };
                     room.screenChannel.emit(EVENTS.SCORE_UPDATE, scorePayload);
                     for (const c of room.controllers) {
@@ -696,23 +678,18 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
                 const room = roomManager.deleteRoomByScreen(channel.id);
                 if (room) {
 
-
-                    // Save the score before deleting the room (if game was in progress)
+                    // Save the top player score before deleting the room (if game was in progress)
                     if (room.gameStarted) {
-                        const finalScore = room.teamManager.getLiveScore();
-                        const questionsAnswered = room.quizEngine.getQuestionsAnswered();
-                        room.teamManager.saveGameResult(roomId, questionsAnswered);
-
+                        const playerScores = roomManager.getPlayerScores(roomId);
+                        PlayerManager.saveTopPlayer(roomId, playerScores);
                     }
 
-                    // Get updated leaderboard after saving
-                    const leaderboard = TeamManager.getLeaderboard(10);
+                    // Get updated leaderboard
+                    const leaderboard = PlayerManager.getPlayerLeaderboard(5);
 
                     // Notify all controllers that the room is gone
                     for (const c of room.controllers) {
                         c.channel.emit(EVENTS.GAME_OVER, {
-                            finalScore: room.teamManager.getLiveScore(),
-                            teamName: room.teamManager.getTeamName(),
                             leaderboard,
                             reason: 'time',
                             questionsAnswered: room.quizEngine.getSessionQuestionsAnswered(),

@@ -1,7 +1,7 @@
 // ==========================================
 // Lobby Page — Presentation Layer
-// Leader: enters team name + Start Game button
-// Member: I'm Ready button
+// Players enter their name and ready up
+// Leader can start the game
 // ==========================================
 
 import { useState, useEffect, useRef } from 'react';
@@ -11,9 +11,8 @@ import '../index.css';
 
 interface LobbyProps {
     role: PlayerRole;
-    lobby: LobbyState | null;
     colorIndex: number;
-    onSetTeamName: (name: string) => void;
+    lobby: LobbyState | null;
     onSetPlayerName: (name: string) => void;
     onReady: () => void;
     onStartGame: () => void;
@@ -41,21 +40,18 @@ const LeaveButton = ({ onLeave }: { onLeave: () => void }) => (
 
 export default function Lobby({
     role,
+    colorIndex,
     lobby,
-    onSetTeamName,
     onSetPlayerName,
     onReady,
     onStartGame,
     onLeave,
 }: LobbyProps) {
-    const [teamName, setTeamName] = useState('');
-    const [nameSubmitted, setNameSubmitted] = useState(false);
     const [isReady, setIsReady] = useState(false);
     
-    // Persist player name in sessionStorage so it survives game restarts
-    const savedPlayerName = sessionStorage.getItem('slingshot_player_name') || '';
-    const [playerName, setPlayerName] = useState(savedPlayerName);
-    const [playerNameSubmitted, setPlayerNameSubmitted] = useState(savedPlayerName.length >= 2);
+    // Player name state - start empty, let user enter it
+    const [playerName, setPlayerName] = useState('');
+    const [playerNameSubmitted, setPlayerNameSubmitted] = useState(false);
     const [isFadingOut, setIsFadingOut] = useState(false);
     const fadeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -68,20 +64,23 @@ export default function Lobby({
         };
     }, []);
 
-    // Auto-submit saved player name on mount (for game restarts)
+    // Check if player already has a name set (from server state after game restart)
     useEffect(() => {
-        if (savedPlayerName.length >= 2 && !playerNameSubmitted) {
-            onSetPlayerName(savedPlayerName);
-            setPlayerNameSubmitted(true);
+        if (lobby?.players) {
+            const myPlayer = lobby.players.find(p => p.colorIndex === colorIndex);
+            if (myPlayer?.name && myPlayer.name !== 'Leader' && !myPlayer.name.startsWith('Player ')) {
+                // Player already has a custom name set - mark as submitted
+                setPlayerNameSubmitted(true);
+            }
         }
-    }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [lobby, colorIndex]);
 
     const handleSubmitPlayerName = () => {
         const trimmed = playerName.trim();
         if (trimmed.length < 2) return;
         
-        // Save to sessionStorage for persistence across game restarts
-        sessionStorage.setItem('slingshot_player_name', trimmed);
+        // Save to localStorage for persistence across sessions
+        localStorage.setItem('slingshot_player_name', trimmed);
         
         // Start fade out animation
         setIsFadingOut(true);
@@ -94,18 +93,11 @@ export default function Lobby({
         }, 300); // Match animation duration
     };
 
-    const handleSubmitName = () => {
-        const trimmed = teamName.trim();
-        if (trimmed.length < 2) return;
-        onSetTeamName(trimmed);
-        setNameSubmitted(true);
-    };
-
     const handleReady = () => {
         // Submit player name before readying up
         if (playerName.trim().length >= 2 && !playerNameSubmitted) {
             const trimmed = playerName.trim();
-            sessionStorage.setItem('slingshot_player_name', trimmed);
+            localStorage.setItem('slingshot_player_name', trimmed);
             onSetPlayerName(trimmed);
             setPlayerNameSubmitted(true);
         }
@@ -113,111 +105,9 @@ export default function Lobby({
         onReady();
     };
 
-    // If local nameSubmitted is false but the lobby already has a team name 
-    // (e.g. on re-join/refresh), we should skip the entry dialog.
-    const effectiveNameSubmitted = nameSubmitted || (lobby?.team.name && lobby.team.name.length >= 2);
-
-    // ---- Leader: Team Name Dialog ----
-    if (role === 'leader' && !effectiveNameSubmitted) {
-        return (
-            <div className="controller-container" style={{ justifyContent: 'center', alignItems: 'center', padding: '2rem', position: 'relative' }}>
-                <LeaveButton onLeave={onLeave} />
-                <div
-                    style={{
-                        maxWidth: '360px',
-                        width: '100%',
-                        background: 'var(--glass-bg)',
-                        padding: '3rem 2rem',
-                        borderRadius: 'var(--radius-lg)',
-                        border: '1px solid var(--glass-border)',
-                        backdropFilter: 'blur(20px)',
-                        boxShadow: 'var(--glass-glow)',
-                        animation: 'bounceIn 0.8s cubic-bezier(0.34, 1.56, 0.64, 1)',
-                        textAlign: 'center',
-                    }}
-                >
-                    <div
-                        style={{
-                            width: '80px',
-                            height: '80px',
-                            margin: '0 auto 1.5rem',
-                            background: 'var(--accent-primary)',
-                            borderRadius: '35%',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: '2.5rem',
-                            boxShadow: '0 10px 30px rgba(103, 80, 164, 0.4)',
-                        }}
-                    >
-                        👑
-                    </div>
-
-                    <h2
-                        style={{
-                            fontSize: '1.75rem',
-                            fontWeight: 900,
-                            marginBottom: '0.5rem',
-                            color: '#fff',
-                            fontFamily: 'var(--font-main)',
-                        }}
-                    >
-                        You're the Leader!
-                    </h2>
-                    <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem', fontWeight: 500 }}>
-                        Name your team to begin
-                    </p>
-
-                    <input
-                        type="text"
-                        value={teamName}
-                        onChange={(e) => setTeamName(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleSubmitName()}
-                        placeholder="Enter team name..."
-                        maxLength={20}
-                        style={{
-                            width: '100%',
-                            padding: '1rem 1.25rem',
-                            fontSize: '1.1rem',
-                            fontWeight: 700,
-                            background: 'rgba(255,255,255,0.06)',
-                            border: '2px solid var(--glass-border)',
-                            borderRadius: 'var(--radius-md)',
-                            color: '#fff',
-                            outline: 'none',
-                            textAlign: 'center',
-                            fontFamily: 'var(--font-main)',
-                            marginBottom: '1.5rem',
-                        }}
-                    />
-
-                    <button
-                        onClick={handleSubmitName}
-                        disabled={teamName.trim().length < 2}
-                        style={{
-                            width: '100%',
-                            padding: '1.1rem 2rem',
-                            fontSize: '1.2rem',
-                            fontWeight: 800,
-                            background: teamName.trim().length >= 2 ? 'var(--accent-primary)' : 'rgba(255,255,255,0.1)',
-                            border: 'none',
-                            borderRadius: 'var(--radius-md)',
-                            color: 'white',
-                            cursor: teamName.trim().length >= 2 ? 'pointer' : 'not-allowed',
-                            boxShadow: teamName.trim().length >= 2 ? '0 8px 25px rgba(103, 80, 164, 0.5)' : 'none',
-                            transition: 'all 0.3s ease',
-                        }}
-                    >
-                        ✓ Set Team Name
-                    </button>
-                </div>
-            </div>
-        );
-    }
-
     // ---- Leader: Lobby (waiting for members to ready up) ----
     if (role === 'leader') {
-        const memberCount = (lobby?.team.members.length ?? 1) - 1; // exclude leader
+        const memberCount = (lobby?.players.length ?? 1) - 1; // exclude leader
         const allReady = lobby?.canStart ?? false;
 
         return (
@@ -238,7 +128,7 @@ export default function Lobby({
                     }}
                 >
                     <h2 style={{ fontSize: '1.5rem', fontWeight: 900, color: '#fff', marginBottom: '0.25rem' }}>
-                        {lobby?.team.name || 'Team'}
+                        Game Lobby
                     </h2>
                     <p style={{ color: 'var(--accent-secondary)', fontSize: '0.9rem', fontWeight: 600, marginBottom: '1rem' }}>
                         👑 You are the Leader
@@ -299,11 +189,11 @@ export default function Lobby({
                         </div>
                     ) : null}
 
-                    {/* Members list */}
+                    {/* Players list */}
                     <div style={{ marginBottom: '2rem' }}>
-                        {lobby?.team.members.map((m) => (
+                        {lobby?.players.map((p) => (
                             <div
-                                key={m.id}
+                                key={p.id}
                                 style={{
                                     display: 'flex',
                                     justifyContent: 'space-between',
@@ -312,30 +202,30 @@ export default function Lobby({
                                     marginBottom: '0.5rem',
                                     background: 'rgba(255,255,255,0.05)',
                                     borderRadius: 'var(--radius-sm)',
-                                    border: `1px solid ${m.isReady ? 'rgba(16,185,129,0.3)' : 'var(--glass-border)'}`,
+                                    border: `1px solid ${p.isReady ? 'rgba(16,185,129,0.3)' : 'var(--glass-border)'}`,
                                 }}
                             >
                                 <span style={{ fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                    {m.role === 'leader' ? '👑' : '🎮'} {m.name || (m.role === 'leader' ? 'Leader' : 'Player')} {m.role === 'leader' ? '(You)' : ''}
+                                    {p.role === 'leader' ? '👑' : '🎮'} {p.name || (p.role === 'leader' ? 'Leader' : 'Player')} {p.role === 'leader' ? '(You)' : ''}
                                     <span
                                         style={{
                                             width: '10px',
                                             height: '10px',
                                             borderRadius: '50%',
-                                            background: CROSSHAIR_COLORS[m.colorIndex ?? 0] || CROSSHAIR_COLORS[0],
-                                            boxShadow: `0 0 6px ${CROSSHAIR_COLORS[m.colorIndex ?? 0] || CROSSHAIR_COLORS[0]}`,
+                                            background: CROSSHAIR_COLORS[p.colorIndex ?? 0] || CROSSHAIR_COLORS[0],
+                                            boxShadow: `0 0 6px ${CROSSHAIR_COLORS[p.colorIndex ?? 0] || CROSSHAIR_COLORS[0]}`,
                                         }}
                                         title="Crosshair color"
                                     />
                                 </span>
                                 <span
                                     style={{
-                                        color: m.isReady ? 'var(--accent-success)' : 'var(--text-secondary)',
+                                        color: p.isReady ? 'var(--accent-success)' : 'var(--text-secondary)',
                                         fontWeight: 700,
                                         fontSize: '0.85rem',
                                     }}
                                 >
-                                    {m.isReady ? '✓ Ready' : '⏳ Waiting'}
+                                    {p.isReady ? '✓ Ready' : '⏳ Waiting'}
                                 </span>
                             </div>
                         ))}
@@ -343,7 +233,7 @@ export default function Lobby({
 
                     {memberCount === 0 && (
                         <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '1rem', fontStyle: 'italic' }}>
-                            Share the QR code for teammates to join!
+                            Share the QR code for others to join!
                         </p>
                     )}
 
@@ -398,7 +288,7 @@ export default function Lobby({
                 }}
             >
                 <h2 style={{ fontSize: '1.5rem', fontWeight: 900, color: '#fff', marginBottom: '0.25rem' }}>
-                    {lobby?.team.name || 'Waiting for team...'}
+                    Game Lobby
                 </h2>
                 <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', fontWeight: 600, marginBottom: '1rem' }}>
                     🎮 Team Member
@@ -459,11 +349,11 @@ export default function Lobby({
                     </div>
                 ) : null}
 
-                {/* Members list */}
+                {/* Players list */}
                 <div style={{ marginBottom: '2rem' }}>
-                    {lobby?.team.members.map((m) => (
+                    {lobby?.players.map((p) => (
                         <div
-                            key={m.id}
+                            key={p.id}
                             style={{
                                 display: 'flex',
                                 justifyContent: 'space-between',
@@ -472,30 +362,30 @@ export default function Lobby({
                                 marginBottom: '0.5rem',
                                 background: 'rgba(255,255,255,0.05)',
                                 borderRadius: 'var(--radius-sm)',
-                                border: `1px solid ${m.isReady ? 'rgba(16,185,129,0.3)' : 'var(--glass-border)'}`,
+                                border: `1px solid ${p.isReady ? 'rgba(16,185,129,0.3)' : 'var(--glass-border)'}`,
                             }}
                         >
                             <span style={{ fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                {m.role === 'leader' ? '👑' : '🎮'} {m.name || (m.role === 'leader' ? 'Leader' : 'Player')}
+                                {p.role === 'leader' ? '👑' : '🎮'} {p.name || (p.role === 'leader' ? 'Leader' : 'Player')}
                                 <span
                                     style={{
                                         width: '10px',
                                         height: '10px',
                                         borderRadius: '50%',
-                                        background: CROSSHAIR_COLORS[m.colorIndex ?? 0] || CROSSHAIR_COLORS[0],
-                                        boxShadow: `0 0 6px ${CROSSHAIR_COLORS[m.colorIndex ?? 0] || CROSSHAIR_COLORS[0]}`,
+                                        background: CROSSHAIR_COLORS[p.colorIndex ?? 0] || CROSSHAIR_COLORS[0],
+                                        boxShadow: `0 0 6px ${CROSSHAIR_COLORS[p.colorIndex ?? 0] || CROSSHAIR_COLORS[0]}`,
                                     }}
                                     title="Crosshair color"
                                 />
                             </span>
                             <span
                                 style={{
-                                    color: m.isReady ? 'var(--accent-success)' : 'var(--text-secondary)',
+                                    color: p.isReady ? 'var(--accent-success)' : 'var(--text-secondary)',
                                     fontWeight: 700,
                                     fontSize: '0.85rem',
                                 }}
                             >
-                                {m.isReady ? '✓ Ready' : '⏳ Waiting'}
+                                {p.isReady ? '✓ Ready' : '⏳ Waiting'}
                             </span>
                         </div>
                     ))}

@@ -21,7 +21,7 @@ export interface QuestionOption {
     text: string;
 }
 
-// ---------- Team & Player ----------
+// ---------- Player ----------
 
 export type PlayerRole = 'leader' | 'member';
 
@@ -33,17 +33,22 @@ export interface PlayerInfo {
     name?: string;       // Individual player name
 }
 
-export interface TeamInfo {
-    name: string;
-    members: PlayerInfo[];
-}
-
 // ---------- Lobby ----------
 
 export interface LobbyState {
     roomId: string;
-    team: TeamInfo;
+    players: PlayerInfo[];
     canStart: boolean;  // true when all members are ready (or solo leader)
+}
+
+// ---------- Room Join ----------
+
+export interface JoinedRoomPayload {
+    roomId: string;
+    success: boolean;
+    error?: string;
+    role?: PlayerRole;
+    colorIndex?: number;
 }
 
 // ---------- Game Events ----------
@@ -62,8 +67,7 @@ export interface HitResultPayload {
 }
 
 export interface ScoreUpdate {
-    teamScore: number;
-    teamName: string;
+    playerScores: PlayerScoreEntry[];
 }
 
 export interface TimerSync {
@@ -71,8 +75,6 @@ export interface TimerSync {
 }
 
 export interface GameOverPayload {
-    finalScore: number;
-    teamName: string;
     leaderboard: LeaderboardEntry[];
     reason: 'time' | 'completed' | 'all_wrong'; // Why the game ended
     questionsAnswered: number; // Questions answered in this session (accumulated across restarts)
@@ -88,7 +90,7 @@ export interface PlayerScoreEntry {
 
 export interface LeaderboardEntry {
     rank: number;
-    teamName: string;
+    playerName: string;
     totalScore: number;
     gamesPlayed: number;
 }

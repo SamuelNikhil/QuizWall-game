@@ -22,6 +22,7 @@ import type {
     RevealResultPayload,
     TutorialProgressPayload,
     TutorialStatusUpdatePayload,
+    JoinedRoomPayload,
 } from '../shared/types';
 
 // --------------- Config ---------------
@@ -163,10 +164,6 @@ export class GameClient {
         this.channel?.emit(EVENTS.JOIN_ROOM, { roomId, token, clientId });
     }
 
-    setTeamName(name: string): void {
-        this.channel?.emit(EVENTS.SET_TEAM_NAME, { name });
-    }
-
     playerReady(): void {
         this.channel?.emit(EVENTS.PLAYER_READY);
     }
@@ -210,7 +207,7 @@ export class GameClient {
         this.channel?.on(EVENTS.ROOM_CREATED, cb);
     }
 
-    onJoinedRoom(cb: (data: { roomId: string; success: boolean; error?: string; role?: PlayerRole; colorIndex?: number }) => void): void {
+    onJoinedRoom(cb: (data: JoinedRoomPayload) => void): void {
         this.channel?.on(EVENTS.JOINED_ROOM, cb);
     }
 

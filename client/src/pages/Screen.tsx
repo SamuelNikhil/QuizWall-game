@@ -41,8 +41,7 @@ export default function Screen() {
     const [lobby, setLobby] = useState<LobbyState | null>(null);
     const [question, setQuestion] = useState<ClientQuestion | null>(null);
     const [timeLeft, setTimeLeft] = useState(20);
-    const [teamScore, setTeamScore] = useState(0);
-    const [teamName, setTeamName] = useState('');
+    const [playerScores, setPlayerScores] = useState<PlayerScoreEntry[]>([]);
     const [gameOverData, setGameOverData] = useState<GameOverPayload | null>(null);
     const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
 
@@ -201,11 +200,10 @@ export default function Screen() {
 
             client.onLobbyUpdate((data) => {
                 setLobby(data);
-                setTeamName(data.team.name);
-                setControllerCount(data.team.members.length);
+                setControllerCount(data.players.length);
                 // Use phaseRef.current (not stale 'phase' closure) to avoid switching away from gameplay
                 const livePhase = phaseRef.current;
-                if (data.team.members.length > 0 && livePhase !== 'playing' && livePhase !== 'game-over' && livePhase !== 'tutorial') {
+                if (data.players.length > 0 && livePhase !== 'playing' && livePhase !== 'game-over' && livePhase !== 'tutorial') {
                     setPhaseSync('team-lobby');
                 }
             });
@@ -248,7 +246,7 @@ export default function Screen() {
                 console.log('[Screen] Game Started event received:', data);
                 setQuestion(data.question);
                 setTimeLeft(data.timeLeft);
-                setTeamScore(0);
+                setPlayerScores([]);
                 setQuestionNumber(1);
                 setPhaseSync('playing');
             });
@@ -323,8 +321,7 @@ export default function Screen() {
             });
 
             client.onScoreUpdate((data) => {
-                setTeamScore(data.teamScore);
-                setTeamName(data.teamName);
+                setPlayerScores(data.playerScores);
             });
 
             client.onHitResult((data) => {
@@ -393,7 +390,7 @@ export default function Screen() {
             client.onGameRestarted(() => {
                 setPhaseSync('team-lobby');
                 setQuestion(null);
-                setTeamScore(0);
+                setPlayerScores([]);
                 setTimeLeft(20);
                 setGameOverData(null);
                 setPlayerSelections([]);
@@ -469,15 +466,27 @@ export default function Screen() {
                         <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem', fontSize: '1rem' }}>
                             All players have left
                         </p>
-                        {teamName && (
-                            <p style={{ color: 'var(--accent-secondary)', fontWeight: 700, fontSize: '1.1rem', marginBottom: '0.5rem' }}>
-                                {teamName}
-                            </p>
-                        )}
-                        {teamScore > 0 && (
-                            <p style={{ fontSize: '4rem', fontWeight: 900, color: '#90e0ef', margin: '0.5rem 0 1.5rem' }}>
-                                {teamScore}
-                            </p>
+                        {playerScores.length > 0 && (
+                            <div style={{ marginBottom: '1.5rem' }}>
+                                <h3 style={{ color: 'var(--accent-secondary)', fontWeight: 700, marginBottom: '1rem', fontSize: '1rem' }}>Final Scores</h3>
+                                {playerScores.map((ps, idx) => (
+                                    <div key={ps.controllerId} style={{
+                                        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                                        padding: '0.5rem 1rem', marginBottom: '0.25rem', borderRadius: '8px',
+                                        background: idx === 0 ? 'rgba(103, 80, 164, 0.2)' : 'rgba(255,255,255,0.03)',
+                                    }}>
+                                        <span style={{ fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                            <span style={{
+                                                width: '10px', height: '10px', borderRadius: '50%',
+                                                background: CROSSHAIR_COLORS[ps.colorIndex] || CROSSHAIR_COLORS[0],
+                                                boxShadow: `0 0 6px ${CROSSHAIR_COLORS[ps.colorIndex] || CROSSHAIR_COLORS[0]}`,
+                                            }} />
+                                            {idx === 0 ? '🏆' : `#${idx + 1}`} {ps.name}
+                                        </span>
+                                        <span style={{ color: 'var(--accent-secondary)', fontWeight: 800 }}>{ps.score} pts</span>
+                                    </div>
+                                ))}
+                            </div>
                         )}
                         <div style={{
                             padding: '0.75rem 2rem', background: 'rgba(255,255,255,0.05)',
@@ -577,7 +586,6 @@ export default function Screen() {
                         )}
 
                         <div style={{ background: 'rgba(255, 255, 255, 0.05)', padding: '2.5rem', borderRadius: '30px', border: '1px solid rgba(255, 255, 255, 0.1)', backdropFilter: 'blur(20px)', minWidth: '350px', marginBottom: '1.5rem' }}>
-                            <p style={{ fontSize: '1.2rem', color: 'var(--accent-secondary)', fontWeight: 700, marginBottom: '0.5rem' }}>{gameOverData.teamName}</p>
                             <h2 style={{ fontSize: '1.5rem', marginBottom: '0.5rem', color: 'rgba(255, 255, 255, 0.8)', fontWeight: '600' }}>Final Score</h2>
                             <p style={{ fontSize: '4.5rem', fontWeight: '900', color: '#90e0ef', margin: 0 }}>{gameOverData.finalScore}</p>
                             <p style={{ fontSize: '1rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
@@ -591,7 +599,7 @@ export default function Screen() {
                                 <h3 style={{ color: 'var(--accent-primary)', fontWeight: 800, marginBottom: '1rem', fontSize: '1.1rem', letterSpacing: '2px', textTransform: 'uppercase' }}>Leaderboard</h3>
                                 {gameOverData.leaderboard.slice(0, 5).map((entry: LeaderboardEntry) => (
                                     <div key={entry.rank} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0.75rem', marginBottom: '0.25rem', borderRadius: '8px', background: entry.rank === 1 ? 'rgba(103, 80, 164, 0.2)' : 'transparent' }}>
-                                        <span style={{ fontWeight: 700 }}>{entry.rank === 1 ? '👑' : `#${entry.rank}`} {entry.teamName}</span>
+                                        <span style={{ fontWeight: 700 }}>{entry.rank === 1 ? '👑' : `#${entry.rank}`} {entry.playerName}</span>
                                         <span style={{ color: 'var(--accent-secondary)', fontWeight: 800 }}>{entry.totalScore} pts</span>
                                     </div>
                                 ))}
@@ -636,7 +644,7 @@ export default function Screen() {
                         <h3 style={{ fontFamily: 'var(--font-main)', fontWeight: '800' }}>Leaderboard</h3>
                         {leaderboard.length > 0 ? (
                             <div style={{ padding: '0.5rem 0' }}>
-                                {leaderboard.slice(0, 10).map((entry) => (
+                                {leaderboard.slice(0, 5).map((entry) => (
                                     <div key={entry.rank} style={{
                                         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                                         padding: '0.6rem 1rem', marginBottom: '0.35rem', borderRadius: '10px',
@@ -645,7 +653,7 @@ export default function Screen() {
                                     }}>
                                         <span style={{ fontWeight: 700, fontSize: '0.95rem', color: '#fff' }}>
                                             {entry.rank === 1 ? '👑' : entry.rank === 2 ? '🥈' : entry.rank === 3 ? '🥉' : `#${entry.rank}`}{' '}
-                                            {entry.teamName}
+                                            {entry.playerName}
                                         </span>
                                         <span style={{ color: 'var(--accent-secondary)', fontWeight: 800, fontSize: '0.95rem' }}>
                                             {entry.totalScore} pts
@@ -669,11 +677,6 @@ export default function Screen() {
                 <h1 style={{ fontSize: '3rem', marginBottom: '0.5rem', color: '#fff', fontWeight: '900', textShadow: '0 0 50px rgba(103, 80, 164, 0.6)', textAlign: 'center', fontFamily: 'var(--font-main)' }}>
                     Quiz Wall
                 </h1>
-                {teamName && (
-                    <h2 style={{ fontSize: '1.5rem', color: 'var(--accent-secondary)', fontWeight: 800, marginBottom: '1rem' }}>
-                        Team: {teamName}
-                    </h2>
-                )}
 
                 <div className="qr-content-wrapper">
                     <div className="qr-left-column">
@@ -686,12 +689,19 @@ export default function Screen() {
                     </div>
 
                     <div className="qr-leaderboard">
-                        <h3 style={{ fontFamily: 'var(--font-main)', fontWeight: '800' }}>Team Roster</h3>
-                        {lobby?.team.members.map((m, i) => (
-                            <div key={m.id} className="qr-leaderboard-item" style={{ borderRadius: 'var(--radius-md)', border: m.role === 'leader' ? '2px solid var(--accent-primary)' : '1px solid var(--glass-border)', background: m.role === 'leader' ? 'rgba(103, 80, 164, 0.2)' : 'var(--glass-bg)' }}>
-                                <span style={{ fontSize: '0.9rem' }}>{m.role === 'leader' ? '👑' : `#${i + 1}`} {m.name || 'Player'}</span>
-                                <span style={{ color: m.isReady ? 'var(--accent-success)' : 'var(--text-secondary)', fontWeight: '800', fontSize: '1rem' }}>
-                                    {m.isReady ? '✓ Ready' : '⏳ Waiting'}
+                        <h3 style={{ fontFamily: 'var(--font-main)', fontWeight: '800' }}>Players</h3>
+                        {lobby?.players.map((p, i) => (
+                            <div key={p.id} className="qr-leaderboard-item" style={{ borderRadius: 'var(--radius-md)', border: p.role === 'leader' ? '2px solid var(--accent-primary)' : '1px solid var(--glass-border)', background: p.role === 'leader' ? 'rgba(103, 80, 164, 0.2)' : 'var(--glass-bg)' }}>
+                                <span style={{ fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                    {p.role === 'leader' ? '👑' : `#${i + 1}`} {p.name || 'Player'}
+                                    <span style={{
+                                        width: '10px', height: '10px', borderRadius: '50%',
+                                        background: CROSSHAIR_COLORS[p.colorIndex ?? 0] || CROSSHAIR_COLORS[0],
+                                        boxShadow: `0 0 6px ${CROSSHAIR_COLORS[p.colorIndex ?? 0] || CROSSHAIR_COLORS[0]}`,
+                                    }} />
+                                </span>
+                                <span style={{ color: p.isReady ? 'var(--accent-success)' : 'var(--text-secondary)', fontWeight: '800', fontSize: '1rem' }}>
+                                    {p.isReady ? '✓ Ready' : '⏳ Waiting'}
                                 </span>
                             </div>
                         ))}
@@ -886,12 +896,23 @@ export default function Screen() {
                     <span style={{ fontSize: '1.2rem', filter: 'drop-shadow(0 0 0.6rem rgba(103, 80, 164, 0.5))' }}>👥</span>
                     <span style={{ fontWeight: '900', color: 'var(--text-primary)', fontSize: '1.4rem' }}>{controllerCount}</span>
                     <div style={{ display: 'flex', gap: '1.25rem', borderLeft: '2px solid var(--glass-border)', paddingLeft: '1.25rem', marginLeft: '0.5rem' }}>
-                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
-                            <span style={{ color: 'var(--accent-secondary)', fontWeight: 700, fontSize: '0.9rem' }}>{teamName}</span>
-                            <span style={{ color: 'var(--accent-secondary)', fontWeight: '800', fontSize: '1.1rem' }}>
-                                Score: {teamScore}
+                        {playerScores.length > 0 ? (
+                            playerScores.map((ps, idx) => (
+                                <span key={ps.controllerId} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                    <span style={{
+                                        width: '10px', height: '10px', borderRadius: '50%',
+                                        background: CROSSHAIR_COLORS[ps.colorIndex] || CROSSHAIR_COLORS[0],
+                                        boxShadow: `0 0 6px ${CROSSHAIR_COLORS[ps.colorIndex] || CROSSHAIR_COLORS[0]}`,
+                                    }} />
+                                    <span style={{ color: 'var(--accent-secondary)', fontWeight: 700, fontSize: '0.9rem' }}>{ps.name}</span>
+                                    <span style={{ color: 'var(--accent-secondary)', fontWeight: 800, fontSize: '1.1rem' }}>{ps.score}</span>
+                                </span>
+                            ))
+                        ) : (
+                            <span style={{ color: 'var(--text-secondary)', fontWeight: 700, fontSize: '0.9rem' }}>
+                                Waiting for scores...
                             </span>
-                        </span>
+                        )}
                     </div>
                 </div>
 
