@@ -44,7 +44,6 @@ function getConnectionMode(): 'proxy' | 'direct' {
 
 function getServerConfig() {
     const useProxy = getConnectionMode() === 'proxy';
-    const port = parseInt(import.meta.env.VITE_SERVER_PORT || String(DEFAULT_SERVER_PORT), 10);
     const signalingPath = (import.meta.env.VITE_SIGNALING_PATH as string) || '/.wrtc/v2';
 
     if (useProxy) {
@@ -55,7 +54,23 @@ function getServerConfig() {
         };
     }
 
-    // Direct mode — extract hostname only (never includes port)
+    // Prioritize standard API URL format
+    const apiUrl = import.meta.env.VITE_API_URL as string;
+    if (apiUrl) {
+        try {
+            const url = new URL(apiUrl);
+            return {
+                geckosUrl: `${url.protocol}//${url.hostname}`,
+                geckosPort: url.port ? parseInt(url.port, 10) : (url.protocol === 'https:' ? 443 : 80),
+                geckosPath: signalingPath,
+            };
+        } catch (e) {
+            console.error('[GameClient] Invalid VITE_API_URL:', apiUrl, e);
+        }
+    }
+
+    // Fallback to legacy VITE_SERVER_URL / VITE_SERVER_PORT
+    const port = parseInt(import.meta.env.VITE_SERVER_PORT || String(DEFAULT_SERVER_PORT), 10);
     let raw = (import.meta.env.VITE_SERVER_URL as string) || window.location.hostname;
     if (!raw.startsWith('http')) {
         raw = `${window.location.protocol === 'https:' ? 'https' : 'http'}://${raw}`;
@@ -63,8 +78,8 @@ function getServerConfig() {
     const { protocol, hostname } = new URL(raw);
 
     return {
-        geckosUrl: `${protocol}//${hostname}`,   // e.g. "http://3.108.77.64" (no port)
-        geckosPort: port,                         // solely from VITE_SERVER_PORT
+        geckosUrl: `${protocol}//${hostname}`,
+        geckosPort: port,
         geckosPath: signalingPath,
     };
 }
