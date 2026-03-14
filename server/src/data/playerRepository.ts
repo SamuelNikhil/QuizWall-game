@@ -9,11 +9,11 @@ import type { LeaderboardEntry } from '../shared/types.ts';
 export function getOrCreatePlayer(clientId: string, name: string): { id: number; clientId: string; name: string; highestScore: number; gamesPlayed: number } {
     const db = getDatabase();
     
-    // Try to find existing player
-    const existingResult = db.exec('SELECT id, client_id, name, highest_score, games_played FROM players WHERE client_id = ?', [clientId]);
+    // 1. Try to find player by clientId (Device identity)
+    let result = db.exec('SELECT id, client_id, name, highest_score, games_played FROM players WHERE client_id = ?', [clientId]);
     
-    if (existingResult.length > 0 && existingResult[0].values.length > 0) {
-        const row = existingResult[0].values[0];
+    if (result.length > 0 && result[0].values.length > 0) {
+        const row = result[0].values[0];
         return {
             id: row[0] as number,
             clientId: row[1] as string,
@@ -23,14 +23,29 @@ export function getOrCreatePlayer(clientId: string, name: string): { id: number;
         };
     }
     
-    // Create new player
+    // 2. Try to find by name (Name identity - prevents duplicates across devices)
+    result = db.exec('SELECT id, client_id, name, highest_score, games_played FROM players WHERE name = ?', [name]);
+    
+    if (result.length > 0 && result[0].values.length > 0) {
+        const row = result[0].values[0];
+        console.log(`[DB] Found existing player by name: ${name} (previously linked to ${row[1] as string})`);
+        return {
+            id: row[0] as number,
+            clientId: row[1] as string,
+            name: row[2] as string,
+            highestScore: row[3] as number,
+            gamesPlayed: row[4] as number,
+        };
+    }
+    
+    // 3. Create new player
     db.run('INSERT INTO players (client_id, name) VALUES (?, ?)', [clientId, name]);
     
-    const result = db.exec('SELECT last_insert_rowid() as id');
-    const id = result[0].values[0][0] as number;
+    const insertResult = db.exec('SELECT last_insert_rowid() as id');
+    const id = insertResult[0].values[0][0] as number;
     
     saveDatabase();
-    console.log(`[DB] Created new player: ${name} (${clientId.substring(0, 8)}...)`);
+    console.log(`[DB] Created new player record: ${name} (${clientId.substring(0, 8)}...)`);
     
     return {
         id,
@@ -62,21 +77,21 @@ export function getPlayerByClientId(clientId: string): { id: number; clientId: s
 export function updatePlayerScore(clientId: string, name: string, score: number): void {
     const db = getDatabase();
     
-    // Get or create player
+    // Get or create player (handles name-based deduplication)
     const player = getOrCreatePlayer(clientId, name);
     
     // Only update if new score is higher
     if (score > player.highestScore) {
         db.run(
-            "UPDATE players SET highest_score = ?, games_played = games_played + 1, name = ?, updated_at = datetime('now') WHERE client_id = ?",
-            [score, name, clientId]
+            "UPDATE players SET highest_score = ?, games_played = games_played + 1, name = ?, updated_at = datetime('now') WHERE id = ?",
+            [score, name, player.id]
         );
-        console.log(`[DB] Updated player ${name} (${clientId.substring(0, 8)}...) score: ${player.highestScore} → ${score}`);
+        console.log(`[DB] Updated player ${name} (ID: ${player.id}) score: ${player.highestScore} → ${score}`);
     } else {
         // Just increment games played
         db.run(
-            "UPDATE players SET games_played = games_played + 1, name = ?, updated_at = datetime('now') WHERE client_id = ?",
-            [name, clientId]
+            "UPDATE players SET games_played = games_played + 1, name = ?, updated_at = datetime('now') WHERE id = ?",
+            [name, player.id]
         );
         console.log(`[DB] Player ${name} played game, score unchanged (${player.highestScore})`);
     }
@@ -87,8 +102,9 @@ export function updatePlayerScore(clientId: string, name: string, score: number)
 /** Get leaderboard - top players by highest score */
 export function getPlayerLeaderboard(limit: number = 5): LeaderboardEntry[] {
     const db = getDatabase();
+    // Group by name to handle legacy duplicates and ensure one entry per player name
     const result = db.exec(
-        'SELECT name, highest_score, games_played FROM players ORDER BY highest_score DESC LIMIT ?',
+        'SELECT name, MAX(highest_score) as max_score, SUM(games_played) as total_games FROM players GROUP BY name ORDER BY max_score DESC LIMIT ?',
         [limit]
     );
     
