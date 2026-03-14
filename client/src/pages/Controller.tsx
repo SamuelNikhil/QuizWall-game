@@ -12,6 +12,8 @@ import { CROSSHAIR_COLORS } from '../shared/types';
 import slingCenterImg from '../assets/sling-center.svg';
 import '../index.css';
 import '../animations.css';
+import correctSound from '../assets/sounds/correct.mp3';
+import wrongSound from '../assets/sounds/wrong.mp3';
 
 type ControllerPhase = 'connecting' | 'lobby' | 'calibrating' | 'playing' | 'game-over';
 
@@ -104,6 +106,16 @@ export default function Controller() {
     const containerRef = useRef<HTMLDivElement>(null);
     const wakeLockRef = useRef<WakeLockSentinel | null>(null);
 
+    // Audio effects
+    const audioCorrect = useRef(new Audio(correctSound));
+    const audioWrong = useRef(new Audio(wrongSound));
+
+    // Pre-load audio
+    useEffect(() => {
+        audioCorrect.current.load();
+        audioWrong.current.load();
+    }, []);
+
     // Throttle crosshair updates to ~30fps
     const lastCrosshairSend = useRef<number>(0);
     const throttledSendCrosshair = useCallback((x: number, y: number) => {
@@ -192,6 +204,16 @@ export default function Controller() {
 
             client.onHitResult((data) => {
                 setLastHit({ correct: data.correct });
+                
+                // Play sound feedback
+                if (data.correct) {
+                    audioCorrect.current.currentTime = 0;
+                    audioCorrect.current.play().catch(e => console.warn('[Audio] Play failed:', e));
+                } else {
+                    audioWrong.current.currentTime = 0;
+                    audioWrong.current.play().catch(e => console.warn('[Audio] Play failed:', e));
+                }
+
                 // Haptic feedback (safe for all browsers)
                 try { navigator?.vibrate?.(data.correct ? [50, 50, 50] : [200]); } catch { /* unsupported */ }
                 setTimeout(() => setLastHit(null), 800);
@@ -253,6 +275,15 @@ export default function Controller() {
 
                 console.log('[Controller] Reveal result:', isPersonallyCorrect ? 'correct!' : 'wrong');
                 
+                // Play individual sound feedback
+                if (isPersonallyCorrect) {
+                    audioCorrect.current.currentTime = 0;
+                    audioCorrect.current.play().catch(e => console.warn('[Audio] Play failed:', e));
+                } else {
+                    audioWrong.current.currentTime = 0;
+                    audioWrong.current.play().catch(e => console.warn('[Audio] Play failed:', e));
+                }
+
                 // Haptic feedback based on personal result (safe for all browsers)
                 try { navigator?.vibrate?.(isPersonallyCorrect ? [50, 50, 50] : [200]); } catch { /* unsupported */ }
                 
