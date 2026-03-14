@@ -195,6 +195,21 @@ export default function Controller() {
                 // Haptic feedback (safe for all browsers)
                 try { navigator?.vibrate?.(data.correct ? [50, 50, 50] : [200]); } catch { /* unsupported */ }
                 setTimeout(() => setLastHit(null), 800);
+
+                // Show score popup for singleplayer (similar to multiplayer reveal)
+                if (data.correct && data.points > 0) {
+                    const popupId = `score-${Date.now()}-${data.controllerId}`;
+                    setScorePopups(prev => [...prev, {
+                        id: popupId,
+                        score: data.points,
+                        bonus: data.bonus ?? 0,
+                        colorIndex: colorIndex, // Use player's color
+                    }]);
+                    // Remove popup after animation
+                    setTimeout(() => {
+                        setScorePopups(prev => prev.filter(p => p.id !== popupId));
+                    }, 2000);
+                }
             });
 
             client.onGameOver((data) => {
@@ -232,29 +247,32 @@ export default function Controller() {
             });
 
             client.onRevealResult((data: RevealResultPayload) => {
-                console.log('[Controller] Reveal result:', data.anyCorrect ? 'correct!' : 'wrong');
-                // Haptic feedback on reveal (safe for all browsers)
-                try { navigator?.vibrate?.(data.anyCorrect ? [50, 50, 50] : [200]); } catch { /* unsupported */ }
-                // Show visual hit feedback
-                setLastHit({ correct: data.anyCorrect });
+                // Find this specific player's result from the summary
+                const myResult = data.playerScores?.find(ps => ps.controllerId === clientIdRef.current);
+                const isPersonallyCorrect = myResult ? myResult.correct : false;
+
+                console.log('[Controller] Reveal result:', isPersonallyCorrect ? 'correct!' : 'wrong');
+                
+                // Haptic feedback based on personal result (safe for all browsers)
+                try { navigator?.vibrate?.(isPersonallyCorrect ? [50, 50, 50] : [200]); } catch { /* unsupported */ }
+                
+                // Show visual individual hit feedback (green for correct, red for wrong)
+                setLastHit({ correct: isPersonallyCorrect });
                 setTimeout(() => setLastHit(null), 1500);
 
-                // Show score popup ONLY for this player (not all players)
-                if (data.playerScores) {
-                    const myScore = data.playerScores.find(ps => ps.controllerId === clientIdRef.current);
-                    if (myScore && myScore.correct && myScore.score > 0) {
-                        const popupId = `score-${Date.now()}-${myScore.controllerId}`;
-                        setScorePopups(prev => [...prev, { 
-                            id: popupId, 
-                            score: myScore.score, 
-                            bonus: myScore.bonus, 
-                            colorIndex: myScore.colorIndex 
-                        }]);
-                        // Remove popup after animation
-                        setTimeout(() => {
-                            setScorePopups(prev => prev.filter(p => p.id !== popupId));
-                        }, 2000);
-                    }
+                // Show score popup ONLY for this player (already implemented, but confirmed it uses clientIdRef)
+                if (data.playerScores && myResult && myResult.correct && myResult.score > 0) {
+                    const popupId = `score-${Date.now()}-${myResult.controllerId}`;
+                    setScorePopups(prev => [...prev, { 
+                        id: popupId, 
+                        score: myResult.score, 
+                        bonus: myResult.bonus, 
+                        colorIndex: myResult.colorIndex 
+                    }]);
+                    // Remove popup after animation
+                    setTimeout(() => {
+                        setScorePopups(prev => prev.filter(p => p.id !== popupId));
+                    }, 2000);
                 }
             });
 
