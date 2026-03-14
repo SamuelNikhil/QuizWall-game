@@ -42,6 +42,9 @@ export class QuizEngine {
     private questionNumberForUI: number = 0; // 1-indexed question counter for UI
     private selectionPhaseStartTime: number = 0; // Timestamp when selection phase started (for bonus scoring)
 
+    // Singleplayer time-based scoring
+    private questionStartTime: number = 0; // Timestamp when current question started (for bonus scoring)
+
     // Callbacks
     private onTimerTick?: (timeLeft: number) => void;
     private onGameOver?: () => void;
@@ -123,14 +126,21 @@ export class QuizEngine {
     /**
      * Set the number of players to adjust timer duration
      * 1 player = 30 seconds, 2-3 players = phase-based (20s total per question)
+     * Returns true if mode changed (singleplayer ↔ multiplayer)
      */
-    setPlayerCount(count: number): void {
+    setPlayerCount(count: number): boolean {
+        const previousCount = this.playerCount;
         this.playerCount = Math.max(1, Math.min(3, count));
+        
+        const modeChanged = (previousCount >= 2) !== (this.playerCount >= 2);
+        
         if (this.isMultiplayer()) {
             console.log(`[QuizEngine] Player count set to ${this.playerCount}, using phase-based timer (20s/question)`);
         } else {
             console.log(`[QuizEngine] Player count set to ${this.playerCount}, timer will be 20s`);
         }
+        
+        return modeChanged;
     }
 
     /** Check if game is in multiplayer mode */
@@ -168,6 +178,9 @@ export class QuizEngine {
         this.currentIndex = 0;
         this.shuffleQuestions();
 
+        // Initialize question start time for bonus scoring
+        this.questionStartTime = Date.now();
+
         if (this.timerInterval) {
             clearInterval(this.timerInterval);
         }
@@ -187,6 +200,7 @@ export class QuizEngine {
     /** Reset the timer for the next question (singleplayer, called on correct answer) */
     resetTimer(): void {
         this.timeLeft = this.getTimerDuration();
+        this.questionStartTime = Date.now(); // Reset start time for bonus scoring
         console.log(`[QuizEngine] Timer reset to ${this.timeLeft}s for next question`);
     }
 
@@ -512,9 +526,12 @@ export class QuizEngine {
         };
     }
 
-    /** Validate an answer (singleplayer). Returns { correct, points } */
-    validateAnswer(orbId: string): { correct: boolean; points: number } {
+    /** Validate an answer (singleplayer). Returns { correct, points, baseScore, bonus } */
+    validateAnswer(orbId: string): { correct: boolean; points: number; baseScore: number; bonus: number } {
         const currentQuestion = this.findCurrentQuestion();
+
+        // Calculate time elapsed since question started (for bonus scoring)
+        const elapsedTime = (Date.now() - this.questionStartTime) / 1000; // in seconds
 
         if (!currentQuestion) {
             // Fallback: try to find an unused question
@@ -524,18 +541,42 @@ export class QuizEngine {
             if (availableQuestions.length > 0) {
                 const q = availableQuestions[0];
                 const isCorrect = orbId === q.correct;
-                const points = isCorrect ? 100 : 0;
+                let baseScore = 0;
+                let bonus = 0;
+                let points = 0;
+
                 if (isCorrect) {
+                    baseScore = 50;
+                    // Time bonus: first 5 seconds = +20, next 5 seconds (5-10s) = +10
+                    if (elapsedTime <= 5) {
+                        bonus = 20;
+                    } else if (elapsedTime <= 10) {
+                        bonus = 10;
+                    }
+                    points = baseScore + bonus;
                     this.questionsAnswered++;
                     this.sessionQuestionsAnswered++;
                 }
-                return { correct: isCorrect, points };
+                return { correct: isCorrect, points, baseScore, bonus };
             }
-            return { correct: false, points: 0 };
+            return { correct: false, points: 0, baseScore: 0, bonus: 0 };
         }
 
         const isCorrect = orbId === currentQuestion.correct;
-        const points = isCorrect ? 100 : 0;
+        let baseScore = 0;
+        let bonus = 0;
+        let points = 0;
+
+        if (isCorrect) {
+            baseScore = 50;
+            // Time bonus: first 5 seconds = +20, next 5 seconds (5-10s) = +10
+            if (elapsedTime <= 5) {
+                bonus = 20;
+            } else if (elapsedTime <= 10) {
+                bonus = 10;
+            }
+            points = baseScore + bonus;
+        }
 
         // Track all questions attempted (both correct and wrong)
         this.totalQuestionsAttempted++;
@@ -546,7 +587,8 @@ export class QuizEngine {
             this.sessionQuestionsAnswered++;
         }
 
-        return { correct: isCorrect, points };
+        console.log(`[QuizEngine] Singleplayer answer: correct=${isCorrect}, time=${elapsedTime.toFixed(2)}s, baseScore=${baseScore}, bonus=${bonus}, points=${points}`);
+        return { correct: isCorrect, points, baseScore, bonus };
     }
 
     /** Advance to the next question. Returns the new question for client. */

@@ -63,6 +63,8 @@ export interface HitResultPayload {
     controllerId: string;
     correct: boolean;
     points: number;
+    baseScore: number;   // Base score (50 for correct)
+    bonus: number;       // Time bonus (0, 10, or 20)
     orbId: string | null;  // which orb was hit
 }
 

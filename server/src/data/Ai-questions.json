@@ -1,34 +1,34 @@
 {
     "topic": "animals-easy-and-simple",
-    "generatedAt": "2026-03-12T05:04:49.732Z",
+    "generatedAt": "2026-03-14T06:33:23.943Z",
     "questions": [
         {
-            "id": 21,
-            "text": "What is the typical lifespan of a hamster in captivity?",
+            "id": 11,
+            "text": "What is the primary source of food for a Giant Panda?",
             "options": [
                 {
                     "id": "A",
-                    "text": "1-2 years"
+                    "text": "Bamboo"
                 },
                 {
                     "id": "B",
-                    "text": "10-15 years"
+                    "text": "Fish"
                 },
                 {
                     "id": "C",
-                    "text": "2-3 years"
+                    "text": "Small Mammals"
                 },
                 {
                     "id": "D",
-                    "text": "5-7 years"
+                    "text": "Insects"
                 }
             ],
-            "correct": "C",
+            "correct": "A",
             "category": "animals-easy-and-simple"
         },
         {
-            "id": 22,
-            "text": "Which of the following birds is known for its distinctive call that sounds like laughter?",
+            "id": 12,
+            "text": "Which of the following birds is known for its distinctive call that sounds like human laughter?",
             "options": [
                 {
                     "id": "A",
@@ -36,143 +36,143 @@
                 },
                 {
                     "id": "B",
+                    "text": "Ostrich"
+                },
+                {
+                    "id": "C",
                     "text": "Penguin"
                 },
                 {
-                    "id": "C",
+                    "id": "D",
                     "text": "Kookaburra"
-                },
-                {
-                    "id": "D",
-                    "text": "Ostrich"
-                }
-            ],
-            "correct": "C",
-            "category": "animals-easy-and-simple"
-        },
-        {
-            "id": 23,
-            "text": "What is the primary source of food for koalas?",
-            "options": [
-                {
-                    "id": "A",
-                    "text": "Grasses and seeds"
-                },
-                {
-                    "id": "B",
-                    "text": "Insects and small animals"
-                },
-                {
-                    "id": "C",
-                    "text": "Eucalyptus leaves"
-                },
-                {
-                    "id": "D",
-                    "text": "Fruits and berries"
-                }
-            ],
-            "correct": "C",
-            "category": "animals-easy-and-simple"
-        },
-        {
-            "id": 24,
-            "text": "Which animal has the longest migration pattern, traveling up to 40,000 miles per year?",
-            "options": [
-                {
-                    "id": "A",
-                    "text": "African elephant"
-                },
-                {
-                    "id": "B",
-                    "text": "Gray whale"
-                },
-                {
-                    "id": "C",
-                    "text": "Arctic tern"
-                },
-                {
-                    "id": "D",
-                    "text": "Caribou"
-                }
-            ],
-            "correct": "C",
-            "category": "animals-easy-and-simple"
-        },
-        {
-            "id": 25,
-            "text": "What is the average speed of a cheetah while chasing prey?",
-            "options": [
-                {
-                    "id": "A",
-                    "text": "70-80 mph"
-                },
-                {
-                    "id": "B",
-                    "text": "50-60 mph"
-                },
-                {
-                    "id": "C",
-                    "text": "60-70 mph"
-                },
-                {
-                    "id": "D",
-                    "text": "30-40 mph"
-                }
-            ],
-            "correct": "C",
-            "category": "animals-easy-and-simple"
-        },
-        {
-            "id": 26,
-            "text": "Which of the following animals has a unique, built-in 'parachute' to help it jump and glide?",
-            "options": [
-                {
-                    "id": "A",
-                    "text": "Chipmunk"
-                },
-                {
-                    "id": "B",
-                    "text": "Kangaroo"
-                },
-                {
-                    "id": "C",
-                    "text": "Sugar glider"
-                },
-                {
-                    "id": "D",
-                    "text": "Flying squirrel"
                 }
             ],
             "correct": "D",
             "category": "animals-easy-and-simple"
         },
         {
-            "id": 27,
-            "text": "What is the name of the largest living species of lizard, found primarily in Indonesia?",
+            "id": 13,
+            "text": "What is the fastest land animal, with the ability to reach speeds of up to 70 mph?",
             "options": [
                 {
                     "id": "A",
-                    "text": "Komodo dragon"
+                    "text": "Lion"
                 },
                 {
                     "id": "B",
-                    "text": "Saltwater crocodile"
+                    "text": "Cheetah"
                 },
                 {
                     "id": "C",
-                    "text": "Green anaconda"
+                    "text": "Giraffe"
                 },
                 {
                     "id": "D",
-                    "text": "Black mamba"
+                    "text": "Elephant"
+                }
+            ],
+            "correct": "B",
+            "category": "animals-easy-and-simple"
+        },
+        {
+            "id": 14,
+            "text": "Which animal has the longest migration pattern, traveling over 40,000 miles each year?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Caribou"
+                },
+                {
+                    "id": "B",
+                    "text": "Arctic Tern"
+                },
+                {
+                    "id": "C",
+                    "text": "Gray Whale"
+                },
+                {
+                    "id": "D",
+                    "text": "Wildebeest"
+                }
+            ],
+            "correct": "B",
+            "category": "animals-easy-and-simple"
+        },
+        {
+            "id": 15,
+            "text": "What is the largest species of turtle, with some individuals weighing over 2,000 pounds?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Green Sea Turtle"
+                },
+                {
+                    "id": "B",
+                    "text": "Red-Eared Slider"
+                },
+                {
+                    "id": "C",
+                    "text": "Leatherback Sea Turtle"
+                },
+                {
+                    "id": "D",
+                    "text": "Box Turtle"
+                }
+            ],
+            "correct": "C",
+            "category": "animals-easy-and-simple"
+        },
+        {
+            "id": 16,
+            "text": "Which of the following animals is known for its unique ability to change its body color to blend in with its surroundings?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Octopus"
+                },
+                {
+                    "id": "B",
+                    "text": "Squid"
+                },
+                {
+                    "id": "C",
+                    "text": "All of the above"
+                },
+                {
+                    "id": "D",
+                    "text": "Cuttlefish"
+                }
+            ],
+            "correct": "C",
+            "category": "animals-easy-and-simple"
+        },
+        {
+            "id": 17,
+            "text": "What is the smallest species of mammal, weighing in at around 2 grams?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Etruscan Shrew"
+                },
+                {
+                    "id": "B",
+                    "text": "Shrew"
+                },
+                {
+                    "id": "C",
+                    "text": "Mouse"
+                },
+                {
+                    "id": "D",
+                    "text": "Bat"
                 }
             ],
             "correct": "A",
             "category": "animals-easy-and-simple"
         },
         {
-            "id": 28,
-            "text": "Which of the following animals has the strongest sense of smell, with some species able to detect scents from over 10 miles away?",
+            "id": 18,
+            "text": "Which of the following animals has a highly developed sense of electroreception, allowing it to detect electrical signals in the water?",
             "options": [
                 {
                     "id": "A",
@@ -180,66 +180,66 @@
                 },
                 {
                     "id": "B",
-                    "text": "Bloodhound"
+                    "text": "Ray"
                 },
                 {
                     "id": "C",
-                    "text": "Elephant"
+                    "text": "All of the above"
                 },
                 {
                     "id": "D",
-                    "text": "Mouse"
+                    "text": "Sawfish"
+                }
+            ],
+            "correct": "C",
+            "category": "animals-easy-and-simple"
+        },
+        {
+            "id": 19,
+            "text": "What is the largest species of lizard, growing up to 10 feet in length?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Green Iguana"
+                },
+                {
+                    "id": "B",
+                    "text": "Komodo Dragon"
+                },
+                {
+                    "id": "C",
+                    "text": "Saltwater Crocodile"
+                },
+                {
+                    "id": "D",
+                    "text": "Black Mamba"
                 }
             ],
             "correct": "B",
             "category": "animals-easy-and-simple"
         },
         {
-            "id": 29,
-            "text": "What is the name of the process by which some animals, such as bears and bats, survive the winter months by reducing their metabolic rate?",
+            "id": 20,
+            "text": "Which of the following animals is known for its unique communication method, using a complex system of clicks and whistles?",
             "options": [
                 {
                     "id": "A",
-                    "text": "Adaptation"
+                    "text": "Whale"
                 },
                 {
                     "id": "B",
-                    "text": "Hibernation"
+                    "text": "Dolphin"
                 },
                 {
                     "id": "C",
-                    "text": "Migration"
+                    "text": "Walrus"
                 },
                 {
                     "id": "D",
-                    "text": "Camouflage"
+                    "text": "Seal"
                 }
             ],
             "correct": "B",
-            "category": "animals-easy-and-simple"
-        },
-        {
-            "id": 30,
-            "text": "Which of the following animals is known for its unique ability to change its body color to blend in with its surroundings, a process called camouflage?",
-            "options": [
-                {
-                    "id": "A",
-                    "text": "Cuttlefish"
-                },
-                {
-                    "id": "B",
-                    "text": "Octopus"
-                },
-                {
-                    "id": "C",
-                    "text": "Flounder"
-                },
-                {
-                    "id": "D",
-                    "text": "Chameleon"
-                }
-            ],
-            "correct": "D",
             "category": "animals-easy-and-simple"
         }
     ]

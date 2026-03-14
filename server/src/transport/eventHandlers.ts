@@ -196,7 +196,13 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
 
             // Set player count for timer logic
             const playerCount = room.controllers.length;
-            room.quizEngine.setPlayerCount(playerCount);
+            const modeChanged = room.quizEngine.setPlayerCount(playerCount);
+
+            // If switching between singleplayer and multiplayer, reset scores
+            if (modeChanged) {
+                console.log(`[EventHandlers] Game mode changed — resetting player scores`);
+                roomManager.resetPlayerScores(roomId);
+            }
 
 
             // Get first question
@@ -460,6 +466,8 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
                         controllerId: channel.id,
                         correct: result.correct,
                         points: result.points,
+                        baseScore: result.baseScore,
+                        bonus: result.bonus,
                         orbId: hitOrb,
                     };
 

@@ -16,6 +16,7 @@ import type {
     LeaderboardEntry,
     QuestionPhase,
     PlayerSelectionPayload,
+    PlayerScoreEntry,
     RevealResultPayload,
     TutorialPlayerStatus,
     TutorialStatusUpdatePayload,
@@ -169,7 +170,7 @@ export default function Screen() {
 
         if (correct) {
             createParticles(targetX, targetY, 20, '#10b981');
-            createScorePopup(targetX, targetY, '+100', 'correct');
+            createScorePopup(targetX, targetY, `+${data.points}`, 'correct');
             createRipple(targetX, targetY, '#10b981');
             createConfetti(targetX, targetY);
 
@@ -587,7 +588,7 @@ export default function Screen() {
 
                         <div style={{ background: 'rgba(255, 255, 255, 0.05)', padding: '2.5rem', borderRadius: '30px', border: '1px solid rgba(255, 255, 255, 0.1)', backdropFilter: 'blur(20px)', minWidth: '350px', marginBottom: '1.5rem' }}>
                             <h2 style={{ fontSize: '1.5rem', marginBottom: '0.5rem', color: 'rgba(255, 255, 255, 0.8)', fontWeight: '600' }}>Final Score</h2>
-                            <p style={{ fontSize: '4.5rem', fontWeight: '900', color: '#90e0ef', margin: 0 }}>{gameOverData.finalScore}</p>
+                            <p style={{ fontSize: '4.5rem', fontWeight: '900', color: '#90e0ef', margin: 0 }}>{gameOverData.playerScores?.[0]?.score ?? 0}</p>
                             <p style={{ fontSize: '1rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
                                 Questions answered: {gameOverData.questionsAnswered}/10
                             </p>
@@ -897,7 +898,7 @@ export default function Screen() {
                     <span style={{ fontWeight: '900', color: 'var(--text-primary)', fontSize: '1.4rem' }}>{controllerCount}</span>
                     <div style={{ display: 'flex', gap: '1.25rem', borderLeft: '2px solid var(--glass-border)', paddingLeft: '1.25rem', marginLeft: '0.5rem' }}>
                         {playerScores.length > 0 ? (
-                            playerScores.map((ps, idx) => (
+                            playerScores.map((ps) => (
                                 <span key={ps.controllerId} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                     <span style={{
                                         width: '10px', height: '10px', borderRadius: '50%',
