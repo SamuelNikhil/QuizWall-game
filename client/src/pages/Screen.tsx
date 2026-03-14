@@ -1,4 +1,4 @@
-﻿// ==========================================
+// ==========================================
 // Screen Page — Presentation Layer
 // Displays game arena, questions, effects
 // ALL logic comes from server events
@@ -7,7 +7,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { GameClient } from '../transport/GameClient';
-import { ORB_POSITIONS } from '../shared/types';
+import { ORB_POSITIONS, CROSSHAIR_COLORS } from '../shared/types';
 import type {
     ClientQuestion,
     HitResultPayload,
@@ -34,6 +34,7 @@ interface Projectile { id: string; x: number; y: number; targetX: number; target
 export default function Screen() {
     // ---- State ----
     const [phase, setPhase] = useState<GamePhase>('connecting');
+    const [connectionError, setConnectionError] = useState<string | null>(null);
     // Keep a ref in sync for use inside event-handler closures (avoids stale state reads)
     const phaseRef = useRef<GamePhase>('connecting');
     const setPhaseSync = (p: GamePhase) => { phaseRef.current = p; setPhase(p); };
@@ -56,8 +57,7 @@ export default function Screen() {
     const [crosshairs, setCrosshairs] = useState<Map<string, { x: number; y: number }>>(new Map());
     const [targetedOrbId, setTargetedOrbId] = useState<string | null>(null);
 
-    // Per-player crosshair colors - must match types.ts CROSSHAIR_COLORS
-    const CROSSHAIR_COLORS = ['#00f2ff', '#ff6b6b', '#7cff6b'];
+    // Per-player crosshair colors — imported from shared types
     // Store color index from server when controller joins
     const crosshairColorMap = useRef<Map<string, number>>(new Map());
     const getPlayerColor = useCallback((controllerId: string): string => {
@@ -217,11 +217,6 @@ export default function Screen() {
 
             client.onControllerLeft((data) => {
                 setControllerCount((prev) => Math.max(0, prev - 1));
-                // If all controllers leave during game
-                const room = clientRef.current;
-                if (room) {
-                    // Lobby update will handle the rest
-                }
                 console.log('Controller left:', data.controllerId);
             });
 
@@ -403,8 +398,7 @@ export default function Screen() {
             });
         }).catch((err) => {
             console.error('Connection failed:', err);
-            // Note: setError is not available in this component
-            // The error is logged to console for debugging
+            setConnectionError(err?.message || 'Failed to connect to server');
         });
 
         return () => { client.close(); };
@@ -508,8 +502,23 @@ export default function Screen() {
         return (
             <div className="screen-container">
                 <div className="waiting-screen">
-                    <div className="pulse-ring" />
-                    <h2 className="waiting-title">Connecting to Server...</h2>
+                    {connectionError ? (
+                        <>
+                            <h2 className="waiting-title" style={{ color: '#ff4444' }}>Connection Failed</h2>
+                            <p style={{ color: 'var(--text-secondary)', marginTop: '1rem', fontSize: '1rem' }}>{connectionError}</p>
+                            <button
+                                onClick={() => window.location.reload()}
+                                style={{ marginTop: '1.5rem', padding: '0.8rem 2rem', background: 'var(--accent-primary)', border: 'none', borderRadius: 'var(--radius-md)', color: '#fff', fontWeight: 700, cursor: 'pointer', fontSize: '1rem' }}
+                            >
+                                🔄 Retry
+                            </button>
+                        </>
+                    ) : (
+                        <>
+                            <div className="pulse-ring" />
+                            <h2 className="waiting-title">Connecting to Server...</h2>
+                        </>
+                    )}
                 </div>
             </div>
         );

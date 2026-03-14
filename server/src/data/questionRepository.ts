@@ -312,14 +312,14 @@ async function generateMoreQuestionsForSession(sessionId: string, count?: number
 
 
         // Temporarily override question count for this generation
-        const originalCount = groqService['questionCount'];
-        groqService['questionCount'] = questionCount;
+        const originalCount = groqService.getQuestionCount();
+        groqService.setQuestionCount(questionCount);
 
         // Generate fresh questions (not from cache)
         const newQuestions = await groqService.generateQuestionsForSession();
 
         // Restore original count
-        groqService['questionCount'] = originalCount;
+        groqService.setQuestionCount(originalCount);
 
         if (newQuestions && newQuestions.length > 0) {
             // Normalize new questions

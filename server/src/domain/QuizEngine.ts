@@ -347,9 +347,9 @@ export class QuizEngine {
         const playerScores = selections.map(s => {
             const isCorrect = s.orbId === correctOrbId;
             const baseScore = isCorrect ? 50 : 0;
-            // Time bonus: faster answers get more points (10 for < 5s, 20 for < 3s)
+            // Time bonus: faster answers get more points (+20 for <= 5s, +10 for <= 10s)
             const selectionTime = s.selectionTime ?? 16;
-            const bonus = isCorrect ? (selectionTime < 3 ? 20 : selectionTime < 5 ? 10 : 0) : 0;
+            const bonus = isCorrect ? (selectionTime <= 5 ? 20 : selectionTime <= 10 ? 10 : 0) : 0;
             return {
                 controllerId: s.controllerId,
                 colorIndex: s.colorIndex,

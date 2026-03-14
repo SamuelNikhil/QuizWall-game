@@ -247,9 +247,8 @@ export class GameClient {
         this.channel?.on(EVENTS.HIT_RESULT, cb);
     }
 
-    onWrongChoicesUpdate(cb: (data: { wrongChoicesLeft: number }) => void): void {
-        this.channel?.on(EVENTS.WRONG_CHOICES_UPDATE, cb);
-    }
+
+
 
     onProjectile(cb: (data: { controllerId: string; targetXPercent: number; targetYPercent: number }) => void): void {
         this.channel?.on(EVENTS.PROJECTILE, cb);
