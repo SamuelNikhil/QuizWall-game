@@ -239,46 +239,20 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
                     },
                     // Reveal result
                     (result: RevealResultPayload) => {
-                        // Calculate individual player scores with time-based bonus
-                        // Base: 50 points for correct answer
-                        // Bonus: +20 if selected within first 5 seconds, +10 if within 5-10 seconds
-                        const playerScores: { controllerId: string; colorIndex: number; score: number; baseScore: number; bonus: number; correct: boolean }[] = [];
-                        
-                        for (const sel of result.selections) {
-                            const isCorrect = sel.orbId === result.correctOrbId;
-                            let score = 0;
-                            let baseScore = 0;
-                            let bonus = 0;
-                            
-                            if (isCorrect) {
-                                baseScore = 50; // Base score for correct answer
-                                const time = sel.selectionTime ?? 16; // Default to max time if undefined
-                                if (time <= 5) {
-                                    bonus = 20; // Fast answer bonus
-                                } else if (time <= 10) {
-                                    bonus = 10; // Medium answer bonus
+                        // Use playerScores already computed by QuizEngine (avoids duplicate calculation)
+                        // Just persist scores for players who answered correctly
+                        if (result.playerScores) {
+                            for (const ps of result.playerScores) {
+                                if (ps.correct && ps.score > 0) {
+                                    roomManager.addPlayerScore(roomId, ps.controllerId, ps.score);
                                 }
-                                score = baseScore + bonus;
-                                roomManager.addPlayerScore(roomId, sel.controllerId, score);
                             }
-                            
-                            playerScores.push({
-                                controllerId: sel.controllerId,
-                                colorIndex: sel.colorIndex,
-                                score,
-                                baseScore,
-                                bonus,
-                                correct: isCorrect,
-                            });
                         }
 
-                        // Add player scores to result for client display
-                        const resultWithScores = { ...result, playerScores };
-
-                        // Broadcast reveal to all
-                        room.screenChannel.emit(EVENTS.REVEAL_RESULT, resultWithScores);
+                        // Broadcast reveal to all (playerScores already included from QuizEngine)
+                        room.screenChannel.emit(EVENTS.REVEAL_RESULT, result);
                         for (const c of room.controllers) {
-                            c.channel.emit(EVENTS.REVEAL_RESULT, resultWithScores);
+                            c.channel.emit(EVENTS.REVEAL_RESULT, result);
                         }
 
                         // Broadcast score update with current player scores

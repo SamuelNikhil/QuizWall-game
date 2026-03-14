@@ -41,12 +41,15 @@ export class GroqService {
      */
     async generateQuestionsForSession(excludeQuestions?: string[]): Promise<ServerQuestion[]> {
         try {
-
-
             const prompt = this.buildPrompt(excludeQuestions);
+
+            // Abort if Groq doesn't respond within 15 seconds
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 15000);
 
             const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
                 method: 'POST',
+                signal: controller.signal,
                 headers: {
                     'Authorization': `Bearer ${this.apiKey}`,
                     'Content-Type': 'application/json',
@@ -67,6 +70,8 @@ export class GroqService {
                     max_tokens: 4096,
                 }),
             });
+
+            clearTimeout(timeout);
 
             if (!response.ok) {
                 const errorText = await response.text();
@@ -233,7 +238,16 @@ Do NOT include:
     updateTopic(newTopic: string): void {
         this.topic = newTopic;
         this.questionIdCounter = 1;
+    }
 
+    /** Update the number of questions to generate per session */
+    setQuestionCount(count: number): void {
+        this.questionCount = count;
+    }
+
+    /** Get the current question count setting */
+    getQuestionCount(): number {
+        return this.questionCount;
     }
 }
 

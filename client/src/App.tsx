@@ -5,6 +5,7 @@
 
 import { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { ErrorBoundary } from './shared/ErrorBoundary';
 
 // Lazy-load page components for smaller initial bundles
 const Screen = lazy(() => import('./pages/Screen'));
@@ -33,13 +34,15 @@ const LoadingFallback = () => (
 export default function App() {
     return (
         <BrowserRouter>
-            <Suspense fallback={<LoadingFallback />}>
-                <Routes>
-                    <Route path="/" element={<Screen />} />
-                    <Route path="/screen" element={<Screen />} />
-                    <Route path="/controller/:roomId/:token" element={<Controller />} />
-                </Routes>
-            </Suspense>
+            <ErrorBoundary>
+                <Suspense fallback={<LoadingFallback />}>
+                    <Routes>
+                        <Route path="/" element={<Screen />} />
+                        <Route path="/screen" element={<Screen />} />
+                        <Route path="/controller/:roomId/:token" element={<Controller />} />
+                    </Routes>
+                </Suspense>
+            </ErrorBoundary>
         </BrowserRouter>
     );
 }
