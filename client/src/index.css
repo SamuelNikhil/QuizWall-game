@@ -247,8 +247,9 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-weight: 700;
-    font-size: 0.8rem;
+    font-weight: 800;
+    font-size: 0.95rem;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
     text-align: center;
     padding: 0.6rem;
     line-height: 1.2;
@@ -256,7 +257,7 @@ body {
     transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     cursor: pointer;
     animation: expressiveFloat 6s ease-in-out infinite;
-    border: 0.2rem solid rgba(255, 255, 255, 0.1);
+    border: 0.2rem solid rgba(255, 255, 255, 0.2);
     transform: translate(-50%, -50%);
     /* GPU acceleration for smooth animations */
     will-change: transform, opacity;
