@@ -133,8 +133,15 @@ export class GameClient {
 
             io.onDisconnect(() => {
                 this.connected = false;
+                this.onDisconnectCallback?.();
             });
         });
+    }
+
+    private onDisconnectCallback: (() => void) | null = null;
+
+    onDisconnect(cb: () => void): void {
+        this.onDisconnectCallback = cb;
     }
 
     getChannel(): Channel {
@@ -279,6 +286,14 @@ export class GameClient {
 
     onGameRestarted(cb: () => void): void {
         this.channel?.on(EVENTS.GAME_RESTARTED, cb);
+    }
+    
+    onGamePaused(cb: () => void): void {
+        this.channel?.on('game:paused', cb);
+    }
+
+    onGameResumed(cb: () => void): void {
+        this.channel?.on('game:resumed', cb);
     }
 
     onCrosshair(cb: (data: CrosshairPayload) => void): void {
