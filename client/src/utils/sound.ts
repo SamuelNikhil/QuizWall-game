@@ -2,15 +2,100 @@
 // Sound Manager — Utilities
 // ==========================================
 
+import correctSoundUrl from '../assets/sounds/correct.mp3';
+import wrongSoundUrl from '../assets/sounds/wrong.mp3';
+
 export class SoundManager {
     private audioContext: AudioContext | null = null;
     private enabled: boolean = true;
+    private initialized: boolean = false;
+    private buffers: Record<string, AudioBuffer> = {};
 
     private getContext(): AudioContext {
         if (!this.audioContext) {
-            this.audioContext = new AudioContext();
+            const AudioContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
+            this.audioContext = new AudioContextClass();
         }
-        return this.audioContext;
+        return this.audioContext!;
+    }
+
+    /**
+     * Unlocks audio on iOS/Safari. Should be called on first user gesture.
+     */
+    async unlock(): Promise<void> {
+        if (this.initialized) return;
+        
+        const ctx = this.getContext();
+        if (ctx.state === 'suspended') {
+            await ctx.resume();
+        }
+        
+        // Play a silent buffer to fully unlock
+        const buffer = ctx.createBuffer(1, 1, 22050);
+        const source = ctx.createBufferSource();
+        source.buffer = buffer;
+        source.connect(ctx.destination);
+        source.start(0);
+        
+        // Load sound files
+        this.loadSound('correct', correctSoundUrl);
+        this.loadSound('wrong', wrongSoundUrl);
+        
+        this.initialized = true;
+        console.log('[Sound] AudioContext unlocked');
+    }
+
+    private async loadSound(name: string, url: string): Promise<void> {
+        try {
+            const response = await fetch(url);
+            const arrayBuffer = await response.arrayBuffer();
+            const ctx = this.getContext();
+            
+            // Accommodate older Safari versions that don't return a Promise for decodeAudioData
+            const audioBuffer = await new Promise<AudioBuffer>((resolve, reject) => {
+                ctx.decodeAudioData(arrayBuffer, resolve, reject);
+            });
+            
+            this.buffers[name] = audioBuffer;
+        } catch (e) {
+            console.warn(`[Sound] Failed to load sound ${name}:`, e);
+        }
+    }
+
+    private async playBuffer(name: string, volume: number = 1.0): Promise<void> {
+        if (!this.enabled) return;
+        const buffer = this.buffers[name];
+        if (!buffer) return;
+
+        try {
+            const ctx = this.getContext();
+            if (ctx.state === 'suspended') {
+                await ctx.resume();
+            }
+
+            const source = ctx.createBufferSource();
+            const gainNode = ctx.createGain();
+
+            source.buffer = buffer;
+            source.connect(gainNode);
+            gainNode.connect(ctx.destination);
+
+            gainNode.gain.value = volume;
+            source.start(0);
+        } catch (e) {
+            console.warn(`[Sound] Error playing ${name}:`, e);
+        }
+    }
+
+    vibrate(pattern: number | number[]): void {
+        if (!this.enabled) return;
+        try {
+            if ('vibrate' in navigator) {
+                navigator.vibrate(pattern);
+            }
+        } catch (e) {
+            // Silently ignore - iOS doesn't support navigator.vibrate
+        }
     }
 
     toggle(): boolean {
@@ -22,16 +107,22 @@ export class SoundManager {
         return this.enabled;
     }
 
-    private playTone(
+    private async playTone(
         frequency: number,
         duration: number,
         type: OscillatorType = 'sine',
         volume: number = 0.3
-    ): void {
+    ): Promise<void> {
         if (!this.enabled) return;
 
         try {
             const ctx = this.getContext();
+            
+            // Auto-resume if suspended (might happen even after unlock on some browsers)
+            if (ctx.state === 'suspended') {
+                await ctx.resume();
+            }
+
             const oscillator = ctx.createOscillator();
             const gainNode = ctx.createGain();
 
@@ -53,10 +144,9 @@ export class SoundManager {
 
     playHit(correct: boolean): void {
         if (correct) {
-            this.playTone(880, 0.15, 'sine', 0.4);
-            setTimeout(() => this.playTone(1100, 0.2, 'sine', 0.3), 100);
+            this.playBuffer('correct', 0.6);
         } else {
-            this.playTone(200, 0.3, 'sawtooth', 0.2);
+            this.playBuffer('wrong', 0.6);
         }
     }
 

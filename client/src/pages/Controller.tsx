@@ -12,8 +12,8 @@ import { CROSSHAIR_COLORS } from '../shared/types';
 import slingCenterImg from '../assets/sling-center.svg';
 import '../index.css';
 import '../animations.css';
-import correctSound from '../assets/sounds/correct.mp3';
-import wrongSound from '../assets/sounds/wrong.mp3';
+import { soundManager } from '../utils/sound';
+
 
 type ControllerPhase = 'connecting' | 'lobby' | 'calibrating' | 'playing' | 'game-over';
 
@@ -107,16 +107,6 @@ export default function Controller() {
     const clientRef = useRef<GameClient | null>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const wakeLockRef = useRef<WakeLockSentinel | null>(null);
-
-    // Audio effects
-    const audioCorrect = useRef(new Audio(correctSound));
-    const audioWrong = useRef(new Audio(wrongSound));
-
-    // Pre-load audio
-    useEffect(() => {
-        audioCorrect.current.load();
-        audioWrong.current.load();
-    }, []);
 
     // Throttle crosshair updates to ~30fps
     const lastCrosshairSend = useRef<number>(0);
@@ -212,16 +202,10 @@ export default function Controller() {
                 setLastHit({ correct: data.correct });
                 
                 // Play sound feedback
-                if (data.correct) {
-                    audioCorrect.current.currentTime = 0;
-                    audioCorrect.current.play().catch(e => console.warn('[Audio] Play failed:', e));
-                } else {
-                    audioWrong.current.currentTime = 0;
-                    audioWrong.current.play().catch(e => console.warn('[Audio] Play failed:', e));
-                }
+                soundManager.playHit(data.correct);
 
-                // Haptic feedback (safe for all browsers)
-                try { navigator?.vibrate?.(data.correct ? [50, 50, 50] : [200]); } catch { /* unsupported */ }
+                // Haptic feedback (safe for all browsers including iOS)
+                soundManager.vibrate(data.correct ? [50, 50, 50] : [200]);
                 setTimeout(() => setLastHit(null), 800);
 
                 // Show score popup for singleplayer (similar to multiplayer reveal)
@@ -268,7 +252,7 @@ export default function Controller() {
                     hasSelectedRef.current = true;
                     setSelectedOrbId(_data.orbId);
                     // Haptic feedback when selection is confirmed
-                    try { navigator?.vibrate?.([30, 20, 30]); } catch { /* unsupported */ }
+                    soundManager.vibrate([30, 20, 30]);
                 } else {
                     console.log('[Controller] Other player selection:', _data.controllerId.substring(0, 8));
                 }
@@ -282,16 +266,10 @@ export default function Controller() {
                 console.log('[Controller] Reveal result:', isPersonallyCorrect ? 'correct!' : 'wrong');
                 
                 // Play individual sound feedback
-                if (isPersonallyCorrect) {
-                    audioCorrect.current.currentTime = 0;
-                    audioCorrect.current.play().catch(e => console.warn('[Audio] Play failed:', e));
-                } else {
-                    audioWrong.current.currentTime = 0;
-                    audioWrong.current.play().catch(e => console.warn('[Audio] Play failed:', e));
-                }
+                soundManager.playHit(isPersonallyCorrect);
 
-                // Haptic feedback based on personal result (safe for all browsers)
-                try { navigator?.vibrate?.(isPersonallyCorrect ? [50, 50, 50] : [200]); } catch { /* unsupported */ }
+                // Haptic feedback based on personal result (safe for all browsers including iOS)
+                soundManager.vibrate(isPersonallyCorrect ? [50, 50, 50] : [200]);
                 
                 // Show visual individual hit feedback (green for correct, red for wrong)
                 setLastHit({ correct: isPersonallyCorrect });
@@ -472,7 +450,7 @@ export default function Controller() {
                 tutorialTiltLeftDetected.current = true;
                 clientRef.current?.sendTutorialProgress({ step: 'tilt-left', tiltX: x, tiltY: y });
                 console.log('[Tutorial] Tilt-LEFT detected!');
-                try { navigator?.vibrate?.(30); } catch { /* unsupported */ }
+                soundManager.vibrate(30);
             }
 
             // Tutorial: detect tilt-right (x > 80)
@@ -480,7 +458,7 @@ export default function Controller() {
                 tutorialTiltRightDetected.current = true;
                 clientRef.current?.sendTutorialProgress({ step: 'tilt-right', tiltX: x, tiltY: y });
                 console.log('[Tutorial] Tilt-RIGHT detected!');
-                try { navigator?.vibrate?.(30); } catch { /* unsupported */ }
+                soundManager.vibrate(30);
             }
 
             // Tutorial: detect tilt-up (y < 20)
@@ -488,7 +466,7 @@ export default function Controller() {
                 tutorialTiltUpDetected.current = true;
                 clientRef.current?.sendTutorialProgress({ step: 'tilt-up', tiltX: x, tiltY: y });
                 console.log('[Tutorial] Tilt-UP detected!');
-                try { navigator?.vibrate?.(30); } catch { /* unsupported */ }
+                soundManager.vibrate(30);
             }
 
             // Tutorial: detect tilt-down (y > 80)
@@ -496,7 +474,7 @@ export default function Controller() {
                 tutorialTiltDownDetected.current = true;
                 clientRef.current?.sendTutorialProgress({ step: 'tilt-down', tiltX: x, tiltY: y });
                 console.log('[Tutorial] Tilt-DOWN detected!');
-                try { navigator?.vibrate?.([30, 50, 30]); } catch { /* unsupported */ }
+                soundManager.vibrate([30, 50, 30]);
             }
 
             return; // Don't send crosshair during calibration
@@ -620,8 +598,11 @@ export default function Controller() {
         setPullBack(0);
         setPower(0);
 
+        // iOS Audio Unlock - must happen on first user gesture
+        soundManager.unlock();
+
         // Light haptic feedback when starting to pull the sling
-        try { navigator?.vibrate?.(15); } catch { /* unsupported */ }
+        soundManager.vibrate(15);
 
         if (phase === 'playing') {
             clientRef.current?.sendStartAiming();
@@ -665,7 +646,7 @@ export default function Controller() {
             tutorialSlingDetected.current = true;
             clientRef.current?.sendTutorialProgress({ step: 'sling' });
             console.log('[Tutorial] Sling detected!');
-            try { navigator?.vibrate?.(30); } catch { /* unsupported */ }
+            soundManager.vibrate(30);
         }
     }, [isDragging, startPos, gyroEnabled, phase]);
 
