@@ -25,6 +25,7 @@ export default function Controller() {
     const [role, setRole] = useState<PlayerRole>('member');
     const [colorIndex, setColorIndex] = useState<number>(0);
     const [lobby, setLobby] = useState<LobbyState | null>(null);
+    const [persistentName, setPersistentName] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
 
     // Persistent clientId to survive reloads/React double-mounts (localStorage for cross-session persistence)
@@ -143,9 +144,12 @@ export default function Controller() {
                     setError(data.error || 'Failed to join room');
                     return;
                 }
-                console.log(`[Room] Role assigned: ${data.role}, Color: ${data.colorIndex}`);
+                console.log(`[Room] Role assigned: ${data.role}, Color: ${data.colorIndex}, Name: ${data.playerName || 'new player'}`);
                 setRole(data.role!);
                 setColorIndex(data.colorIndex ?? 0);
+                if (data.playerName) {
+                    setPersistentName(data.playerName);
+                }
                 setPhase('lobby');
             });
 
@@ -720,6 +724,7 @@ export default function Controller() {
                 role={role}
                 colorIndex={colorIndex}
                 lobby={lobby}
+                persistentName={persistentName || undefined}
                 onSetPlayerName={(name) => clientRef.current?.setPlayerName(name)}
                 onReady={() => clientRef.current?.playerReady()}
                 onStartGame={() => {

@@ -13,6 +13,7 @@ interface LobbyProps {
     role: PlayerRole;
     colorIndex: number;
     lobby: LobbyState | null;
+    persistentName?: string;
     onSetPlayerName: (name: string) => void;
     onReady: () => void;
     onStartGame: () => void;
@@ -46,23 +47,38 @@ export default function Lobby({
     onReady,
     onStartGame,
     onLeave,
+    persistentName,
 }: LobbyProps) {
-    const [isReady, setIsReady] = useState(false);
     
     // Player name state - start empty, let user enter it
-    const [playerName, setPlayerName] = useState('');
-    const [playerNameSubmitted, setPlayerNameSubmitted] = useState(false);
+    // Helper to check if a name is a default system name
+    const isDefaultName = (name?: string) => !name || name === 'Leader' || name.startsWith('Player ');
+
+    // Player name state - start with persistent name if available and not a default system name
+    const initialName = isDefaultName(persistentName) ? '' : (persistentName || '');
+    const [playerName, setPlayerName] = useState(initialName);
+    const [playerNameSubmitted, setPlayerNameSubmitted] = useState(!!initialName);
     const [isFadingOut, setIsFadingOut] = useState(false);
     const fadeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    // Cleanup timeout on unmount
+    // Send persistent name to server on mount (so it replaces "Leader"/"Player" in player list)
+    const hasSentPersistentName = useRef(false);
     useEffect(() => {
+        if (persistentName && !isDefaultName(persistentName) && !hasSentPersistentName.current) {
+            hasSentPersistentName.current = true;
+            setPlayerName(persistentName);
+            setPlayerNameSubmitted(true);
+            onSetPlayerName(persistentName);
+            // Auto-ready if the name is already known
+            onReady();
+        }
+
         return () => {
             if (fadeTimeoutRef.current) {
                 clearTimeout(fadeTimeoutRef.current);
             }
         };
-    }, []);
+    }, [persistentName]);
 
     // Check if player already has a name set (from server state after game restart)
     useEffect(() => {
@@ -90,20 +106,13 @@ export default function Lobby({
             onSetPlayerName(trimmed);
             setPlayerNameSubmitted(true);
             setIsFadingOut(false);
+            
+            // Auto-ready once name is submitted
+            onReady();
         }, 300); // Match animation duration
     };
 
-    const handleReady = () => {
-        // Submit player name before readying up
-        if (playerName.trim().length >= 2 && !playerNameSubmitted) {
-            const trimmed = playerName.trim();
-            localStorage.setItem('slingshot_player_name', trimmed);
-            onSetPlayerName(trimmed);
-            setPlayerNameSubmitted(true);
-        }
-        setIsReady(true);
-        onReady();
-    };
+    // Removed handleReady - functionality moved into name submission flow
 
     // ---- Leader: Lobby (waiting for members to ready up) ----
     if (role === 'leader') {
@@ -398,27 +407,8 @@ export default function Lobby({
                     </p>
                 )}
 
-                {!isReady ? (
-                    <button
-                        onClick={handleReady}
-                        disabled={!playerNameSubmitted}
-                        style={{
-                            width: '100%',
-                            padding: '1.25rem 2rem',
-                            fontSize: '1.3rem',
-                            fontWeight: 900,
-                            background: playerNameSubmitted ? 'var(--accent-success)' : 'rgba(255,255,255,0.08)',
-                            border: 'none',
-                            borderRadius: 'var(--radius-md)',
-                            color: playerNameSubmitted ? 'white' : 'var(--text-secondary)',
-                            cursor: playerNameSubmitted ? 'pointer' : 'not-allowed',
-                            boxShadow: playerNameSubmitted ? '0 8px 25px rgba(16, 185, 129, 0.4)' : 'none',
-                            letterSpacing: '1px',
-                        }}
-                    >
-                        ✋ I'M READY!
-                    </button>
-                ) : (
+                {/* Status Message (Always show when name is set) */}
+                {playerNameSubmitted && (
                     <div
                         style={{
                             padding: '1.25rem',
@@ -428,9 +418,10 @@ export default function Lobby({
                             color: 'var(--accent-success)',
                             fontWeight: 800,
                             fontSize: '1.1rem',
+                            animation: 'fadeIn 0.5s ease-out',
                         }}
                     >
-                        ✓ Ready! Waiting for leader to start...
+                        ✓ Ready! Waiting for leader...
                     </div>
                 )}
             </div>
