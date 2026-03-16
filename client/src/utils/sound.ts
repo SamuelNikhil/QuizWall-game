@@ -89,12 +89,39 @@ export class SoundManager {
 
     vibrate(pattern: number | number[]): void {
         if (!this.enabled) return;
+        
+        // 1. Try standard vibration API first (Android/Desktop)
         try {
-            if ('vibrate' in navigator) {
+            if ('vibrate' in navigator && typeof navigator.vibrate === 'function') {
                 navigator.vibrate(pattern);
+                return; // Supported and executed, we're done.
             }
         } catch (e) {
-            // Silently ignore - iOS doesn't support navigator.vibrate
+            // Silently ignore
+        }
+
+        // 2. iOS Safari Workaround (Pseudo-haptics via sub-bass audio)
+        // Check if we are likely on an Apple mobile device where vibrate failed
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+                     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        
+        if (isIOS) {
+            // Convert standard pattern to an array
+            const patternArray = Array.isArray(pattern) ? pattern : [pattern];
+            
+            // Play a very low frequency tone (sub-bass) to trigger the Taptic Engine implicitly
+            // This won't feel exactly like a native vibration, but it provides physical/auditory feedback
+            let delay = 0;
+            for (let i = 0; i < patternArray.length; i++) {
+                // Even indices are vibrate, odd indices are pause
+                if (i % 2 === 0) {
+                    const durationInSeconds = patternArray[i] / 1000;
+                    setTimeout(() => {
+                        this.playTone(50, durationInSeconds, 'square', 1.0); // 50Hz is very low, strong amplitude
+                    }, delay);
+                }
+                delay += patternArray[i];
+            }
         }
     }
 
