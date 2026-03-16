@@ -1,0 +1,246 @@
+{
+    "topic": "animals-easy-and-simple",
+    "generatedAt": "2026-03-16T09:57:32.535Z",
+    "questions": [
+        {
+            "id": 1,
+            "text": "What is the average lifespan of a goldfish in captivity?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "1-2 years"
+                },
+                {
+                    "id": "B",
+                    "text": "5-7 years"
+                },
+                {
+                    "id": "C",
+                    "text": "10-15 years"
+                },
+                {
+                    "id": "D",
+                    "text": "20-25 years"
+                }
+            ],
+            "correct": "B",
+            "category": "animals-easy-and-simple"
+        },
+        {
+            "id": 2,
+            "text": "Which of the following birds is known for its distinctive call that sounds like laughter?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Ostrich"
+                },
+                {
+                    "id": "B",
+                    "text": "Kookaburra"
+                },
+                {
+                    "id": "C",
+                    "text": "Penguin"
+                },
+                {
+                    "id": "D",
+                    "text": "Pelican"
+                }
+            ],
+            "correct": "B",
+            "category": "animals-easy-and-simple"
+        },
+        {
+            "id": 3,
+            "text": "What is the fastest land animal, capable of reaching speeds of up to 70 mph?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Elephant"
+                },
+                {
+                    "id": "B",
+                    "text": "Giraffe"
+                },
+                {
+                    "id": "C",
+                    "text": "Cheetah"
+                },
+                {
+                    "id": "D",
+                    "text": "Lion"
+                }
+            ],
+            "correct": "C",
+            "category": "animals-easy-and-simple"
+        },
+        {
+            "id": 4,
+            "text": "Which insect is known for its unique 'waggle dance' to communicate with other members of its colony?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Ant"
+                },
+                {
+                    "id": "B",
+                    "text": "Butterfly"
+                },
+                {
+                    "id": "C",
+                    "text": "Bee"
+                },
+                {
+                    "id": "D",
+                    "text": "Grasshopper"
+                }
+            ],
+            "correct": "C",
+            "category": "animals-easy-and-simple"
+        },
+        {
+            "id": 5,
+            "text": "What is the name of the largest species of turtle, which can live up to 80 years in the wild?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Aldabra tortoise"
+                },
+                {
+                    "id": "B",
+                    "text": "Box turtle"
+                },
+                {
+                    "id": "C",
+                    "text": "Green sea turtle"
+                },
+                {
+                    "id": "D",
+                    "text": "Leatherback sea turtle"
+                }
+            ],
+            "correct": "D",
+            "category": "animals-easy-and-simple"
+        },
+        {
+            "id": 6,
+            "text": "Which of the following animals has the longest migration pattern, traveling over 40,000 miles each year?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Caribou"
+                },
+                {
+                    "id": "B",
+                    "text": "Monarch butterfly"
+                },
+                {
+                    "id": "C",
+                    "text": "Arctic tern"
+                },
+                {
+                    "id": "D",
+                    "text": "Gray whale"
+                }
+            ],
+            "correct": "C",
+            "category": "animals-easy-and-simple"
+        },
+        {
+            "id": 7,
+            "text": "What is the name of the smallest species of bear, found in the forests of North America?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Sun bear"
+                },
+                {
+                    "id": "B",
+                    "text": "Black bear"
+                },
+                {
+                    "id": "C",
+                    "text": "Brown bear"
+                },
+                {
+                    "id": "D",
+                    "text": "Polar bear"
+                }
+            ],
+            "correct": "A",
+            "category": "animals-easy-and-simple"
+        },
+        {
+            "id": 8,
+            "text": "Which of the following animals is known for its unique ability to change its body color to blend in with its surroundings?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Cuttlefish"
+                },
+                {
+                    "id": "B",
+                    "text": "Octopus"
+                },
+                {
+                    "id": "C",
+                    "text": "Squid"
+                },
+                {
+                    "id": "D",
+                    "text": "Chameleon"
+                }
+            ],
+            "correct": "D",
+            "category": "animals-easy-and-simple"
+        },
+        {
+            "id": 9,
+            "text": "What is the name of the largest species of cat, which can weigh up to 700 pounds?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Leopard"
+                },
+                {
+                    "id": "B",
+                    "text": "Siberian tiger"
+                },
+                {
+                    "id": "C",
+                    "text": "Tiger"
+                },
+                {
+                    "id": "D",
+                    "text": "Lion"
+                }
+            ],
+            "correct": "C",
+            "category": "animals-easy-and-simple"
+        },
+        {
+            "id": 10,
+            "text": "Which of the following animals has a unique communication system that involves using a variety of clicks and whistles?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Walrus"
+                },
+                {
+                    "id": "B",
+                    "text": "Whale"
+                },
+                {
+                    "id": "C",
+                    "text": "Dolphin"
+                },
+                {
+                    "id": "D",
+                    "text": "Seal"
+                }
+            ],
+            "correct": "C",
+            "category": "animals-easy-and-simple"
+        }
+    ]
+}
