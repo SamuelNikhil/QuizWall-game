@@ -4,6 +4,7 @@
 
 import { randomBytes } from 'crypto';
 import { QuizEngine } from './QuizEngine.ts';
+import { PlayerManager } from './PlayerManager.ts';
 import { CONFIG } from '../infrastructure/config.ts';
 import type { PlayerRole, PlayerInfo, PlayerScoreEntry, LobbyState } from '../shared/types.ts';
 
@@ -91,7 +92,7 @@ export class RoomManager {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         channel: any,
         clientId: string
-    ): { success: boolean; error?: string; role?: PlayerRole; colorIndex?: number } {
+    ): { success: boolean; error?: string; role?: PlayerRole; colorIndex?: number; playerName?: string } {
         const room = this.rooms.get(roomId);
 
         if (!room) {
@@ -109,7 +110,12 @@ export class RoomManager {
             // Re-bind to the new connection but keep role, state, AND colorIndex
             existing.id = channel.id;
             existing.channel = channel;
-            return { success: true, role: existing.role, colorIndex: existing.colorIndex };
+            return { 
+                success: true, 
+                role: existing.role, 
+                colorIndex: existing.colorIndex,
+                playerName: existing.name 
+            };
         }
 
         // 1.5 Check if this player had a previous score (rejoining after disconnect)
@@ -158,7 +164,7 @@ export class RoomManager {
             id: channel.id,
             clientId,
             role,
-            isReady: role === 'leader', // Leader is always "ready"
+            isReady: true, // Auto-ready by default, UI controls name entry phase
             colorIndex,
             name: defaultName,
             score: previousScore?.score || 0,
@@ -167,9 +173,15 @@ export class RoomManager {
 
         room.controllers.push(controller);
         room.lastActivity = Date.now();
-        console.log(`[Room] ${role.toUpperCase()} joined ${roomId}`);
+        console.log(`[Room] ${role.toUpperCase()} joined ${roomId} (clientId: ${clientId.substring(0, 8)}...)`);
 
-        return { success: true, role, colorIndex };
+        // If this is a returning player from the database, return their name
+        const existingName = PlayerManager.getExistingPlayerName(clientId);
+        if (existingName) {
+            controller.name = existingName;
+        }
+
+        return { success: true, role, colorIndex, playerName: existingName ?? undefined };
     }
 
     /** Mark a player as ready. Uses clientId for lookup. */
@@ -349,6 +361,10 @@ export class RoomManager {
         if (!controller) return false;
 
         controller.name = name;
+        
+        // Persist the name association immediately to the database
+        PlayerManager.persistPlayerName(clientId, name);
+        
         return true;
     }
 

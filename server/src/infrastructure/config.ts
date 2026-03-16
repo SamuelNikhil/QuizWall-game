@@ -10,7 +10,7 @@ export const CONFIG = {
     PORT: parseInt(process.env.PORT || '3000', 10),
 
     /** Path to SQLite database file - absolute path */
-    DB_PATH: process.env.DB_PATH || resolve(PROJECT_ROOT, 'QuizzWall.sqlite'),
+    DB_PATH: process.env.DB_PATH || resolve(PROJECT_ROOT, 'src', 'database', 'QuizzWall.sqlite'),
 
     /** Path to Questions JSON file (fallback) */
     QUESTIONS_PATH: process.env.QUESTIONS_PATH || './src/data/questions.json',

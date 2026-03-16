@@ -4,13 +4,21 @@
 // ==========================================
 
 import initSqlJs, { type Database } from 'sql.js';
-import { readFileSync, writeFileSync, existsSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
+import { dirname } from 'path';
 import { CONFIG } from '../infrastructure/config.ts';
 
 let db: Database;
 
 export async function initDatabase(): Promise<Database> {
   const SQL = await initSqlJs();
+
+  // Ensure database directory exists
+  const dbDir = dirname(CONFIG.DB_PATH);
+  if (!existsSync(dbDir)) {
+    console.log('[DB] Creating database directory:', dbDir);
+    mkdirSync(dbDir, { recursive: true });
+  }
 
   // Load existing database file if it exists
   if (existsSync(CONFIG.DB_PATH)) {
@@ -19,7 +27,7 @@ export async function initDatabase(): Promise<Database> {
     console.log('[DB] Loaded existing database from:', CONFIG.DB_PATH);
   } else {
     db = new SQL.Database();
-    console.log('[DB] Created new database');
+    console.log('[DB] Created new database at:', CONFIG.DB_PATH);
   }
 
   // Create tables
@@ -39,6 +47,11 @@ export async function initDatabase(): Promise<Database> {
   // Create index for faster client_id lookups
   db.run(`
     CREATE INDEX IF NOT EXISTS idx_players_client_id ON players(client_id)
+  `);
+
+  // Create index for faster name lookups
+  db.run(`
+    CREATE INDEX IF NOT EXISTS idx_players_name ON players(name)
   `);
 
   saveDatabase();

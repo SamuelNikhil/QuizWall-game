@@ -1,70 +1,22 @@
 {
     "topic": "animals-easy-and-simple",
-    "generatedAt": "2026-03-14T11:06:09.628Z",
+    "generatedAt": "2026-03-14T12:22:43.023Z",
     "questions": [
         {
-            "id": 21,
-            "text": "What is the average lifespan of a hummingbird in the wild?",
+            "id": 11,
+            "text": "What is the fastest land animal?",
             "options": [
                 {
                     "id": "A",
-                    "text": "10-12 years"
+                    "text": "Elephant"
                 },
                 {
                     "id": "B",
-                    "text": "15-20 years"
-                },
-                {
-                    "id": "C",
-                    "text": "2-3 years"
-                },
-                {
-                    "id": "D",
-                    "text": "5-7 years"
-                }
-            ],
-            "correct": "C",
-            "category": "animals-easy-and-simple"
-        },
-        {
-            "id": 22,
-            "text": "Which of the following birds is known for its distinctive call that sounds like laughter?",
-            "options": [
-                {
-                    "id": "A",
-                    "text": "Pelican"
-                },
-                {
-                    "id": "B",
-                    "text": "Penguin"
-                },
-                {
-                    "id": "C",
-                    "text": "Kookaburra"
-                },
-                {
-                    "id": "D",
-                    "text": "Ostrich"
-                }
-            ],
-            "correct": "C",
-            "category": "animals-easy-and-simple"
-        },
-        {
-            "id": 23,
-            "text": "What is the fastest land animal, capable of reaching speeds of up to 70 mph?",
-            "options": [
-                {
-                    "id": "A",
                     "text": "Giraffe"
                 },
                 {
-                    "id": "B",
-                    "text": "Lion"
-                },
-                {
                     "id": "C",
-                    "text": "Elephant"
+                    "text": "Lion"
                 },
                 {
                     "id": "D",
@@ -75,64 +27,160 @@
             "category": "animals-easy-and-simple"
         },
         {
-            "id": 24,
-            "text": "Which animal has the longest migration pattern, traveling over 40,000 miles each year?",
+            "id": 12,
+            "text": "Which animal has the longest migration pattern?",
             "options": [
                 {
                     "id": "A",
-                    "text": "Monarch butterfly"
+                    "text": "Monarch Butterfly"
                 },
                 {
                     "id": "B",
-                    "text": "Arctic tern"
+                    "text": "Arctic Tern"
                 },
                 {
                     "id": "C",
-                    "text": "Gray whale"
-                },
-                {
-                    "id": "D",
                     "text": "Caribou"
-                }
-            ],
-            "correct": "B",
-            "category": "animals-easy-and-simple"
-        },
-        {
-            "id": 25,
-            "text": "What is the largest species of turtle, with some individuals weighing over 2,000 pounds?",
-            "options": [
-                {
-                    "id": "A",
-                    "text": "Aldabra tortoise"
-                },
-                {
-                    "id": "B",
-                    "text": "Leatherback sea turtle"
-                },
-                {
-                    "id": "C",
-                    "text": "Green sea turtle"
                 },
                 {
                     "id": "D",
-                    "text": "Loggerhead sea turtle"
+                    "text": "Gray Whale"
                 }
             ],
             "correct": "B",
             "category": "animals-easy-and-simple"
         },
         {
-            "id": 26,
-            "text": "Which of the following animals has a unique way of communicating through a complex system of clicks and whistles?",
+            "id": 13,
+            "text": "What is the largest species of shark?",
             "options": [
                 {
                     "id": "A",
-                    "text": "Elephant"
+                    "text": "Great White Shark"
                 },
                 {
                     "id": "B",
+                    "text": "Hammerhead Shark"
+                },
+                {
+                    "id": "C",
+                    "text": "Tiger Shark"
+                },
+                {
+                    "id": "D",
+                    "text": "Whale Shark"
+                }
+            ],
+            "correct": "D",
+            "category": "animals-easy-and-simple"
+        },
+        {
+            "id": 14,
+            "text": "Which of the following animals is known for its unique ability to change its body color?",
+            "options": [
+                {
+                    "id": "A",
                     "text": "Kangaroo"
+                },
+                {
+                    "id": "B",
+                    "text": "Flamingo"
+                },
+                {
+                    "id": "C",
+                    "text": "Chameleon"
+                },
+                {
+                    "id": "D",
+                    "text": "Penguin"
+                }
+            ],
+            "correct": "C",
+            "category": "animals-easy-and-simple"
+        },
+        {
+            "id": 15,
+            "text": "What is the average lifespan of a house cat?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "20-22 years"
+                },
+                {
+                    "id": "B",
+                    "text": "15-17 years"
+                },
+                {
+                    "id": "C",
+                    "text": "10-12 years"
+                },
+                {
+                    "id": "D",
+                    "text": "5-7 years"
+                }
+            ],
+            "correct": "C",
+            "category": "animals-easy-and-simple"
+        },
+        {
+            "id": 16,
+            "text": "Which animal is known for its distinctive call that sounds like laughter?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Kookaburra"
+                },
+                {
+                    "id": "B",
+                    "text": "Zebra"
+                },
+                {
+                    "id": "C",
+                    "text": "Giraffe"
+                },
+                {
+                    "id": "D",
+                    "text": "Hyena"
+                }
+            ],
+            "correct": "A",
+            "category": "animals-easy-and-simple"
+        },
+        {
+            "id": 17,
+            "text": "What is the name of the largest living species of lizard?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Komodo Dragon"
+                },
+                {
+                    "id": "B",
+                    "text": "Saltwater Crocodile"
+                },
+                {
+                    "id": "C",
+                    "text": "Black Mamba"
+                },
+                {
+                    "id": "D",
+                    "text": "Green Anaconda"
+                }
+            ],
+            "correct": "A",
+            "category": "animals-easy-and-simple"
+        },
+        {
+            "id": 18,
+            "text": "Which of the following animals has a highly developed sense of echolocation?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Bat"
+                },
+                {
+                    "id": "B",
+                    "text": "Shark"
                 },
                 {
                     "id": "C",
@@ -140,63 +188,15 @@
                 },
                 {
                     "id": "D",
-                    "text": "Giraffe"
-                }
-            ],
-            "correct": "C",
-            "category": "animals-easy-and-simple"
-        },
-        {
-            "id": 27,
-            "text": "What is the smallest species of mammal, weighing less than 2 grams?",
-            "options": [
-                {
-                    "id": "A",
-                    "text": "Bumblebee bat"
-                },
-                {
-                    "id": "B",
-                    "text": "Etruscan shrew"
-                },
-                {
-                    "id": "C",
-                    "text": "Pygmy mouse"
-                },
-                {
-                    "id": "D",
-                    "text": "African pygmy mouse"
+                    "text": "Octopus"
                 }
             ],
             "correct": "A",
             "category": "animals-easy-and-simple"
         },
         {
-            "id": 28,
-            "text": "Which of the following insects is known for its distinctive 'waggle dance' to communicate with other bees?",
-            "options": [
-                {
-                    "id": "A",
-                    "text": "Honey bee"
-                },
-                {
-                    "id": "B",
-                    "text": "Butterfly"
-                },
-                {
-                    "id": "C",
-                    "text": "Grasshopper"
-                },
-                {
-                    "id": "D",
-                    "text": "Ant"
-                }
-            ],
-            "correct": "A",
-            "category": "animals-easy-and-simple"
-        },
-        {
-            "id": 29,
-            "text": "What is the only species of bird that can fly backwards?",
+            "id": 19,
+            "text": "What is the name of the smallest species of bird?",
             "options": [
                 {
                     "id": "A",
@@ -204,42 +204,42 @@
                 },
                 {
                     "id": "B",
-                    "text": "Ostrich"
+                    "text": "Sparrow"
                 },
                 {
                     "id": "C",
-                    "text": "Parrot"
+                    "text": "Bee Hummingbird"
                 },
                 {
                     "id": "D",
-                    "text": "Penguin"
+                    "text": "Finch"
                 }
             ],
-            "correct": "A",
+            "correct": "C",
             "category": "animals-easy-and-simple"
         },
         {
-            "id": 30,
-            "text": "Which of the following animals has a unique way of defending itself by releasing a foul-smelling spray?",
+            "id": 20,
+            "text": "Which animal is known for its unique ability to regrow its limbs?",
             "options": [
                 {
                     "id": "A",
-                    "text": "Raccoon"
+                    "text": "Starfish"
                 },
                 {
                     "id": "B",
-                    "text": "Skunk"
+                    "text": "Frog"
                 },
                 {
                     "id": "C",
-                    "text": "Porcupine"
+                    "text": "Lizard"
                 },
                 {
                     "id": "D",
-                    "text": "Opossum"
+                    "text": "Snake"
                 }
             ],
-            "correct": "B",
+            "correct": "A",
             "category": "animals-easy-and-simple"
         }
     ]

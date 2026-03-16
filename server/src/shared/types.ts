@@ -49,6 +49,7 @@ export interface JoinedRoomPayload {
     error?: string;
     role?: PlayerRole;
     colorIndex?: number;
+    playerName?: string;
 }
 
 // ---------- Game Events ----------

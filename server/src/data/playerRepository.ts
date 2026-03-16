@@ -73,6 +73,24 @@ export function getPlayerByClientId(clientId: string): { id: number; clientId: s
     };
 }
 
+/** Link a name to a clientId immediately, creating or updating the record */
+export function savePlayerName(clientId: string, name: string): void {
+    const db = getDatabase();
+    
+    // Check if player exists by clientId
+    const existing = getPlayerByClientId(clientId);
+    
+    if (existing) {
+        db.run('UPDATE players SET name = ?, updated_at = datetime("now") WHERE id = ?', [name, existing.id]);
+        console.log(`[DB] Linked existing device ${clientId.substring(0, 8)} to name: ${name}`);
+    } else {
+        db.run('INSERT INTO players (client_id, name) VALUES (?, ?)', [clientId, name]);
+        console.log(`[DB] Created new player identity: ${name} (${clientId.substring(0, 8)})`);
+    }
+    
+    saveDatabase();
+}
+
 /** Update player's highest score - only updates if new score is higher */
 export function updatePlayerScore(clientId: string, name: string, score: number): void {
     const db = getDatabase();

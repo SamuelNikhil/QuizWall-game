@@ -72,6 +72,7 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
                 success: true, 
                 role: result.role, 
                 colorIndex: result.colorIndex,
+                playerName: result.playerName,
             });
 
             // Notify screen with color index so it can assign consistent crosshair color
