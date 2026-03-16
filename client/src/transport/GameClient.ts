@@ -179,8 +179,12 @@ export class GameClient {
         this.channel?.emit(EVENTS.JOIN_ROOM, { roomId, token, clientId });
     }
 
-    playerReady(): void {
+    setReady(): void {
         this.channel?.emit(EVENTS.PLAYER_READY);
+    }
+
+    sendLeaveGame(): void {
+        this.channel?.emit(EVENTS.LEAVE_GAME);
     }
 
     startGame(): void {

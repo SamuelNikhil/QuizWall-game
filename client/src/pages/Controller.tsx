@@ -53,6 +53,7 @@ export default function Controller() {
     const [hasSelectedThisRound, setHasSelectedThisRound] = useState(false);
     const [selectedOrbId, setSelectedOrbId] = useState<string | null>(null);
     const [isMultiplayer, setIsMultiplayer] = useState(false);
+    const [isSpectating, setIsSpectating] = useState(false);
     const currentPhaseRef = useRef<QuestionPhase | null>(null);
     const hasSelectedRef = useRef(false);
 
@@ -165,6 +166,7 @@ export default function Controller() {
             client.onTutorialStart((_data: { duration: number }) => {
                 console.log('[Controller] Tutorial started, interactive mode');
                 setPhase('calibrating');
+                setIsSpectating(false); // Reset spectating on start
                 setTutorialStep('waiting');
                 tutorialStepRef.current = 'waiting';
                 tutorialSlingDetected.current = false;
@@ -313,6 +315,7 @@ export default function Controller() {
 
             client.onGameRestarted(() => {
                 setPhase('lobby');
+                setIsSpectating(false);
                 setPlayerScores([]);
                 setTimeLeft(20);
                 setCurrentPhase(null);
@@ -726,17 +729,13 @@ export default function Controller() {
                 lobby={lobby}
                 persistentName={persistentName || undefined}
                 onSetPlayerName={(name) => clientRef.current?.setPlayerName(name)}
-                onReady={() => clientRef.current?.playerReady()}
-                onStartGame={() => {
-                    console.log('[Lobby] Leader clicked Start Game - telling server to start');
-                    // Server will send TUTORIAL_START which will trigger the calibration phase
-                    // No optimistic UI - let server control the timing
-                    clientRef.current?.startGame();
-                }}
+                onReady={() => clientRef.current?.setReady()}
+                onStartGame={() => clientRef.current?.startGame()}
                 onLeave={() => {
                     clientRef.current?.close();
                     window.location.href = '/';
                 }}
+                isSpectating={isSpectating}
             />
         );
     }
@@ -1142,8 +1141,16 @@ export default function Controller() {
                     )}
                     <button
                         onClick={() => {
-                            clientRef.current?.close();
-                            window.location.href = '/';
+                            if (phase === 'playing') {
+                                // If playing, just leave to lobby (save score, don't disconnect)
+                                clientRef.current?.sendLeaveGame();
+                                setIsSpectating(true);
+                                setPhase('lobby');
+                            } else {
+                                // Default behavior for other screens (disconnect)
+                                clientRef.current?.close();
+                                window.location.href = '/';
+                            }
                         }}
                         style={{
                             width: '42px', height: '42px', borderRadius: '50%',

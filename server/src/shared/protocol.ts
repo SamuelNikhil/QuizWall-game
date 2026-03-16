@@ -39,6 +39,7 @@ export const EVENTS = {
     TARGETING: 'targeting',
     SHOOT: 'shoot',
     RESTART_GAME: 'restartGame',
+    LEAVE_GAME: 'leaveGame',
 
     // --- Feedback (server → controller/screen) ---
     HIT_RESULT: 'hitResult',

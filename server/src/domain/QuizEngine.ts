@@ -163,6 +163,9 @@ export class QuizEngine {
     // ==========================================
     // SINGLEPLAYER TIMER (unchanged)
     // ==========================================
+    private isReset: boolean = false; // Guard against async callbacks after reset
+
+
 
     /** Start the game timer (singleplayer) */
     startTimer(): void {
@@ -218,6 +221,7 @@ export class QuizEngine {
 
     /** Start the phase-based timer for multiplayer */
     startPhaseTimer(): void {
+        this.isReset = false; // Clear reset flag when starting a new game
         if (!this.initialized) {
             console.error('[QuizEngine] Cannot start phase timer - not initialized');
             return;
@@ -381,7 +385,7 @@ export class QuizEngine {
             this.stopPhaseTimer();
             // Small delay so clients see the reveal before game-over
             setTimeout(() => {
-                if (this.destroyed) return;
+                if (this.destroyed || this.isReset) return;
                 this.onGameOver?.();
             }, 1500);
             return;
@@ -390,7 +394,7 @@ export class QuizEngine {
         // After reveal, decide next action
         // Always advance to next question regardless of correctness, until all 10 are done
         setTimeout(async () => {
-            if (this.destroyed) return; // Guard against post-destroy execution
+            if (this.destroyed || this.isReset) return; // Guard against post-destroy execution
 
             // Check if all questions have been attempted (correct or wrong)
             if (this.totalQuestionsAttempted >= this.sessionQuestionLimit) {
@@ -405,12 +409,13 @@ export class QuizEngine {
             // Advance to next question
             this.questionNumberForUI++;
             const nextQ = await this.nextQuestion();
+            if (this.isReset) return;
             if (!nextQ) {
                 console.log('[QuizEngine] No more questions available');
                 this.allQuestionsCompleted = true;
                 this.lastGameOverReason = 'completed';
                 this.stopPhaseTimer();
-                this.onGameOver?.();
+                if (!this.isReset) this.onGameOver?.();
                 return;
             }
 
@@ -441,7 +446,17 @@ export class QuizEngine {
     }
 
     /** Reset for a new game (keeps same questions, reshuffles, clears used, preserves session totals) */
-    reset(): void {
+    reset(silent: boolean = false): void {
+        this.isReset = true; // Guard against pending timeouts
+
+        if (silent) {
+            // Drop callbacks to suppress GAME OVER broadcasts
+            this.onGameOver = undefined;
+            this.onPhaseChange = undefined;
+            this.onReveal = undefined;
+            this.onTimerTick = undefined;
+        }
+
         this.stopTimer();
         this.stopPhaseTimer();
         this.timeLeft = CONFIG.TIMER_DURATION;
@@ -587,12 +602,15 @@ export class QuizEngine {
             this.sessionQuestionsAnswered++;
         }
 
+        if (this.isReset) return { correct: isCorrect, points, baseScore, bonus };
+
         console.log(`[QuizEngine] Singleplayer answer: correct=${isCorrect}, time=${elapsedTime.toFixed(2)}s, baseScore=${baseScore}, bonus=${bonus}, points=${points}`);
         return { correct: isCorrect, points, baseScore, bonus };
     }
 
     /** Advance to the next question. Returns the new question for client. */
     async nextQuestion(): Promise<ClientQuestion | null> {
+        if (this.isReset) return null;
         this.currentIndex++;
 
         // Check if all questions have been attempted (10 questions max, regardless of correct/wrong)
@@ -602,7 +620,7 @@ export class QuizEngine {
             this.lastGameOverReason = 'completed';
             this.stopTimer();
             this.stopPhaseTimer();
-            this.onGameOver?.();
+            if (!this.isReset) this.onGameOver?.();
             return null;
         }
 

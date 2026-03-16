@@ -29,8 +29,9 @@ export interface PlayerInfo {
     id: string;        // channel id
     role: PlayerRole;
     isReady: boolean;
-    colorIndex?: number; // For crosshair color indicator
+    colorIndex?: number; // 0, 1, 2 for crosshair color
     name?: string;       // Individual player name
+    isSpectating?: boolean; // Whether the player is in the lobby while a game is active
 }
 
 // ---------- Lobby ----------
@@ -39,6 +40,7 @@ export interface LobbyState {
     roomId: string;
     players: PlayerInfo[];
     canStart: boolean;  // true when all members are ready (or solo leader)
+    isSpectating?: boolean; // Whether THIS player is spectating
 }
 
 // ---------- Room Join ----------

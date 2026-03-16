@@ -476,6 +476,35 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
             }
         });
 
+        channel.on(EVENTS.LEAVE_GAME, () => {
+            const { roomId, clientId } = channel.userData || {};
+            if (!roomId || !clientId) return;
+
+            const room = roomManager.getRoom(roomId);
+            if (!room) return;
+
+            // Set spectating status
+            roomManager.leaveGame(roomId, clientId);
+
+            // Notify screen to remove crosshair
+            room.screenChannel.emit(EVENTS.CONTROLLER_LEFT, { controllerId: clientId });
+
+            // If no active players left, return everyone to lobby
+            if (!roomManager.hasActivePlayers(roomId)) {
+                console.log(`[Room] No active players left in ${roomId}, returning to lobby`);
+                roomManager.forceEndGame(roomId);
+                
+                // Broadcast game restarted to return all controllers to lobby view
+                room.screenChannel.emit(EVENTS.GAME_RESTARTED, {});
+                for (const c of room.controllers) {
+                    c.channel.emit(EVENTS.GAME_RESTARTED, {});
+                }
+            }
+
+            // Broadcast updated lobby state
+            broadcastLobbyUpdate(roomManager, roomId);
+        });
+
         // ---------- Visual relay (high frequency, unreliable) ----------
         // Use clientId (persistent) instead of channel.id (volatile) for controllerId
 
@@ -629,6 +658,7 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
             // NOTE: We do NOT reset the score - it accumulates across restarts
             room.gameStarted = false;
             room.lastActivity = Date.now();
+            roomManager.resetSpectatingStatus(roomId);
 
             // Reset ready states for members
             for (const c of room.controllers) {
@@ -686,6 +716,19 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
 
                     room.screenChannel.emit(EVENTS.CONTROLLER_LEFT, { controllerId: channel.id });
                     broadcastLobbyUpdate(roomManager, room.roomId);
+
+                    // If NO active players left, return everyone to lobby
+                    if (room.gameStarted && !roomManager.hasActivePlayers(room.roomId)) {
+                        console.log(`[Events] No active players left after disconnect in ${room.roomId}, returning to lobby`);
+                        roomManager.forceEndGame(room.roomId);
+                        
+                        // Broadcast game restarted to return all remaining controllers to lobby view
+                        room.screenChannel.emit(EVENTS.GAME_RESTARTED, {});
+                        for (const c of room.controllers) {
+                            c.channel.emit(EVENTS.GAME_RESTARTED, {});
+                        }
+                        broadcastLobbyUpdate(roomManager, room.roomId);
+                    }
 
                     // Notify the promoted controller of their new role
                     if (promotedControllerId) {

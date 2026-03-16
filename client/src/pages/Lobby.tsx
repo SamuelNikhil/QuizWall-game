@@ -18,6 +18,7 @@ interface LobbyProps {
     onReady: () => void;
     onStartGame: () => void;
     onLeave: () => void;
+    isSpectating?: boolean;
 }
 
 // Reusable close button matching gameplay/game-over style
@@ -48,6 +49,7 @@ export default function Lobby({
     onStartGame,
     onLeave,
     persistentName,
+    isSpectating,
 }: LobbyProps) {
     
     // Player name state - start empty, let user enter it
@@ -86,10 +88,18 @@ export default function Lobby({
             const myPlayer = lobby.players.find(p => p.colorIndex === colorIndex);
             if (myPlayer?.name && myPlayer.name !== 'Leader' && !myPlayer.name.startsWith('Player ')) {
                 // Player already has a custom name set - mark as submitted
-                setPlayerNameSubmitted(true);
+                if (!playerNameSubmitted) {
+                    setPlayerName(myPlayer.name);
+                    setPlayerNameSubmitted(true);
+                }
+                
+                // If they are not spectating and not ready on the server, auto-ready them
+                if (!isSpectating && !myPlayer.isReady) {
+                    onReady();
+                }
             }
         }
-    }, [lobby, colorIndex]);
+    }, [lobby, colorIndex, isSpectating, playerNameSubmitted]);
 
     const handleSubmitPlayerName = () => {
         const trimmed = playerName.trim();
@@ -247,31 +257,37 @@ export default function Lobby({
                     )}
 
                     {/* Show name confirmation after submission */}
-                    {playerNameSubmitted && (
+                    {playerNameSubmitted && !isSpectating && (
                         <p style={{ color: 'var(--accent-success)', fontSize: '0.85rem', marginBottom: '1rem', fontWeight: 600 }}>
                             ✓ Playing as "{playerName.trim()}"
                         </p>
                     )}
 
+                    {isSpectating && (
+                        <p style={{ color: '#ff9500', fontSize: '0.9rem', marginBottom: '1rem', fontWeight: 800, animation: 'pulse 1.5s infinite' }}>
+                            👀 SPECTATING...
+                        </p>
+                    )}
+
                     <button
                         onClick={onStartGame}
-                        disabled={!allReady || !playerNameSubmitted}
+                        disabled={!allReady || !playerNameSubmitted || isSpectating}
                         style={{
                             width: '100%',
                             padding: '1.25rem 2rem',
                             fontSize: '1.3rem',
                             fontWeight: 900,
-                            background: allReady && playerNameSubmitted ? 'var(--accent-primary)' : 'rgba(255,255,255,0.08)',
+                            background: allReady && playerNameSubmitted && !isSpectating ? 'var(--accent-primary)' : 'rgba(255,255,255,0.08)',
                             border: 'none',
                             borderRadius: 'var(--radius-md)',
-                            color: allReady && playerNameSubmitted ? 'white' : 'var(--text-secondary)',
-                            cursor: allReady && playerNameSubmitted ? 'pointer' : 'not-allowed',
-                            boxShadow: allReady && playerNameSubmitted ? '0 8px 25px rgba(103, 80, 164, 0.5)' : 'none',
+                            color: allReady && playerNameSubmitted && !isSpectating ? 'white' : 'var(--text-secondary)',
+                            cursor: allReady && playerNameSubmitted && !isSpectating ? 'pointer' : 'not-allowed',
+                            boxShadow: allReady && playerNameSubmitted && !isSpectating ? '0 8px 25px rgba(103, 80, 164, 0.5)' : 'none',
                             transition: 'all 0.3s ease',
                             letterSpacing: '1px',
                         }}
                     >
-                        🚀 START GAME
+                        {isSpectating ? 'GAME IN PROGRESS' : '🚀 START GAME'}
                     </button>
                 </div>
             </div>
@@ -408,7 +424,7 @@ export default function Lobby({
                 )}
 
                 {/* Status Message (Always show when name is set) */}
-                {playerNameSubmitted && (
+                {playerNameSubmitted && !isSpectating && (
                     <div
                         style={{
                             padding: '1.25rem',
@@ -422,6 +438,23 @@ export default function Lobby({
                         }}
                     >
                         ✓ Ready! Waiting for leader...
+                    </div>
+                )}
+
+                {isSpectating && (
+                    <div
+                        style={{
+                            padding: '1.25rem',
+                            borderRadius: 'var(--radius-md)',
+                            background: 'rgba(255, 149, 0, 0.15)',
+                            border: '2px solid rgba(255, 149, 0, 0.3)',
+                            color: '#ff9500',
+                            fontWeight: 800,
+                            fontSize: '1.1rem',
+                            animation: 'pulse 1.5s infinite',
+                        }}
+                    >
+                        👀 Spectating — Wait for next round
                     </div>
                 )}
             </div>

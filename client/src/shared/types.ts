@@ -31,6 +31,7 @@ export interface PlayerInfo {
     isReady: boolean;
     colorIndex?: number; // 0, 1, 2 for crosshair color
     name?: string;       // Individual player name
+    isSpectating?: boolean; // Whether the player is in the lobby while a game is active
 }
 
 // Crosshair colors for each player index
@@ -42,6 +43,7 @@ export interface LobbyState {
     roomId: string;
     players: PlayerInfo[];
     canStart: boolean;  // true when all members are ready (or solo leader)
+    isSpectating?: boolean; // Whether THIS player is spectating
 }
 
 // ---------- Room Join ----------

@@ -16,6 +16,7 @@ export interface RoomController {
     colorIndex: number; // For crosshair color assignment (0, 1, 2)
     name: string; // Individual player name
     score: number; // Individual player score for this game session
+    isSpectating: boolean; // Whether player is currently in the lobby during an active game
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     channel: any; // Geckos.io ServerChannel
 }
@@ -168,6 +169,7 @@ export class RoomManager {
             colorIndex,
             name: defaultName,
             score: previousScore?.score || 0,
+            isSpectating: false,
             channel,
         };
 
@@ -241,6 +243,12 @@ export class RoomManager {
 
         room.gameStarted = true;
         room.lastActivity = Date.now();
+        
+        // Reset spectating status for all players when a new game starts
+        for (const c of room.controllers) {
+            c.isSpectating = false;
+        }
+
         console.log(`[Room] Game started in ${roomId}`);
         return true;
     }
@@ -256,6 +264,7 @@ export class RoomManager {
             isReady: c.isReady,
             colorIndex: c.colorIndex,
             name: c.name,
+            isSpectating: c.isSpectating,
         }));
 
         return {
@@ -350,6 +359,57 @@ export class RoomManager {
             }
         }
         return null;
+    }
+
+    /** Check if anyone is actually playing (not spectating) */
+    hasActivePlayers(roomId: string): boolean {
+        const room = this.rooms.get(roomId);
+        if (!room) return false;
+        // Someone is active if they are NOT spectating
+        return room.controllers.some(c => !c.isSpectating);
+    }
+
+    /** Force end the game and return to lobby */
+    forceEndGame(roomId: string): void {
+        const room = this.rooms.get(roomId);
+        if (!room) return;
+
+        room.gameStarted = false;
+        room.quizEngine.reset(true); // Silent reset
+        
+        // Reset ready states and spectating status
+        this.resetSpectatingStatus(roomId);
+        for (const c of room.controllers) {
+            if (c.role === 'member') {
+                c.isReady = false;
+            }
+        }
+    }
+
+    /** Reset spectating status for all players in a room */
+    resetSpectatingStatus(roomId: string): void {
+        const room = this.rooms.get(roomId);
+        if (!room) return;
+        for (const c of room.controllers) {
+            c.isSpectating = false;
+        }
+    }
+
+    /** Set player spectating status (leaves game but stays in room) */
+    leaveGame(roomId: string, clientId: string): boolean {
+        const room = this.rooms.get(roomId);
+        if (!room) return false;
+
+        const controller = room.controllers.find((c) => c.clientId === clientId);
+        if (!controller) return false;
+
+        controller.isSpectating = true;
+        // Also reset their ready state so they don't auto-ready for the next game
+        if (controller.role === 'member') {
+            controller.isReady = false;
+        }
+        console.log(`[Room] Player ${controller.name} (${clientId.substring(0, 8)}) is now spectating and unreadied`);
+        return true;
     }
 
     /** Set player name. Uses clientId for lookup. */
