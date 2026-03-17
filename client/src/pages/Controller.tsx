@@ -146,6 +146,13 @@ export default function Controller() {
 
             client.onLobbyUpdate((data) => {
                 setLobby(data);
+                if (clientIdRef.current) {
+                    const me = data.players.find(p => p.id === clientIdRef.current);
+                    if (me) {
+                        if (me.colorIndex !== undefined) setColorIndex(me.colorIndex);
+                        if (me.isSpectating !== undefined) setIsSpectating(me.isSpectating);
+                    }
+                }
             });
 
             client.onRolePromoted((data) => {
@@ -183,6 +190,7 @@ export default function Controller() {
                     calibrationTimerRef.current = null;
                 }
                 setPhase('playing');
+                setIsSpectating(false);
             });
 
             client.onGameStarted(() => {
@@ -200,7 +208,7 @@ export default function Controller() {
 
             client.onHitResult((data) => {
                 setLastHit({ correct: data.correct });
-                
+
                 // Play sound feedback
                 soundManager.playHit(data.correct);
 
@@ -264,13 +272,13 @@ export default function Controller() {
                 const isPersonallyCorrect = myResult ? myResult.correct : false;
 
                 console.log('[Controller] Reveal result:', isPersonallyCorrect ? 'correct!' : 'wrong');
-                
+
                 // Play individual sound feedback
                 soundManager.playHit(isPersonallyCorrect);
 
                 // Haptic feedback based on personal result (safe for all browsers including iOS)
                 soundManager.vibrate(isPersonallyCorrect ? [50, 50, 50] : [200]);
-                
+
                 // Show visual individual hit feedback (green for correct, red for wrong)
                 setLastHit({ correct: isPersonallyCorrect });
                 setTimeout(() => setLastHit(null), 1500);
@@ -278,11 +286,11 @@ export default function Controller() {
                 // Show score popup ONLY for this player (already implemented, but confirmed it uses clientIdRef)
                 if (data.playerScores && myResult && myResult.correct && myResult.score > 0) {
                     const popupId = `score-${Date.now()}-${myResult.controllerId}`;
-                    setScorePopups(prev => [...prev, { 
-                        id: popupId, 
-                        score: myResult.score, 
-                        bonus: myResult.bonus, 
-                        colorIndex: myResult.colorIndex 
+                    setScorePopups(prev => [...prev, {
+                        id: popupId,
+                        score: myResult.score,
+                        bonus: myResult.bonus,
+                        colorIndex: myResult.colorIndex
                     }]);
                     // Remove popup after animation
                     setTimeout(() => {
@@ -730,150 +738,38 @@ export default function Controller() {
     const pullEndX = isDragging ? slingshotCenterX - Math.cos(aimAngle) * pullBack : slingshotCenterX;
     const pullEndY = isDragging ? slingshotCenterY - Math.sin(aimAngle) * pullBack : slingshotCenterY;
 
-    // ---- Calibration Tutorial (Interactive) ----
+    // ---- Loading Questions Phase (Replaces Tutorial) ----
     if (phase === 'calibrating') {
-        const myColor = CROSSHAIR_COLORS[colorIndex];
-
-        // Non-gyro player: show loading screen while questions are generated
-        if (!gyroEnabled) {
-            return (
-                <div className="controller-container" style={{
-                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                    height: '100%', textAlign: 'center', padding: '2rem',
-                }}>
-                    <div style={{
-                        background: 'var(--glass-bg)', padding: '2rem',
-                        borderRadius: 'var(--radius-lg)', border: '1px solid var(--glass-border)',
-                        backdropFilter: 'blur(20px)', maxWidth: '320px', width: '100%',
-                    }}>
-                        <div style={{
-                            width: '40px', height: '40px', margin: '0 auto 1rem',
-                            border: '3px solid rgba(255,255,255,0.1)', borderTop: `3px solid ${myColor}`,
-                            borderRadius: '50%', animation: 'spin 1s linear infinite',
-                        }} />
-                        <h2 style={{ fontSize: '1.2rem', fontWeight: 900, color: '#fff', margin: '0 0 0.5rem' }}>Loading Questions...</h2>
-                        <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: 0 }}>
-                            AI is generating your questions
-                        </p>
-                    </div>
-                </div>
-            );
-        }
-
-        const isSlingPhase = tutorialStep === 'waiting' || tutorialStep === 'sling';
-        const isTiltPhase = tutorialStep === 'tilt';
-        const isComplete = tutorialStep === 'complete';
-        const tiltLeft = tutorialTiltLeftDetected.current;
-        const tiltRight = tutorialTiltRightDetected.current;
-        const tiltUp = tutorialTiltUpDetected.current;
-        const tiltDown = tutorialTiltDownDetected.current;
-        const stepsCompleted = (tutorialSlingDetected.current ? 1 : 0) + (tiltLeft ? 1 : 0) + (tiltRight ? 1 : 0) + (tiltUp ? 1 : 0) + (tiltDown ? 1 : 0);
-        const progressPercent = (stepsCompleted / 5) * 100;
-        const liveX = targetXPercent;
-        const liveY = targetYPercent;
+        const myColor = CROSSHAIR_COLORS[colorIndex] || '#6750A4';
 
         return (
-            <div
-                ref={containerRef}
-                className="controller-container"
-                onTouchStart={handleStart}
-                onTouchMove={handleMove}
-                onTouchEnd={handleEnd}
-                onMouseDown={handleStart}
-                onMouseMove={handleMove}
-                onMouseUp={handleEnd}
-                style={{ position: 'relative', overflow: 'hidden', touchAction: 'none' }}
-            >
-                {/* Tutorial instruction overlay */}
+            <div className="controller-container" style={{
+                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                height: '100%', textAlign: 'center', padding: '2rem',
+                background: 'linear-gradient(180deg, #1C1B1F 0%, #2D2C31 100%)',
+            }}>
                 <div style={{
-                    position: 'absolute', top: 0, left: 0, right: 0,
-                    padding: '1.5rem', textAlign: 'center', zIndex: 100,
-                    pointerEvents: 'none',
-                }}>
-                    {/* Instruction card */}
-                    <div style={{
-                        background: 'var(--glass-bg)', padding: '1rem 1.25rem',
-                        borderRadius: 'var(--radius-lg)', border: `1px solid ${myColor}40`,
-                        backdropFilter: 'blur(20px)', boxShadow: `0 8px 30px ${myColor}20`,
-                    }}>
-                        {isComplete ? (
-                            <><p style={{ fontSize: '1.8rem', margin: 0 }}>✅</p>
-                                <h2 style={{ fontSize: '1.1rem', fontWeight: 900, color: '#fff', margin: '0.4rem 0 0.2rem' }}>All Done!</h2>
-                                <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', margin: 0 }}>Waiting for others...</p></>
-                        ) : isSlingPhase ? (
-                            <><p style={{ fontSize: '1.8rem', margin: 0, animation: 'pulse 1.5s ease-in-out infinite' }}>🏹</p>
-                                <h2 style={{ fontSize: '1.1rem', fontWeight: 900, color: '#fff', margin: '0.4rem 0 0.2rem' }}>Pull the Slingshot!</h2>
-                                <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', margin: 0 }}>Drag down hard · hold it pulled</p></>
-                        ) : (
-                            <><p style={{ fontSize: '1.8rem', margin: 0, animation: 'pulse 1.5s ease-in-out infinite' }}>📱</p>
-                                <h2 style={{ fontSize: '1.1rem', fontWeight: 900, color: '#fff', margin: '0.4rem 0 0.2rem' }}>Tilt All 4 Directions!</h2>
-                                <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', margin: 0 }}>Keep sling held · tilt ⬅️ ➡️ ⬆️ ⬇️</p></>
-                        )}
-                    </div>
-
-                    {/* 4-direction tilt guide with live crosshair — shown during tilt phase */}
-                    {isTiltPhase && (
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: '0.75rem', gap: '0' }}>
-                            {/* Up arrow */}
-                            <span style={{ fontSize: '1.4rem', opacity: tiltUp ? 1 : 0.3, filter: tiltUp ? `drop-shadow(0 0 6px ${myColor})` : 'none', transition: 'all 0.3s', lineHeight: 1.2 }}>⬆️</span>
-                            {/* Middle row: Left + crosshair circle + Right */}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                                <span style={{ fontSize: '1.4rem', opacity: tiltLeft ? 1 : 0.3, filter: tiltLeft ? `drop-shadow(0 0 6px ${myColor})` : 'none', transition: 'all 0.3s' }}>⬅️</span>
-                                {/* Live crosshair mini-display */}
-                                <div style={{ width: '40px', height: '40px', borderRadius: '50%', border: `2px solid ${myColor}50`, position: 'relative', background: 'rgba(255,255,255,0.03)' }}>
-                                    <div style={{
-                                        width: '10px', height: '10px', borderRadius: '50%',
-                                        background: myColor, boxShadow: `0 0 8px ${myColor}`,
-                                        position: 'absolute',
-                                        left: `${liveX}%`, top: `${liveY}%`,
-                                        transform: 'translate(-50%,-50%)',
-                                        transition: 'left 0.08s linear, top 0.08s linear',
-                                    }} />
-                                </div>
-                                <span style={{ fontSize: '1.4rem', opacity: tiltRight ? 1 : 0.3, filter: tiltRight ? `drop-shadow(0 0 6px ${myColor})` : 'none', transition: 'all 0.3s' }}>➡️</span>
-                            </div>
-                            {/* Down arrow */}
-                            <span style={{ fontSize: '1.4rem', opacity: tiltDown ? 1 : 0.3, filter: tiltDown ? `drop-shadow(0 0 6px ${myColor})` : 'none', transition: 'all 0.3s', lineHeight: 1.2 }}>⬇️</span>
-                        </div>
-                    )}
-
-                    {/* Progress bar */}
-                    <div style={{ width: '80%', height: '5px', margin: '0.6rem auto 0', background: 'rgba(255,255,255,0.1)', borderRadius: '3px', overflow: 'hidden' }}>
-                        <div style={{ width: `${progressPercent}%`, height: '100%', background: `linear-gradient(90deg, ${myColor}, #fff)`, borderRadius: '3px', transition: 'width 0.3s ease', boxShadow: `0 0 8px ${myColor}` }} />
-                    </div>
-                </div>
-
-                {/* Slingshot visual — same as playing phase */}
-                <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 5 }}>
-                    <circle
-                        cx={slingshotCenterX} cy={slingshotCenterY}
-                        r={boundaryRadius} fill="none"
-                        stroke={`${myColor}40`} strokeWidth={2} strokeDasharray="8,8"
-                    />
-                    <image
-                        href={slingCenterImg}
-                        x={pullEndX - 35} y={pullEndY - 35}
-                        width={70} height={70}
-                        style={{
-                            filter: isDragging ? `drop-shadow(0 0 20px ${myColor}80)` : 'drop-shadow(0 0 10px rgba(255, 255, 255, 0.5))',
-                            transition: isDragging ? 'none' : 'all 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28)',
-                            cursor: 'grab',
-                        }}
-                    />
-                </svg>
-
-                {/* Color indicator */}
-                <div style={{
-                    position: 'absolute', bottom: '2rem', left: '50%', transform: 'translateX(-50%)',
-                    display: 'flex', alignItems: 'center', gap: '0.5rem', zIndex: 10,
+                    background: 'var(--glass-bg)', padding: '2.5rem 2rem',
+                    borderRadius: 'var(--radius-lg)', border: `1px solid ${myColor}40`,
+                    backdropFilter: 'blur(20px)', maxWidth: '320px', width: '100%',
+                    boxShadow: `0 10px 40px ${myColor}15`,
+                    animation: 'bounceIn 0.5s ease-out',
                 }}>
                     <div style={{
-                        width: '12px', height: '12px', borderRadius: '50%',
-                        background: myColor, boxShadow: `0 0 8px ${myColor}`,
+                        width: '50px', height: '50px', margin: '0 auto 1.5rem',
+                        border: '4px solid rgba(255,255,255,0.05)', borderTop: `4px solid ${myColor}`,
+                        borderRadius: '50%', animation: 'spin 1s linear infinite',
                     }} />
-                    <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
-                        Your crosshair color
-                    </span>
+                    <h2 style={{ fontSize: '1.5rem', fontWeight: 900, color: '#fff', margin: '0 0 0.5rem' }}>Loading Questions...</h2>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', margin: 0, opacity: 0.8 }}>
+                        AI is generating your quiz
+                    </p>
+                    <div style={{ 
+                        marginTop: '1.5rem', fontSize: '0.8rem', color: myColor, 
+                        fontWeight: 800, letterSpacing: '1px' 
+                    }}>
+                        GET READY!
+                    </div>
                 </div>
             </div>
         );
@@ -1049,22 +945,22 @@ export default function Controller() {
                         boxShadow: `0 0 20px ${CROSSHAIR_COLORS[popup.colorIndex]}66`,
                         backdropFilter: 'blur(10px)',
                     }}>
-                        <div style={{ 
-                            display: 'flex', 
-                            flexDirection: 'column', 
+                        <div style={{
+                            display: 'flex',
+                            flexDirection: 'column',
                             alignItems: 'center',
                             color: '#fff',
                         }}>
-                            <span style={{ 
-                                fontSize: '1.8rem', 
+                            <span style={{
+                                fontSize: '1.8rem',
                                 fontWeight: 900,
                                 textShadow: `0 0 10px ${CROSSHAIR_COLORS[popup.colorIndex]}`,
                             }}>
                                 +{popup.score}
                             </span>
                             {popup.bonus > 0 && (
-                                <span style={{ 
-                                    fontSize: '0.85rem', 
+                                <span style={{
+                                    fontSize: '0.85rem',
                                     fontWeight: 700,
                                     color: CROSSHAIR_COLORS[popup.colorIndex],
                                     marginTop: '-0.25rem',

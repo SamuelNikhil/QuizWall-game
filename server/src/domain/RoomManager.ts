@@ -111,17 +111,17 @@ export class RoomManager {
             // Re-bind to the new connection but keep role, state, AND colorIndex
             existing.id = channel.id;
             existing.channel = channel;
-            return { 
-                success: true, 
-                role: existing.role, 
+            return {
+                success: true,
+                role: existing.role,
                 colorIndex: existing.colorIndex,
-                playerName: existing.name 
+                playerName: existing.name
             };
         }
 
         // 1.5 Check if this player had a previous score (rejoining after disconnect)
         const previousScore = room.disconnectedPlayerScores.get(clientId);
-        
+
         // If rejoining, remove from disconnected scores (will be added back if they leave again)
         if (previousScore) {
             room.disconnectedPlayerScores.delete(clientId);
@@ -132,7 +132,7 @@ export class RoomManager {
         this.removeController(channel.id);
 
         if (room.controllers.length >= CONFIG.MAX_PLAYERS_PER_ROOM) {
-            return { success: false, error: 'Room is full (max 3 players)' };
+            return { success: false, error: 'Room is full (max 4 players)' };
         }
 
         if (room.gameStarted) {
@@ -146,13 +146,13 @@ export class RoomManager {
         // But prefer to restore the previous colorIndex if available
         const usedColorIndices = new Set(room.controllers.map(c => c.colorIndex));
         let colorIndex = 0;
-        
+
         if (previousScore && !usedColorIndices.has(previousScore.colorIndex)) {
             // Restore previous colorIndex if it's still available
             colorIndex = previousScore.colorIndex;
         } else {
             // Find first available color index
-            while (usedColorIndices.has(colorIndex) && colorIndex < 3) {
+            while (usedColorIndices.has(colorIndex) && colorIndex < 4) {
                 colorIndex++;
             }
         }
@@ -243,7 +243,7 @@ export class RoomManager {
 
         room.gameStarted = true;
         room.lastActivity = Date.now();
-        
+
         // Reset spectating status for all players when a new game starts
         for (const c of room.controllers) {
             c.isSpectating = false;
@@ -282,7 +282,7 @@ export class RoomManager {
                 const wasLeader = room.controllers[idx].role === 'leader';
                 const leftController = room.controllers[idx];
                 const leftColorIndex = leftController.colorIndex;
-                
+
                 // If game is in progress, save the player's score so it's preserved on the scoreboard
                 if (room.gameStarted && leftController.score > 0) {
                     room.disconnectedPlayerScores.set(leftController.clientId, {
@@ -293,7 +293,7 @@ export class RoomManager {
                     });
                     console.log(`[Room] Saved score ${leftController.score} for disconnected player ${leftController.name} (${leftController.clientId})`);
                 }
-                
+
                 room.controllers.splice(idx, 1);
                 room.lastActivity = Date.now();
 
@@ -376,7 +376,7 @@ export class RoomManager {
 
         room.gameStarted = false;
         room.quizEngine.reset(true); // Silent reset
-        
+
         // Reset ready states and spectating status
         this.resetSpectatingStatus(roomId);
         for (const c of room.controllers) {
@@ -421,10 +421,10 @@ export class RoomManager {
         if (!controller) return false;
 
         controller.name = name;
-        
+
         // Persist the name association immediately to the database
         PlayerManager.persistPlayerName(clientId, name);
-        
+
         return true;
     }
 
@@ -478,7 +478,7 @@ export class RoomManager {
     clearDisconnectedScores(roomId: string): void {
         const room = this.rooms.get(roomId);
         if (!room) return;
-        
+
         room.disconnectedPlayerScores.clear();
         console.log(`[Room] Cleared disconnected scores in ${roomId}`);
     }

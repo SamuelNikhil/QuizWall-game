@@ -694,7 +694,7 @@ export default function Screen() {
                             <QRCodeSVG value={controllerUrl} size={240} level="H" fgColor="#1C1B1F" />
                         </div>
                         <p style={{ marginTop: '1rem', fontSize: '1rem', fontWeight: '600', opacity: 0.8 }}>
-                            {controllerCount}/3 Players Joined
+                            {controllerCount}/4 Players Joined
                         </p>
                     </div>
 
@@ -726,11 +726,9 @@ export default function Screen() {
         );
     }
 
-    // ---- Tutorial Phase (Interactive Virtual Phone Display) ----
+    // ---- Loading Questions Phase (Replaces Tutorial) ----
     if (phase === 'tutorial') {
-        const playerCount = tutorialPlayers.length || controllerCount || 1;
-        // Grid layout: 1 player = full, 2 = side-by-side, 3 = all in one row
-        const gridTemplate = playerCount <= 1 ? '1fr' : playerCount === 2 ? '1fr 1fr' : '1fr 1fr 1fr';
+        const myColor = '#6750A4'; // Use primary accent color for loading
 
         return (
             <div className="screen-container" style={{
@@ -738,158 +736,31 @@ export default function Screen() {
                 height: '100vh', background: 'linear-gradient(135deg, #1C1B1F 0%, #2D2C31 100%)',
                 padding: '2rem',
             }}>
-                {/* Title */}
-                <h1 style={{
-                    fontSize: '2.5rem', fontWeight: 900, color: '#fff',
-                    textShadow: '0 0 40px rgba(103, 80, 164, 0.5)',
-                    marginBottom: '1rem', textAlign: 'center',
-                    animation: 'fadeIn 0.5s ease-out',
-                    fontFamily: 'var(--font-main)',
-                }}>
-                    {tutorialAllComplete ? '✅ All Players Ready!' : '📱 Calibrate Your Controls'}
-                </h1>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '1.1rem', marginBottom: '2rem', textAlign: 'center' }}>
-                    {tutorialAllComplete ? 'Game starting...' : 'Follow the steps on your phone'}
-                </p>
-
-                {/* Player Phone Grid */}
                 <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: gridTemplate,
-                    gap: '2rem',
-                    maxWidth: '1100px',
-                    width: '100%',
-                    flex: 1,
-                    maxHeight: '70vh',
+                    background: 'var(--glass-bg)', padding: '3rem',
+                    borderRadius: 'var(--radius-lg)', border: '1px solid var(--glass-border)',
+                    backdropFilter: 'blur(20px)', maxWidth: '400px', width: '100%',
+                    textAlign: 'center', boxShadow: 'var(--glass-glow)',
+                    animation: 'bounceIn 0.5s ease-out',
                 }}>
-                    {(tutorialPlayers.length > 0 ? tutorialPlayers : [{ controllerId: 'waiting', colorIndex: 0, currentStep: 'waiting' as const, completedSling: false, completedTiltLeft: false, completedTiltRight: false, completedTiltUp: false, completedTiltDown: false, tiltX: 50, tiltY: 50 }]).map((player, idx) => {
-                        const color = CROSSHAIR_COLORS[player.colorIndex] || CROSSHAIR_COLORS[0];
-                        const tiltRotateZ = ((player.tiltX - 50) / 50) * 25; // -25deg to +25deg
-                        const tiltRotateX = ((player.tiltY - 50) / 50) * 15; // -15deg to +15deg
-                        const isComplete = player.currentStep === 'complete';
-
-                        return (
-                            <div
-                                key={player.controllerId}
-                                style={{
-                                    display: 'flex', flexDirection: 'column', alignItems: 'center',
-                                    justifyContent: 'center', gap: '1.5rem',
-                                    background: 'var(--glass-bg)', borderRadius: 'var(--radius-lg)',
-                                    border: `1px solid ${isComplete ? `${color}60` : 'var(--glass-border)'}`,
-                                    padding: '2rem', backdropFilter: 'blur(20px)',
-                                    boxShadow: isComplete ? `0 0 30px ${color}20` : 'var(--glass-glow)',
-                                    gridColumn: 'auto',
-                                    animation: 'bounceIn 0.5s ease-out',
-                                    transition: 'all 0.3s ease',
-                                }}
-                            >
-                                {/* Player label */}
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                    <div style={{
-                                        width: '14px', height: '14px', borderRadius: '50%',
-                                        background: color, boxShadow: `0 0 10px ${color}`,
-                                    }} />
-                                    <span style={{ fontWeight: 800, fontSize: '1.1rem', color: '#fff' }}>
-                                        {player.name || `Player ${idx + 1}`}
-                                    </span>
-                                </div>
-
-                                {/* Virtual Phone */}
-                                <div style={{
-                                    width: '140px', height: '260px',
-                                    perspective: '600px',
-                                }}>
-                                    <div style={{
-                                        width: '100%', height: '100%',
-                                        background: 'linear-gradient(180deg, #2a2a2e 0%, #1a1a1e 100%)',
-                                        borderRadius: '20px',
-                                        border: `3px solid ${color}50`,
-                                        boxShadow: `0 10px 40px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1), 0 0 20px ${color}15`,
-                                        transform: `rotateZ(${tiltRotateZ}deg) rotateX(${tiltRotateX}deg)`,
-                                        transition: 'transform 0.15s ease-out',
-                                        display: 'flex', flexDirection: 'column',
-                                        alignItems: 'center', justifyContent: 'center',
-                                        position: 'relative', overflow: 'hidden',
-                                    }}>
-                                        {/* Phone notch */}
-                                        <div style={{
-                                            position: 'absolute', top: '8px',
-                                            width: '50px', height: '6px',
-                                            background: 'rgba(255,255,255,0.15)',
-                                            borderRadius: '3px',
-                                        }} />
-
-                                        {/* Phone screen content */}
-                                        {player.currentStep === 'tilt' ? (
-                                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
-                                                <span style={{ fontSize: '1rem', opacity: player.completedTiltUp ? 1 : 0.25, transition: 'opacity 0.3s' }}>⬆️</span>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                                    <span style={{ fontSize: '1rem', opacity: player.completedTiltLeft ? 1 : 0.25, transition: 'opacity 0.3s' }}>⬅️</span>
-                                                    <div style={{ width: '44px', height: '44px', borderRadius: '50%', border: `2px solid ${color}60`, position: 'relative', background: 'rgba(0,0,0,0.3)' }}>
-                                                        <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: color, boxShadow: `0 0 8px ${color}`, position: 'absolute', left: `${player.tiltX}%`, top: `${player.tiltY}%`, transform: 'translate(-50%,-50%)', transition: 'left 0.1s linear, top 0.1s linear' }} />
-                                                    </div>
-                                                    <span style={{ fontSize: '1rem', opacity: player.completedTiltRight ? 1 : 0.25, transition: 'opacity 0.3s' }}>➡️</span>
-                                                </div>
-                                                <span style={{ fontSize: '1rem', opacity: player.completedTiltDown ? 1 : 0.25, transition: 'opacity 0.3s' }}>⬇️</span>
-                                            </div>
-                                        ) : (
-                                            <div style={{ fontSize: '2.2rem', animation: player.currentStep === 'complete' ? 'none' : 'pulse 1.5s ease-in-out infinite' }}>
-                                                {player.currentStep === 'complete' ? '✅' : '🏹'}
-                                            </div>
-                                        )}
-                                        <p style={{ color: isComplete ? color : 'rgba(255,255,255,0.7)', fontSize: '0.65rem', fontWeight: 700, textAlign: 'center', padding: '0 0.5rem', marginTop: '0.4rem' }}>
-                                            {isComplete ? 'READY' : player.currentStep === 'tilt' ? 'TILT 4 WAYS!' : 'SLING IT!'}
-                                        </p>
-
-                                        {/* Home indicator */}
-                                        <div style={{ position: 'absolute', bottom: '8px', width: '40px', height: '5px', background: 'rgba(255,255,255,0.2)', borderRadius: '3px' }} />
-                                    </div>{/* end phone body */}
-                                </div>{/* end perspective wrapper */}
-
-                                {/* Step badges — 5 total */}
-                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem', justifyContent: 'center' }}>
-                                    {[
-                                        { label: 'Sling', done: player.completedSling },
-                                        { label: '⬅️', done: player.completedTiltLeft },
-                                        { label: '➡️', done: player.completedTiltRight },
-                                        { label: '⬆️', done: player.completedTiltUp },
-                                        { label: '⬇️', done: player.completedTiltDown },
-                                    ].map(({ label, done }) => (
-                                        <div key={label} style={{
-                                            padding: '0.2rem 0.5rem',
-                                            borderRadius: '999px',
-                                            background: done ? `${color}25` : 'rgba(255,255,255,0.05)',
-                                            border: `1px solid ${done ? color : 'rgba(255,255,255,0.1)'}`,
-                                            fontSize: '0.65rem', fontWeight: 700,
-                                            color: done ? color : 'rgba(255,255,255,0.4)',
-                                            transition: 'all 0.3s ease',
-                                        }}>
-                                            {done ? '✓' : ''} {label}
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        );
-                    })}
-                </div>
-
-                {/* Loading indicator */}
-                {!tutorialAllComplete && (
                     <div style={{
-                        display: 'flex', alignItems: 'center', gap: '1rem',
-                        marginTop: '1.5rem', opacity: 0.6,
+                        width: '60px', height: '60px', margin: '0 auto 2rem',
+                        border: '4px solid rgba(255,255,255,0.1)', borderTop: `4px solid ${myColor}`,
+                        borderRadius: '50%', animation: 'spin 1s linear infinite',
+                        boxShadow: `0 0 20px ${myColor}30`,
+                    }} />
+                    <h2 style={{ fontSize: '2rem', fontWeight: 900, color: '#fff', margin: '0 0 1rem' }}>Loading Questions...</h2>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '1.1rem', margin: 0 }}>
+                        AI is generating your questions
+                    </p>
+                    <div style={{
+                        marginTop: '2rem', padding: '0.75rem', 
+                        background: 'rgba(255,255,255,0.05)', borderRadius: 'var(--radius-md)',
+                        fontSize: '0.9rem', color: 'var(--accent-secondary)', fontWeight: 600
                     }}>
-                        <div style={{
-                            width: '24px', height: '24px',
-                            border: '3px solid rgba(103, 80, 164, 0.3)',
-                            borderTop: '3px solid var(--accent-primary)',
-                            borderRadius: '50%', animation: 'spin 1s linear infinite',
-                        }} />
-                        <span style={{ color: 'var(--text-secondary)', fontSize: '1rem' }}>
-                            Waiting for all players...
-                        </span>
+                        Get Ready! 🚀
                     </div>
-                )}
+                </div>
             </div>
         );
     }

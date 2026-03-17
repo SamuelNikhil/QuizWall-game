@@ -7,7 +7,7 @@ import { resolve } from 'path';
 const PROJECT_ROOT = resolve(import.meta.dirname || '.', '..', '..');
 
 export const CONFIG = {
-    PORT: parseInt(process.env.PORT || '3000', 10),
+    PORT: Number(process.env.PORT) || 3000,
 
     /** Path to SQLite database file - absolute path */
     DB_PATH: process.env.DB_PATH || resolve(PROJECT_ROOT, 'src', 'database', 'QuizzWall.sqlite'),
@@ -19,7 +19,7 @@ export const CONFIG = {
     TIMER_DURATION: 20,
 
     /** Maximum controllers (players) per room */
-    MAX_PLAYERS_PER_ROOM: 3,
+    MAX_PLAYERS_PER_ROOM: 4,
 
     /** Timer sync interval — how often server sends timerSync to clients (ms) */
     TIMER_SYNC_INTERVAL: 1000,

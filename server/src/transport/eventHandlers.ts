@@ -67,10 +67,10 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
 
             // Store clientId in userData so ALL future events can use it
             channel.userData = { role: 'controller', roomId, clientId };
-            channel.emit(EVENTS.JOINED_ROOM, { 
-                roomId, 
-                success: true, 
-                role: result.role, 
+            channel.emit(EVENTS.JOINED_ROOM, {
+                roomId,
+                success: true,
+                role: result.role,
                 colorIndex: result.colorIndex,
                 playerName: result.playerName,
             });
@@ -127,69 +127,22 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
                 return;
             }
 
-            // Step 1: Initialize tutorial state for each player
-            const tutorialState: RoomTutorialState = {
-                players: new Map(),
-                timeoutId: null,
-                resolveComplete: null,
-            };
-            for (const c of room.controllers) {
-                tutorialState.players.set(c.clientId, {
-                    controllerId: c.clientId,
-                    colorIndex: c.colorIndex,
-                    name: c.name || undefined,
-                    currentStep: 'waiting' as TutorialStep,
-                    completedSling: false,
-                    completedTiltLeft: false,
-                    completedTiltRight: false,
-                    completedTiltUp: false,
-                    completedTiltDown: false,
-                    tiltX: 50,
-                    tiltY: 50,
-                });
-            }
-            roomTutorialStates.set(roomId, tutorialState);
-
-            // Send TUTORIAL_START to all clients and screen
-            room.screenChannel.emit(EVENTS.TUTORIAL_START, { duration: 60000 });
-            for (const c of room.controllers) {
-                c.channel.emit(EVENTS.TUTORIAL_START, { duration: 60000 });
-            }
-
-            // Broadcast initial tutorial status
-            broadcastTutorialStatus(roomManager, roomId);
-
-            // Step 2: Initialize quiz engine in background during tutorial
-            console.log(`[Game] Initializing quiz engine for room ${roomId} during tutorial...`);
+            // Step 1: Initialize quiz engine in background
+            console.log(`[Game] Initializing quiz engine for room ${roomId}...`);
             try {
+                // Emit a signal to show loading on Screen
+                room.screenChannel.emit(EVENTS.TUTORIAL_START, { duration: 30000 }); // Reuse event for loading state
+                for (const c of room.controllers) {
+                    c.channel.emit(EVENTS.TUTORIAL_START, { duration: 30000 });
+                }
+
                 await room.quizEngine.initialize();
                 console.log(`[Game] Quiz engine initialized with ${room.quizEngine.getTotalQuestions()} questions for room ${roomId}`);
             } catch (error) {
                 console.error(`[Game] Failed to initialize quiz engine:`, error);
             }
 
-            // Step 3: Wait for all players to complete tutorial OR 60s timeout
-            await new Promise<void>((resolve) => {
-                tutorialState.resolveComplete = resolve;
-
-                // Fallback timeout (60 seconds)
-                tutorialState.timeoutId = setTimeout(() => {
-                    console.log(`[Tutorial] Timeout reached for room ${roomId}, forcing start`);
-                    resolve();
-                }, 60000);
-
-                // Check if already complete (e.g. single player)
-                if (isTutorialComplete(roomId)) {
-                    if (tutorialState.timeoutId) clearTimeout(tutorialState.timeoutId);
-                    resolve();
-                }
-            });
-
-            // Clean up tutorial state
-            roomTutorialStates.delete(roomId);
-
-            // Step 4: Send TUTORIAL_END
-
+            // Step 2: Send TUTORIAL_END to clear loading state
             room.screenChannel.emit(EVENTS.TUTORIAL_END, {});
             for (const c of room.controllers) {
                 c.channel.emit(EVENTS.TUTORIAL_END, {});
@@ -293,7 +246,7 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
                         for (const c of room.controllers) {
                             c.channel.emit(EVENTS.GAME_OVER, gameOverPayload);
                         }
-                        
+
                         // Clear disconnected player scores after game over
                         // They've been shown on the scoreboard, now clear for next game
                         roomManager.clearDisconnectedScores(roomId);
@@ -343,7 +296,7 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
                         for (const c of room.controllers) {
                             c.channel.emit(EVENTS.GAME_OVER, gameOverPayload);
                         }
-                        
+
                         // Clear disconnected player scores after game over
                         // They've been shown on the scoreboard, now clear for next game
                         roomManager.clearDisconnectedScores(roomId);
@@ -493,7 +446,7 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
             if (!roomManager.hasActivePlayers(roomId)) {
                 console.log(`[Room] No active players left in ${roomId}, returning to lobby`);
                 roomManager.forceEndGame(roomId);
-                
+
                 // Broadcast game restarted to return all controllers to lobby view
                 room.screenChannel.emit(EVENTS.GAME_RESTARTED, {});
                 for (const c of room.controllers) {
@@ -721,7 +674,7 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
                     if (room.gameStarted && !roomManager.hasActivePlayers(room.roomId)) {
                         console.log(`[Events] No active players left after disconnect in ${room.roomId}, returning to lobby`);
                         roomManager.forceEndGame(room.roomId);
-                        
+
                         // Broadcast game restarted to return all remaining controllers to lobby view
                         room.screenChannel.emit(EVENTS.GAME_RESTARTED, {});
                         for (const c of room.controllers) {

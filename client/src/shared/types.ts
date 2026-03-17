@@ -35,7 +35,7 @@ export interface PlayerInfo {
 }
 
 // Crosshair colors for each player index
-export const CROSSHAIR_COLORS = ['#00f2ff', '#ff6b6b', '#7cff6b'] as const;
+export const CROSSHAIR_COLORS = ['#00f2ff', '#ff6b6b', '#7cff6b', '#facc15'] as const;
 
 // ---------- Lobby ----------
 

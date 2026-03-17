@@ -125,21 +125,20 @@ export class QuizEngine {
 
     /**
      * Set the number of players to adjust timer duration
-     * 1 player = 30 seconds, 2-3 players = phase-based (20s total per question)
-     * Returns true if mode changed (singleplayer ↔ multiplayer)
+     * 1 player = 20 seconds, 2-4 players = phase-based (20s total per question)
      */
     setPlayerCount(count: number): boolean {
         const previousCount = this.playerCount;
-        this.playerCount = Math.max(1, Math.min(3, count));
-        
+        this.playerCount = Math.max(1, Math.min(4, count));
+
         const modeChanged = (previousCount >= 2) !== (this.playerCount >= 2);
-        
+
         if (this.isMultiplayer()) {
             console.log(`[QuizEngine] Player count set to ${this.playerCount}, using phase-based timer (20s/question)`);
         } else {
             console.log(`[QuizEngine] Player count set to ${this.playerCount}, timer will be 20s`);
         }
-        
+
         return modeChanged;
     }
 
