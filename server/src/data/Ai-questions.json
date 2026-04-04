@@ -1,0 +1,246 @@
+{
+    "topic": "animals-easy-and-simple",
+    "generatedAt": "2026-04-04T04:29:42.939Z",
+    "questions": [
+        {
+            "id": 1,
+            "text": "What is the average lifespan of a butterfly in the wild?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "1-2 weeks"
+                },
+                {
+                    "id": "B",
+                    "text": "1-4 months"
+                },
+                {
+                    "id": "C",
+                    "text": "6-12 months"
+                },
+                {
+                    "id": "D",
+                    "text": "1-2 years"
+                }
+            ],
+            "correct": "B",
+            "category": "animals-easy-and-simple"
+        },
+        {
+            "id": 2,
+            "text": "Which of the following animals has the longest migration route?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Caribou"
+                },
+                {
+                    "id": "B",
+                    "text": "Arctic Tern"
+                },
+                {
+                    "id": "C",
+                    "text": "Monarch Butterfly"
+                },
+                {
+                    "id": "D",
+                    "text": "Gray Whale"
+                }
+            ],
+            "correct": "B",
+            "category": "animals-easy-and-simple"
+        },
+        {
+            "id": 3,
+            "text": "What is the fastest land animal?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Lion"
+                },
+                {
+                    "id": "B",
+                    "text": "Jaguar"
+                },
+                {
+                    "id": "C",
+                    "text": "Cheetah"
+                },
+                {
+                    "id": "D",
+                    "text": "Leopard"
+                }
+            ],
+            "correct": "C",
+            "category": "animals-easy-and-simple"
+        },
+        {
+            "id": 4,
+            "text": "Which animal has the strongest bite force?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Lion"
+                },
+                {
+                    "id": "B",
+                    "text": "Great White Shark"
+                },
+                {
+                    "id": "C",
+                    "text": "Saltwater Crocodile"
+                },
+                {
+                    "id": "D",
+                    "text": "Tiger"
+                }
+            ],
+            "correct": "C",
+            "category": "animals-easy-and-simple"
+        },
+        {
+            "id": 5,
+            "text": "What is the largest species of turtle?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Aldabra Tortoise"
+                },
+                {
+                    "id": "B",
+                    "text": "Leatherback Sea Turtle"
+                },
+                {
+                    "id": "C",
+                    "text": "Galapagos Giant Tortoise"
+                },
+                {
+                    "id": "D",
+                    "text": "Green Sea Turtle"
+                }
+            ],
+            "correct": "B",
+            "category": "animals-easy-and-simple"
+        },
+        {
+            "id": 6,
+            "text": "Which of the following birds is known for its distinctive call that sounds like laughter?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Pelican"
+                },
+                {
+                    "id": "B",
+                    "text": "Penguin"
+                },
+                {
+                    "id": "C",
+                    "text": "Kookaburra"
+                },
+                {
+                    "id": "D",
+                    "text": "Ostrich"
+                }
+            ],
+            "correct": "C",
+            "category": "animals-easy-and-simple"
+        },
+        {
+            "id": 7,
+            "text": "What is the smallest species of mammal?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Bumblebee Bat"
+                },
+                {
+                    "id": "B",
+                    "text": "Etruscan Shrew"
+                },
+                {
+                    "id": "C",
+                    "text": "Pygmy Mouse"
+                },
+                {
+                    "id": "D",
+                    "text": "African Pygmy Mouse"
+                }
+            ],
+            "correct": "A",
+            "category": "animals-easy-and-simple"
+        },
+        {
+            "id": 8,
+            "text": "Which of the following animals has a unique ability to change its body color?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Chameleon"
+                },
+                {
+                    "id": "B",
+                    "text": "Octopus"
+                },
+                {
+                    "id": "C",
+                    "text": "Squid"
+                },
+                {
+                    "id": "D",
+                    "text": "Cuttlefish"
+                }
+            ],
+            "correct": "A",
+            "category": "animals-easy-and-simple"
+        },
+        {
+            "id": 9,
+            "text": "What is the fastest water animal?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Sailfish"
+                },
+                {
+                    "id": "B",
+                    "text": "Black Marlin"
+                },
+                {
+                    "id": "C",
+                    "text": "Bluefin Tuna"
+                },
+                {
+                    "id": "D",
+                    "text": "Shortfin Mako Shark"
+                }
+            ],
+            "correct": "D",
+            "category": "animals-easy-and-simple"
+        },
+        {
+            "id": 10,
+            "text": "Which of the following animals has the longest gestation period?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Elephant"
+                },
+                {
+                    "id": "B",
+                    "text": "Giraffe"
+                },
+                {
+                    "id": "C",
+                    "text": "Rhinoceros"
+                },
+                {
+                    "id": "D",
+                    "text": "Hippopotamus"
+                }
+            ],
+            "correct": "A",
+            "category": "animals-easy-and-simple"
+        }
+    ]
+}

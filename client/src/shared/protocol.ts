@@ -18,6 +18,10 @@ export const EVENTS = {
     PLAYER_READY: 'playerReady',
     SET_PLAYER_NAME: 'setPlayerName',
     START_GAME: 'startGame',
+    TUTORIAL_START: 'tutorialStart',
+    TUTORIAL_END: 'tutorialEnd',
+    TUTORIAL_PROGRESS: 'tutorialProgress',
+    TUTORIAL_STATUS_UPDATE: 'tutorialStatusUpdate',
     GAME_STARTED: 'gameStarted',
 
     // --- Game flow (server → clients) ---
@@ -50,11 +54,7 @@ export const EVENTS = {
     // --- Leaderboard ---
     LEADERBOARD: 'leaderboard',
 
-    // --- Tutorial ---
-    TUTORIAL_START: 'tutorialStart',
-    TUTORIAL_END: 'tutorialEnd',
-    TUTORIAL_PROGRESS: 'tutorialProgress',
-    TUTORIAL_STATUS_UPDATE: 'tutorialStatusUpdate',
+    
 } as const;
 
 export type EventName = (typeof EVENTS)[keyof typeof EVENTS];

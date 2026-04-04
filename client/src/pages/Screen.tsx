@@ -7,6 +7,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { GameClient } from '../transport/GameClient';
+import backgroundVideo from '../assets/QuizWall.webm';
 import { ORB_POSITIONS, CROSSHAIR_COLORS } from '../shared/types';
 import type {
     ClientQuestion,
@@ -18,8 +19,6 @@ import type {
     PlayerSelectionPayload,
     PlayerScoreEntry,
     RevealResultPayload,
-    TutorialPlayerStatus,
-    TutorialStatusUpdatePayload,
 } from '../shared/types';
 import '../animations.css';
 
@@ -76,9 +75,7 @@ export default function Screen() {
     const [revealResult, setRevealResult] = useState<RevealResultPayload | null>(null);
     const [isMultiplayer, setIsMultiplayer] = useState(false);
 
-    // Interactive tutorial state
-    const [tutorialPlayers, setTutorialPlayers] = useState<TutorialPlayerStatus[]>([]);
-    const [tutorialAllComplete, setTutorialAllComplete] = useState(false);
+    // Tutorial state removed
 
     const arenaRef = useRef<HTMLDivElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -87,6 +84,7 @@ export default function Screen() {
     const hadControllersRef = useRef(false);
     const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const gameOverIdleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const videoRef = useRef<HTMLVideoElement>(null);
 
     // ---- Visual effect helpers (identical to original) ----
 
@@ -204,7 +202,7 @@ export default function Screen() {
                 setControllerCount(data.players.length);
                 // Use phaseRef.current (not stale 'phase' closure) to avoid switching away from gameplay
                 const livePhase = phaseRef.current;
-                if (data.players.length > 0 && livePhase !== 'playing' && livePhase !== 'game-over' && livePhase !== 'tutorial') {
+                if (data.players.length > 0 && livePhase !== 'playing' && livePhase !== 'game-over') {
                     setPhaseSync('team-lobby');
                 }
             });
@@ -220,17 +218,13 @@ export default function Screen() {
                 console.log('Controller left:', data.controllerId);
             });
 
-            client.onTutorialStart((_data: { duration: number }) => {
-                console.log('[Screen] Tutorial started, interactive mode');
+client.onTutorialStart((_data: { duration: number }) => {
+                console.log('[Screen] Loading questions...');
                 setPhaseSync('tutorial');
-                setTutorialPlayers([]);
-                setTutorialAllComplete(false);
             });
 
-            // Listen for tutorial status updates with per-player progress
-            client.onTutorialStatusUpdate((data: TutorialStatusUpdatePayload) => {
-                setTutorialPlayers(data.players);
-                setTutorialAllComplete(data.allComplete);
+            client.onTutorialEnd(() => {
+                console.log('[Screen] Tutorial ended, waiting for game data...');
             });
 
             client.onTutorialEnd(() => {
@@ -341,19 +335,12 @@ export default function Screen() {
             });
 
             client.onStartAiming((data) => {
-                if (data.gyroEnabled) {
-                    setCrosshairs(prev => {
-                        const next = new Map(prev);
-                        next.set(data.controllerId, { x: 50, y: 50 });
-                        return next;
-                    });
-                } else {
-                    setCrosshairs(prev => {
-                        const next = new Map(prev);
-                        next.delete(data.controllerId);
-                        return next;
-                    });
-                }
+                // Always remove crosshair when starting to aim (touch-based aiming only)
+                setCrosshairs(prev => {
+                    const next = new Map(prev);
+                    next.delete(data.controllerId);
+                    return next;
+                });
             });
 
             client.onCancelAiming((data) => {
@@ -434,6 +421,40 @@ export default function Screen() {
         }, 2 * 60 * 1000);
         return () => { if (idleTimerRef.current) { clearTimeout(idleTimerRef.current); idleTimerRef.current = null; } };
     }, [phase, lobby]);
+
+    // ---- Video Optimization: Ensure smooth playback ----
+    useEffect(() => {
+        const video = videoRef.current;
+        if (!video) return;
+
+        // Force video to play and handle any interruptions
+        const playVideo = async () => {
+            try {
+                if (video.paused) {
+                    await video.play().catch(() => {
+                        // Ignore autoplay restrictions
+                    });
+                }
+            } catch (err) {
+                // Silently handle playback errors
+            }
+        };
+
+        // Start playing
+        playVideo();
+
+        // Ensure video keeps playing through phase transitions
+        video.addEventListener('ended', playVideo);
+        video.addEventListener('pause', playVideo);
+
+        // Preload video data for smooth playback
+        video.load();
+
+        return () => {
+            video.removeEventListener('ended', playVideo);
+            video.removeEventListener('pause', playVideo);
+        };
+    }, [phase]);
 
     // ==========================================
     // RENDER — preserving existing UI/UX exactly
@@ -603,18 +624,7 @@ export default function Screen() {
                             </p>
                         </div>
 
-                        {/* Leaderboard */}
-                        {gameOverData.leaderboard.length > 0 && (
-                            <div style={{ background: 'var(--glass-bg)', padding: '1.5rem', borderRadius: 'var(--radius-lg)', minWidth: '350px', border: '1px solid var(--glass-border)', marginBottom: '1.5rem' }}>
-                                <h3 style={{ color: 'var(--accent-primary)', fontWeight: 800, marginBottom: '1rem', fontSize: '1.1rem', letterSpacing: '2px', textTransform: 'uppercase' }}>Leaderboard</h3>
-                                {gameOverData.leaderboard.slice(0, 5).map((entry: LeaderboardEntry) => (
-                                    <div key={entry.rank} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0.75rem', marginBottom: '0.25rem', borderRadius: '8px', background: entry.rank === 1 ? 'rgba(103, 80, 164, 0.2)' : 'transparent' }}>
-                                        <span style={{ fontWeight: 700 }}>{entry.rank === 1 ? '👑' : `#${entry.rank}`} {entry.playerName}</span>
-                                        <span style={{ color: 'var(--accent-secondary)', fontWeight: 800 }}>{entry.totalScore} pts</span>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
+                        {/* Historical Leaderboard - Hidden per user request */}
 
                         {/* Controller Actions Indicator */}
                         <div style={{
@@ -634,99 +644,121 @@ export default function Screen() {
         );
     }
 
-    // ---- QR Code Lobby (no controllers yet) ----
-    if (phase === 'qr-lobby' || (phase === 'team-lobby' && controllerCount === 0)) {
+    // ---- LOBBY PHASES (qr-lobby and team-lobby combined for seamless video transition) ----
+    if (phase === 'qr-lobby' || phase === 'team-lobby') {
+        const isTeamLobby = phase === 'team-lobby' && (lobby?.players.length ?? 0) > 0;
+        const preConfigNames = ["Wulf", "Talon", "Ryker", "Roux"];
+        const preConfigAvatars = ["wulf", "talon", "ryker", "roux"];
+
         return (
-            <div className="qr-fullscreen">
-                <h1 style={{ fontSize: '3rem', marginBottom: '1rem', color: '#fff', fontWeight: '900', textShadow: '0 0 50px rgba(103, 80, 164, 0.6)', textAlign: 'center', letterSpacing: '-3px', lineHeight: '1.1', fontFamily: 'var(--font-main)' }}>
-                    Quiz Wall
-                </h1>
-
-                <div className="qr-content-wrapper">
-                    <div className="qr-left-column">
-                        <div className="qr-box-large">
-                            <QRCodeSVG value={controllerUrl} size={240} level="H" fgColor="#1C1B1F" />
+            <div className="saas-landing-screen" style={{ background: '#0D0D12' }}>
+                {/* Background Video - optimized for smooth playback */}
+                <video 
+                    ref={videoRef}
+                    className="landing-bg-video" 
+                    autoPlay 
+                    loop 
+                    muted 
+                    playsInline
+                    preload="auto"
+                    disablePictureInPicture
+                >
+                    <source src={backgroundVideo} type="video/webm" />
+                </video>
+                <div className="landing-bg-overlay" />
+                
+                {isTeamLobby ? (
+                    <div className="lobby-overlay" style={{ background: 'transparent' }}>
+                        <div className="lobby-header" style={{ top: '6%' }}>
+                            <div className="saas-title lobby-screen-title">Game Lobby</div>
                         </div>
-                        <p style={{ marginTop: '2rem', fontSize: '1.25rem', fontWeight: '600', opacity: 0.8 }}>Scan to Play 🎯</p>
-                    </div>
 
-                    <div className="qr-leaderboard">
-                        <h3 style={{ fontFamily: 'var(--font-main)', fontWeight: '800' }}>Leaderboard</h3>
-                        {leaderboard.length > 0 ? (
-                            <div style={{ padding: '0.5rem 0' }}>
-                                {leaderboard.slice(0, 5).map((entry) => (
-                                    <div key={entry.rank} style={{
-                                        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                                        padding: '0.6rem 1rem', marginBottom: '0.35rem', borderRadius: '10px',
-                                        background: entry.rank <= 3 ? 'rgba(103, 80, 164, 0.15)' : 'rgba(255,255,255,0.03)',
-                                        border: entry.rank === 1 ? '1px solid rgba(103, 80, 164, 0.4)' : '1px solid transparent',
-                                    }}>
-                                        <span style={{ fontWeight: 700, fontSize: '0.95rem', color: '#fff' }}>
-                                            {entry.rank === 1 ? '👑' : entry.rank === 2 ? '🥈' : entry.rank === 3 ? '🥉' : `#${entry.rank}`}{' '}
-                                            {entry.playerName}
-                                        </span>
-                                        <span style={{ color: 'var(--accent-secondary)', fontWeight: 800, fontSize: '0.95rem' }}>
-                                            {entry.totalScore} pts
-                                        </span>
-                                    </div>
-                                ))}
+                        <div className="lobby-content" style={{ justifyContent: 'flex-start', paddingRight: '0', paddingLeft: '12%' }}>
+                            <div className="lobby-players-grid" style={{ flex: 'none', width: 'auto', gap: '1rem', justifySelf: 'center' }}>
+                                {[0, 1, 2, 3].map(slotIndex => {
+                                    const player = lobby?.players[slotIndex];
+                                    const name = preConfigNames[slotIndex];
+                                    const avatar = preConfigAvatars[slotIndex];
+                                    const isJoined = !!player;
+                                    const uiColor = isJoined 
+                                        ? (CROSSHAIR_COLORS[player?.colorIndex ?? slotIndex] || CROSSHAIR_COLORS[0])
+                                        : 'rgba(255, 255, 255, 0.15)';
+
+                                    return (
+                                        <div 
+                                            key={slotIndex} 
+                                            className={`lobby-card-v2 ${isJoined ? 'is-joined' : 'is-empty'}`}
+                                            style={{ 
+                                                '--card-color': uiColor,
+                                                borderColor: uiColor,
+                                                width: '180px',
+                                                height: '280px',
+                                                animationDelay: `${slotIndex * 0.1}s`
+                                            } as React.CSSProperties}
+                                        >
+                                            <div className="card-avatar-wrapper" style={{ width: '110px', height: '110px', marginBottom: '1rem' }}>
+                                                <img 
+                                                    src={`/avatars/${avatar}.png`} 
+                                                    alt={name} 
+                                                    className="lobby-avatar-v2" 
+                                                    style={{ width: '120px', height: '120px', opacity: isJoined ? 1 : 0.35 }}
+                                                />
+                                            </div>
+                                            
+                                            <div className="card-info">
+                                                <div className="lobby-name-v2" style={{ fontSize: '1.5rem', marginBottom: '0.75rem' }}>{name}</div>
+                                                {isJoined ? (
+                                                    player.isReady ? (
+                                                        <div className="status-badge ready" style={{ fontSize: '0.7rem' }}>READY</div>
+                                                    ) : (
+                                                        <div className="status-badge joined" style={{ fontSize: '0.7rem' }}>JOINED</div>
+                                                    )
+                                                ) : (
+                                                    <div className="status-badge empty" style={{ fontSize: '0.7rem' }}>CONNECTING...</div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
                             </div>
-                        ) : (
-                            <div style={{ padding: '2rem', textAlign: 'center', opacity: 0.6, fontStyle: 'italic', fontSize: '1rem' }}>No scores yet — be the first!</div>
-                        )}
+                        </div>
+                    </div>
+                ) : (
+                    <div className="saas-landing-left" style={{ position: 'absolute', top: 0, left: 0, height: '100%' }}>
+                        <div className="saas-title">
+                            Play Together<br />
+                            <span className="saas-title-highlight">Instantly</span>
+                        </div>
+
+                        <div className="saas-brand-thumbnail">
+                            QUIZ<br />WALL
+                        </div>
+                    </div>
+                )}
+
+                {/* FIXED QR CONTAINER on the RIGHT side - ensure it doesn't cover cards */}
+                <div className="saas-fixed-right-container" style={{ right: '4%' }}>
+                    <div className="saas-qr-glass-card" style={{ scale: '0.9' }}>
+                        <div className="saas-qr-wrapper">
+                            <QRCodeSVG value={controllerUrl} size={180} level="H" fgColor="#1c1b1f" />
+                        </div>
+                        <div className="saas-scan-prompt" style={{ fontSize: '0.75rem' }}>
+                            <i>{isTeamLobby ? '📱' : '🎯'}</i> 
+                            {isTeamLobby ? <span>Scan to Join</span> : <span>Scan to be <br />lobby leader</span>}
+                        </div>
                     </div>
                 </div>
+
+                {!isTeamLobby && (
+                    <div className="saas-player-badge">
+                        <i>👥</i> 1 - 4 players
+                    </div>
+                )}
             </div>
         );
     }
 
-    // ---- Team Lobby (controllers joined, waiting for start) ----
-    if (phase === 'team-lobby') {
-        return (
-            <div className="qr-fullscreen">
-                <h1 style={{ fontSize: '3rem', marginBottom: '0.5rem', color: '#fff', fontWeight: '900', textShadow: '0 0 50px rgba(103, 80, 164, 0.6)', textAlign: 'center', fontFamily: 'var(--font-main)' }}>
-                    Quiz Wall
-                </h1>
-
-                <div className="qr-content-wrapper">
-                    <div className="qr-left-column">
-                        <div className="qr-box-large">
-                            <QRCodeSVG value={controllerUrl} size={240} level="H" fgColor="#1C1B1F" />
-                        </div>
-                        <p style={{ marginTop: '1rem', fontSize: '1rem', fontWeight: '600', opacity: 0.8 }}>
-                            {controllerCount}/4 Players Joined
-                        </p>
-                    </div>
-
-                    <div className="qr-leaderboard">
-                        <h3 style={{ fontFamily: 'var(--font-main)', fontWeight: '800' }}>Players</h3>
-                        {lobby?.players.map((p, i) => (
-                            <div key={p.id} className="qr-leaderboard-item" style={{ borderRadius: 'var(--radius-md)', border: p.role === 'leader' ? '2px solid var(--accent-primary)' : '1px solid var(--glass-border)', background: p.role === 'leader' ? 'rgba(103, 80, 164, 0.2)' : 'var(--glass-bg)' }}>
-                                <span style={{ fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                    {p.role === 'leader' ? '👑' : `#${i + 1}`} {p.name || 'Player'}
-                                    <span style={{
-                                        width: '10px', height: '10px', borderRadius: '50%',
-                                        background: CROSSHAIR_COLORS[p.colorIndex ?? 0] || CROSSHAIR_COLORS[0],
-                                        boxShadow: `0 0 6px ${CROSSHAIR_COLORS[p.colorIndex ?? 0] || CROSSHAIR_COLORS[0]}`,
-                                    }} />
-                                </span>
-                                <span style={{ color: p.isReady ? 'var(--accent-success)' : 'var(--text-secondary)', fontWeight: '800', fontSize: '1rem' }}>
-                                    {p.isReady ? '✓ Ready' : '⏳ Waiting'}
-                                </span>
-                            </div>
-                        ))}
-                        <div style={{ textAlign: 'center', marginTop: '1rem', padding: '1rem', background: lobby?.canStart ? 'rgba(103, 80, 164, 0.15)' : 'rgba(255,255,255,0.03)', borderRadius: 'var(--radius-md)', border: '1px solid var(--glass-border)' }}>
-                            <p style={{ fontWeight: 800, color: lobby?.canStart ? 'var(--accent-success)' : 'var(--text-secondary)' }}>
-                                {lobby?.canStart ? '🚀 Ready to Start!' : '⏳ Waiting for players...'}
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        );
-    }
-
-    // ---- Loading Questions Phase (Replaces Tutorial) ----
+    // ---- Loading Questions Phase ----
     if (phase === 'tutorial') {
         const myColor = '#6750A4'; // Use primary accent color for loading
 
@@ -754,7 +786,7 @@ export default function Screen() {
                         AI is generating your questions
                     </p>
                     <div style={{
-                        marginTop: '2rem', padding: '0.75rem', 
+                        marginTop: '2rem', padding: '0.75rem',
                         background: 'rgba(255,255,255,0.05)', borderRadius: 'var(--radius-md)',
                         fontSize: '0.9rem', color: 'var(--accent-secondary)', fontWeight: 600
                     }}>

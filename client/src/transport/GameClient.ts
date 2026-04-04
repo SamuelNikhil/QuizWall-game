@@ -211,7 +211,6 @@ export class GameClient {
     }
 
     sendStartAiming(): void {
-        // Gyro is disabled for now - kept for future use
         this.channel?.emit(EVENTS.START_AIMING, { gyroEnabled: false });
     }
 
@@ -312,12 +311,22 @@ export class GameClient {
         this.channel?.on(EVENTS.TARGETING, cb);
     }
 
+    // ---- Tutorial events (kept for loading state compatibility) ----
+
     onTutorialStart(cb: (data: { duration: number }) => void): void {
         this.channel?.on(EVENTS.TUTORIAL_START, cb);
     }
 
     onTutorialEnd(cb: () => void): void {
         this.channel?.on(EVENTS.TUTORIAL_END, cb);
+    }
+
+    onTutorialStatusUpdate(cb: (data: TutorialStatusUpdatePayload) => void): void {
+        this.channel?.on(EVENTS.TUTORIAL_STATUS_UPDATE, cb);
+    }
+
+    sendTutorialProgress(data: TutorialProgressPayload): void {
+        this.channel?.emit(EVENTS.TUTORIAL_PROGRESS, data);
     }
 
     // ---- Phase-based multiplayer ----
@@ -332,15 +341,5 @@ export class GameClient {
 
     onRevealResult(cb: (data: RevealResultPayload) => void): void {
         this.channel?.on(EVENTS.REVEAL_RESULT, cb);
-    }
-
-    // ---- Interactive Tutorial ----
-
-    sendTutorialProgress(data: TutorialProgressPayload): void {
-        this.channel?.emit(EVENTS.TUTORIAL_PROGRESS, data);
-    }
-
-    onTutorialStatusUpdate(cb: (data: TutorialStatusUpdatePayload) => void): void {
-        this.channel?.on(EVENTS.TUTORIAL_STATUS_UPDATE, cb);
     }
 }

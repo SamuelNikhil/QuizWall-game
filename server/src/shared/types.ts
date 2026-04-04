@@ -154,6 +154,7 @@ export interface PlayerScoreResult {
 }
 
 // ---------- Interactive Tutorial ----------
+// Kept for backward compatibility with loading state
 
 export type TutorialStep = 'waiting' | 'sling' | 'tilt' | 'complete';
 
@@ -176,7 +177,7 @@ export interface TutorialStatusUpdatePayload {
 export interface TutorialPlayerStatus {
     controllerId: string;
     colorIndex: number;
-    name?: string; // Player display name
+    name?: string;
     currentStep: TutorialStep;
     completedSling: boolean;
     completedTiltLeft: boolean;

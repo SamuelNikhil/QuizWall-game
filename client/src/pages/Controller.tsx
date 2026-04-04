@@ -7,7 +7,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { GameClient } from '../transport/GameClient';
 import Lobby from './Lobby';
-import type { LobbyState, PlayerRole, ScoreUpdate, QuestionPhase, PlayerSelectionPayload, RevealResultPayload, TutorialStep, TutorialStatusUpdatePayload, PlayerScoreEntry } from '../shared/types';
+import type { LobbyState, PlayerRole, ScoreUpdate, QuestionPhase, PlayerSelectionPayload, RevealResultPayload, PlayerScoreEntry } from '../shared/types';
 import { CROSSHAIR_COLORS } from '../shared/types';
 import slingCenterImg from '../assets/sling-center.svg';
 import '../index.css';
@@ -15,7 +15,7 @@ import '../animations.css';
 import { soundManager } from '../utils/sound';
 
 
-type ControllerPhase = 'connecting' | 'lobby' | 'calibrating' | 'playing' | 'game-over';
+type ControllerPhase = 'connecting' | 'lobby' | 'loading' | 'playing' | 'game-over';
 
 export default function Controller() {
     const { roomId, token } = useParams<{ roomId: string; token: string }>();
@@ -66,43 +66,13 @@ export default function Controller() {
     const [aimAngle, setAimAngle] = useState(0);
     const [startPos, setStartPos] = useState({ x: 0, y: 0 });
 
-    // ---- Gyro Calibration Tutorial State ----
-    const calibrationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    // ---- Interactive Tutorial State ----
-    const [tutorialStep, setTutorialStep] = useState<TutorialStep>('waiting');
-    const tutorialStepRef = useRef<TutorialStep>('waiting');
-    const tutorialSlingDetected = useRef(false);
-    const tutorialTiltLeftDetected = useRef(false);
-    const tutorialTiltRightDetected = useRef(false);
-    const tutorialTiltUpDetected = useRef(false);
-    const tutorialTiltDownDetected = useRef(false);
-    const lastTiltSendRef = useRef<number>(0); // throttle tilt position sends
 
-    // ---- Gyroscope state - KEPT FOR FUTURE USE (currently disabled) ----
-    // These are kept for potential future gyro re-enablement
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const [gyroEnabled, setGyroEnabled] = useState(false);
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const [gyroCalibrated, setGyroCalibrated] = useState(false);
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const [gyroCalibration, setGyroCalibration] = useState({ alpha: 0, beta: 0, gamma: 0 });
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const gyroPermissionRequested = useRef(false);
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const orientationListenerActive = useRef(false);
-
-    // Use refs for real-time values to avoid stale closures in gyro handler
+    // ---- Dragging ref for real-time values ----
     const isDraggingRef = useRef(false);
-    const gyroCalibrationRef = useRef({ alpha: 0, beta: 0, gamma: 0 });
-    const gyroEnabledRef = useRef(false);
 
-    // Sync refs with state - gyro is always disabled so these stay false
+    // Sync refs with state
     useEffect(() => { isDraggingRef.current = isDragging; }, [isDragging]);
-    useEffect(() => { gyroCalibrationRef.current = gyroCalibration; }, [gyroCalibration]);
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    useEffect(() => { gyroEnabledRef.current = gyroEnabled; }, [gyroEnabled]);
-    useEffect(() => { tutorialStepRef.current = tutorialStep; }, [tutorialStep]);
 
     const clientRef = useRef<GameClient | null>(null);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -160,41 +130,13 @@ export default function Controller() {
                 setRole(data.role);
             });
 
-            client.onTutorialStart((_data: { duration: number }) => {
-                console.log('[Controller] Tutorial started, interactive mode');
-                setPhase('calibrating');
-                setIsSpectating(false); // Reset spectating on start
-                setTutorialStep('waiting');
-                tutorialStepRef.current = 'waiting';
-                tutorialSlingDetected.current = false;
-                tutorialTiltLeftDetected.current = false;
-                tutorialTiltRightDetected.current = false;
-
-                // If gyro is disabled, auto-complete the tutorial immediately
-                if (!gyroEnabledRef.current) {
-                    console.log('[Controller] Gyro disabled — auto-completing tutorial');
-                    setTimeout(() => {
-                        client.sendTutorialProgress({ step: 'sling' });
-                        client.sendTutorialProgress({ step: 'tilt-left', tiltX: 10, tiltY: 50 });
-                        client.sendTutorialProgress({ step: 'tilt-right', tiltX: 90, tiltY: 50 });
-                        client.sendTutorialProgress({ step: 'tilt-up', tiltX: 50, tiltY: 10 });
-                        client.sendTutorialProgress({ step: 'tilt-down', tiltX: 50, tiltY: 90 });
-                    }, 300); // Small delay for server to register tutorial state
-                }
-            });
-
-            client.onTutorialEnd(() => {
-                console.log('[Controller] Tutorial ended');
-                if (calibrationTimerRef.current) {
-                    clearTimeout(calibrationTimerRef.current);
-                    calibrationTimerRef.current = null;
-                }
-                setPhase('playing');
-                setIsSpectating(false);
-            });
+            // Tutorial events - kept for compatibility but no longer used
+            // client.onTutorialStart and onTutorialEnd removed
 
             client.onGameStarted(() => {
-                // Game started event - tutorial already handled this
+                // Game started event - transition to loading screen
+                console.log('[Controller] Game started, showing loading screen');
+                setPhase('loading');
                 // Player scores are tracked via SCORE_UPDATE events
             });
 
@@ -244,6 +186,10 @@ export default function Controller() {
                 currentPhaseRef.current = data.phase;
                 setPhaseTimeLeft(data.timeLeft);
                 setIsMultiplayer(true);
+                // Transition from loading to playing when phase starts
+                if (phase === 'loading' && (data.phase === 'selection' || data.phase === 'analysis')) {
+                    setPhase('playing');
+                }
                 // Reset selection lock when entering analysis phase (new question)
                 if (data.phase === 'analysis' && data.timeLeft === 1) {
                     setHasSelectedThisRound(false);
@@ -309,25 +255,10 @@ export default function Controller() {
                 setHasSelectedThisRound(false);
                 hasSelectedRef.current = false;
                 setIsMultiplayer(false);
-                setTutorialStep('waiting');
-                tutorialStepRef.current = 'waiting';
-                tutorialSlingDetected.current = false;
-                tutorialTiltLeftDetected.current = false;
-                tutorialTiltRightDetected.current = false;
-                tutorialTiltUpDetected.current = false;
-                tutorialTiltDownDetected.current = false;
             });
 
             // Tutorial status updates from server
-            client.onTutorialStatusUpdate((data: TutorialStatusUpdatePayload) => {
-                // Update our own step from server state
-                const myClientId = clientIdRef.current;
-                const myStatus = data.players.find(p => p.controllerId === myClientId);
-                if (myStatus && myStatus.currentStep !== tutorialStepRef.current) {
-                    setTutorialStep(myStatus.currentStep);
-                    tutorialStepRef.current = myStatus.currentStep;
-                }
-            });
+// Tutorial status updates - removed
         }).catch((err) => {
             console.error('Connection failed:', err);
             setError('Connection failed');
@@ -336,45 +267,11 @@ export default function Controller() {
         return () => { client.close(); };
     }, [roomId, token]);
 
-    // ---- Gyroscope handler - ACTIVE LISTENER (works for both iOS and Android) ----
-    // This keeps the orientation listener attached whenever gyro is enabled, not just during dragging
-    // iOS Safari requires the listener to be active to receive any deviceorientation events
-    useEffect(() => {
-        if (!gyroEnabled || (phase !== 'playing' && phase !== 'calibrating')) {
-            // Clean up when not in playing/calibrating phase or gyro disabled
-            if (orientationListenerActive.current) {
-                window.removeEventListener('deviceorientation', handleGyroOrientation);
-                orientationListenerActive.current = false;
-            }
-            return;
-        }
-
-        // Attach listener when gyro is enabled and in playing or calibrating phase
-        if (!orientationListenerActive.current) {
-            window.addEventListener('deviceorientation', handleGyroOrientation, true);
-            orientationListenerActive.current = true;
-            console.log('[Gyro] Orientation listener attached');
-        }
-
-        return () => {
-            window.removeEventListener('deviceorientation', handleGyroOrientation);
-            orientationListenerActive.current = false;
-            console.log('[Gyro] Orientation listener detached');
-        };
-    }, [gyroEnabled, phase]);
-
-    // Cleanup calibration timer on unmount
-    useEffect(() => {
-        return () => {
-            if (calibrationTimerRef.current) {
-                clearTimeout(calibrationTimerRef.current);
-            }
-        };
-    }, []);
+    // ---- Gyroscope handler REMOVED ----
 
     // ---- Screen Wake Lock — prevent phone from sleeping during gameplay ----
     useEffect(() => {
-        if (phase !== 'playing' && phase !== 'calibrating') {
+        if (phase !== 'playing' && phase !== 'loading') {
             // Release wake lock when not in active gameplay
             if (wakeLockRef.current) {
                 wakeLockRef.current.release().catch(() => { });
@@ -401,7 +298,7 @@ export default function Controller() {
 
         // Re-acquire wake lock if the page becomes visible again (e.g., tab switch)
         const handleVisibilityChange = () => {
-            if (document.visibilityState === 'visible' && (phase === 'playing' || phase === 'calibrating')) {
+            if (document.visibilityState === 'visible' && (phase === 'playing' || phase === 'loading')) {
                 acquireWakeLock();
             }
         };
@@ -416,184 +313,14 @@ export default function Controller() {
         };
     }, [phase]);
 
-    // Gyro orientation handler - uses refs for real-time values, sends crosshair for visual feedback
-    // Works during calibration (always) and playing (only when dragging)
-    const handleGyroOrientation = useCallback((event: DeviceOrientationEvent) => {
-        if (!gyroEnabledRef.current || (phase !== 'playing' && phase !== 'calibrating')) return;
+    // Gyro orientation handler REMOVED
 
-        // During playing phase, only process when dragging (slingshot pulled)
-        if (phase === 'playing' && !isDraggingRef.current) return;
-
-        const beta = event.beta ?? 0;
-        const gamma = event.gamma ?? 0;
-
-        // Apply calibration offset from ref (real-time)
-        const relGamma = gamma - gyroCalibrationRef.current.gamma;
-        const relBeta = beta - gyroCalibrationRef.current.beta;
-
-        // Map to screen percentage
-        // - X: Tilting phone RIGHT (gamma+) moves target RIGHT (x+)
-        // - Y: Tilting phone FORWARD/AWAY (beta+) moves target UP (y-)
-        const x = Math.max(0, Math.min(100, 50 + relGamma * 1.0));
-        const y = Math.max(0, Math.min(100, 50 - relBeta * 0.8));
-
-        // During calibration, update calibration tilt for visual feedback
-        if (phase === 'calibrating') {
-            // Only process gyro tilt AFTER the sling is completed
-            if (!tutorialSlingDetected.current) return;
-
-            // Update local coords so the mini crosshair on controller moves smoothly
-            setTargetXPercent(x);
-            setTargetYPercent(y);
-
-            // Throttled: stream tilt position to server for Screen crosshair (~20fps)
-            const now = Date.now();
-            if (now - lastTiltSendRef.current >= 50) {
-                lastTiltSendRef.current = now;
-                clientRef.current?.sendTutorialProgress({ step: 'tilt-left', tiltX: x, tiltY: y });
-            }
-
-            // Tutorial: detect tilt-left (x < 20)
-            if (tutorialSlingDetected.current && !tutorialTiltLeftDetected.current && x < 20 && isDraggingRef.current) {
-                tutorialTiltLeftDetected.current = true;
-                clientRef.current?.sendTutorialProgress({ step: 'tilt-left', tiltX: x, tiltY: y });
-                console.log('[Tutorial] Tilt-LEFT detected!');
-                soundManager.vibrate(30);
-            }
-
-            // Tutorial: detect tilt-right (x > 80)
-            if (tutorialSlingDetected.current && !tutorialTiltRightDetected.current && x > 80 && isDraggingRef.current) {
-                tutorialTiltRightDetected.current = true;
-                clientRef.current?.sendTutorialProgress({ step: 'tilt-right', tiltX: x, tiltY: y });
-                console.log('[Tutorial] Tilt-RIGHT detected!');
-                soundManager.vibrate(30);
-            }
-
-            // Tutorial: detect tilt-up (y < 20)
-            if (tutorialSlingDetected.current && !tutorialTiltUpDetected.current && y < 20 && isDraggingRef.current) {
-                tutorialTiltUpDetected.current = true;
-                clientRef.current?.sendTutorialProgress({ step: 'tilt-up', tiltX: x, tiltY: y });
-                console.log('[Tutorial] Tilt-UP detected!');
-                soundManager.vibrate(30);
-            }
-
-            // Tutorial: detect tilt-down (y > 80)
-            if (tutorialSlingDetected.current && !tutorialTiltDownDetected.current && y > 80 && isDraggingRef.current) {
-                tutorialTiltDownDetected.current = true;
-                clientRef.current?.sendTutorialProgress({ step: 'tilt-down', tiltX: x, tiltY: y });
-                console.log('[Tutorial] Tilt-DOWN detected!');
-                soundManager.vibrate([30, 50, 30]);
-            }
-
-            return; // Don't send crosshair during calibration
-        }
-
-        // During playing, update target and send crosshair (only when dragging)
-        setTargetXPercent(x);
-        setTargetYPercent(y);
-
-        // Send crosshair update for visual feedback on screen
-        // Throttle to ~30fps to avoid overwhelming the network
-        throttledSendCrosshair(x, y);
-    }, [phase, throttledSendCrosshair]); // Only depend on phase and throttled function, use refs for everything else
-
-    // ---- Gyro permission request - DISABLED FOR NOW, KEPT FOR FUTURE USE ----
-    /*
-    const requestGyroPermission = useCallback(async () => {
-        // Prevent double requests
-        if (gyroPermissionRequested.current) return;
-        gyroPermissionRequested.current = true;
-
-        console.log('[Gyro] Requesting permission...');
-
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const DeviceOrientationEvent_ = DeviceOrientationEvent as any;
-
-        // iOS 13+ requires explicit permission request
-        if (typeof DeviceOrientationEvent_.requestPermission === 'function') {
-            try {
-                const permission = await DeviceOrientationEvent_.requestPermission();
-                console.log('[Gyro] iOS permission result:', permission);
-
-                if (permission === 'granted') {
-                    setGyroEnabled(true);
-                    // iOS needs a moment to start sending events after permission grant
-                    setTimeout(() => {
-                        calibrateGyro();
-                    }, 100);
-                } else {
-                    console.log('[Gyro] Permission denied by user');
-                    alert('Motion access denied. Please enable in Settings > Safari > Motion & Orientation Access.');
-                }
-            } catch (err) {
-                console.error('[Gyro] Permission request failed:', err);
-            }
-        } else {
-            // Android/Desktop - no explicit permission needed
-            console.log('[Gyro] Android/Desktop - enabling without explicit permission');
-            setGyroEnabled(true);
-            // Small delay to ensure sensor is ready
-            setTimeout(() => {
-                calibrateGyro();
-            }, 100);
-        }
-    }, []);
-
-    // Calibrate gyro - capture current position as "center"
-    const calibrateGyro = useCallback(() => {
-        if (!gyroEnabled && !orientationListenerActive.current) {
-            console.log('[Gyro] Cannot calibrate - not enabled yet');
-            return;
-        }
-
-        // Create a one-time calibration listener
-        const calibrateOnce = (e: DeviceOrientationEvent) => {
-            const calibration = {
-                alpha: e.alpha ?? 0,
-                beta: e.beta ?? 0,
-                gamma: e.gamma ?? 0
-            };
-            setGyroCalibration(calibration);
-            setGyroCalibrated(true);
-            console.log('[Gyro] Calibrated:', calibration);
-            window.removeEventListener('deviceorientation', calibrateOnce);
-        };
-
-        // Try to get immediate reading
-        window.addEventListener('deviceorientation', calibrateOnce, { once: true });
-
-        // Also try to force a reading by temporarily attaching a listener if not already active
-        if (!orientationListenerActive.current) {
-            const tempListener = (e: DeviceOrientationEvent) => {
-                setGyroCalibration({
-                    alpha: e.alpha ?? 0,
-                    beta: e.beta ?? 0,
-                    gamma: e.gamma ?? 0
-                });
-                setGyroCalibrated(true);
-                console.log('[Gyro] Calibrated via temp listener:', e.gamma);
-                window.removeEventListener('deviceorientation', tempListener);
-            };
-            window.addEventListener('deviceorientation', tempListener);
-            // Remove after short delay if no event received
-            setTimeout(() => {
-                window.removeEventListener('deviceorientation', tempListener);
-            }, 500);
-        }
-    }, [gyroEnabled]);
-
-    // Recalibrate when gyro is enabled
-    useEffect(() => {
-        if (gyroEnabled && !gyroCalibrated) {
-            calibrateGyro();
-        }
-    }, [gyroEnabled, gyroCalibrated, calibrateGyro]);
-    */
+    // ---- Gyro permission request REMOVED ----
 
     // ---- Slingshot touch handlers ----
 
     const handleStart = useCallback(() => {
-        if (phase !== 'playing' && phase !== 'calibrating') return;
+        if (phase !== 'playing' && phase !== 'loading') return;
         // In multiplayer, only allow slingshot during selection phase and if not already selected
         if (phase === 'playing' && isMultiplayer && (currentPhaseRef.current !== 'selection' || hasSelectedRef.current)) return;
 
@@ -615,10 +342,10 @@ export default function Controller() {
         if (phase === 'playing') {
             clientRef.current?.sendStartAiming();
         }
-    }, [phase, gyroEnabled, isMultiplayer]);
+    }, [phase, isMultiplayer]);
 
     const handleMove = useCallback((e: React.TouchEvent | React.MouseEvent) => {
-        if (!isDragging || (phase !== 'playing' && phase !== 'calibrating')) return;
+        if (!isDragging || (phase !== 'playing' && phase !== 'loading')) return;
 
         const touch = 'touches' in e ? e.touches[0] : e;
         const rect = containerRef.current?.getBoundingClientRect();
@@ -638,31 +365,21 @@ export default function Controller() {
         setPower(Math.min(100, (clampedDist / maxPull) * 100));
         setAimAngle(angle);
 
-        if (!gyroEnabled) {
-            // Map pull direction to screen target (x-axis inverted)
-            const tX = Math.max(0, Math.min(100, 50 - (dx / maxPull) * 50));
-            const tY = Math.max(0, Math.min(100, 50 - (dy / maxPull) * 50));
-            setTargetXPercent(tX);
-            setTargetYPercent(tY);
-            if (phase === 'playing') {
-                clientRef.current?.sendCrosshair(tX, tY);
-            }
+        // Map pull direction to screen target (x-axis inverted)
+        const tX = Math.max(0, Math.min(100, 50 - (dx / maxPull) * 50));
+        const tY = Math.max(0, Math.min(100, 50 - (dy / maxPull) * 50));
+        setTargetXPercent(tX);
+        setTargetYPercent(tY);
+        if (phase === 'playing') {
+            clientRef.current?.sendCrosshair(tX, tY);
         }
-
-        // Tutorial: detect sling action (power > 50%)
-        if (phase === 'calibrating' && !tutorialSlingDetected.current && Math.min(100, (clampedDist / maxPull) * 100) > 50) {
-            tutorialSlingDetected.current = true;
-            clientRef.current?.sendTutorialProgress({ step: 'sling' });
-            console.log('[Tutorial] Sling detected!');
-            soundManager.vibrate(30);
-        }
-    }, [isDragging, startPos, gyroEnabled, phase]);
+    }, [isDragging, startPos, phase]);
 
     const handleEnd = useCallback(() => {
         if (!isDragging) return;
 
-        // During tutorial, don't shoot, just release
-        if (phase === 'calibrating') {
+        // During loading, don't shoot, just release
+        if (phase === 'loading') {
             setIsDragging(false);
             setPullBack(0);
             setPower(0);
@@ -729,7 +446,7 @@ export default function Controller() {
         );
     }
 
-    // ---- Slingshot Layout Calculations (shared by calibrating + playing phases) ----
+    // ---- Slingshot Layout Calculations (shared by loading + playing phases) ----
     const width = containerRef.current?.offsetWidth || 400;
     const height = containerRef.current?.offsetHeight || 800;
     const slingshotCenterX = width / 2;
@@ -738,35 +455,63 @@ export default function Controller() {
     const pullEndX = isDragging ? slingshotCenterX - Math.cos(aimAngle) * pullBack : slingshotCenterX;
     const pullEndY = isDragging ? slingshotCenterY - Math.sin(aimAngle) * pullBack : slingshotCenterY;
 
-    // ---- Loading Questions Phase (Replaces Tutorial) ----
-    if (phase === 'calibrating') {
+    // ---- Loading Questions Phase ----
+    if (phase === 'loading') {
         const myColor = CROSSHAIR_COLORS[colorIndex] || '#6750A4';
 
         return (
             <div className="controller-container" style={{
-                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                height: '100%', textAlign: 'center', padding: '2rem',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                height: '100%',
+                textAlign: 'center',
+                padding: '2rem',
                 background: 'linear-gradient(180deg, #1C1B1F 0%, #2D2C31 100%)',
             }}>
                 <div style={{
-                    background: 'var(--glass-bg)', padding: '2.5rem 2rem',
-                    borderRadius: 'var(--radius-lg)', border: `1px solid ${myColor}40`,
-                    backdropFilter: 'blur(20px)', maxWidth: '320px', width: '100%',
+                    background: 'var(--glass-bg)',
+                    padding: '2.5rem 2rem',
+                    borderRadius: 'var(--radius-lg)',
+                    border: `1px solid ${myColor}40`,
+                    backdropFilter: 'blur(20px)',
+                    maxWidth: '320px',
+                    width: '100%',
                     boxShadow: `0 10px 40px ${myColor}15`,
                     animation: 'bounceIn 0.5s ease-out',
                 }}>
                     <div style={{
-                        width: '50px', height: '50px', margin: '0 auto 1.5rem',
-                        border: '4px solid rgba(255,255,255,0.05)', borderTop: `4px solid ${myColor}`,
-                        borderRadius: '50%', animation: 'spin 1s linear infinite',
+                        width: '50px',
+                        height: '50px',
+                        margin: '0 auto 1.5rem',
+                        border: '4px solid rgba(255,255,255,0.05)',
+                        borderTop: `4px solid ${myColor}`,
+                        borderRadius: '50%',
+                        animation: 'spin 1s linear infinite',
                     }} />
-                    <h2 style={{ fontSize: '1.5rem', fontWeight: 900, color: '#fff', margin: '0 0 0.5rem' }}>Loading Questions...</h2>
-                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', margin: 0, opacity: 0.8 }}>
+                    <h2 style={{
+                        fontSize: '1.5rem',
+                        fontWeight: 900,
+                        color: '#fff',
+                        margin: '0 0 0.5rem',
+                    }}>
+                        Loading Questions...
+                    </h2>
+                    <p style={{
+                        color: 'var(--text-secondary)',
+                        fontSize: '0.9rem',
+                        margin: 0,
+                        opacity: 0.8,
+                    }}>
                         AI is generating your quiz
                     </p>
-                    <div style={{ 
-                        marginTop: '1.5rem', fontSize: '0.8rem', color: myColor, 
-                        fontWeight: 800, letterSpacing: '1px' 
+                    <div style={{
+                        marginTop: '1.5rem',
+                        fontSize: '0.8rem',
+                        color: myColor,
+                        fontWeight: 800,
+                        letterSpacing: '1px',
                     }}>
                         GET READY!
                     </div>
@@ -1116,7 +861,7 @@ export default function Controller() {
                 />
 
                 {/* Aiming help line */}
-                {isDragging && !gyroEnabled && (
+                {isDragging && (
                     <line
                         x1={slingshotCenterX} y1={slingshotCenterY}
                         x2={pullEndX} y2={pullEndY}

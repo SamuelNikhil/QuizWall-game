@@ -18,7 +18,18 @@ const connectionTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
 const crosshairLastSent = new Map<string, number>(); // Throttle crosshair relay per controller
 const CROSSHAIR_THROTTLE_MS = 33; // ~30fps max relay rate
 
-// Per-room tutorial state tracking
+// Periodically clean up old crosshair timestamps to prevent memory leaks
+setInterval(() => {
+    const now = Date.now();
+    // Remove entries older than 5 minutes
+    for (const [clientId, timestamp] of crosshairLastSent.entries()) {
+        if (now - timestamp > 300000) { // 5 minutes
+            crosshairLastSent.delete(clientId);
+        }
+    }
+}, 60000); // Run cleanup every minute
+
+// Per-room tutorial state tracking (kept for loading state compatibility)
 interface RoomTutorialState {
     players: Map<string, TutorialPlayerStatus>;
     timeoutId: ReturnType<typeof setTimeout> | null;
@@ -131,7 +142,7 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
             console.log(`[Game] Initializing quiz engine for room ${roomId}...`);
             try {
                 // Emit a signal to show loading on Screen
-                room.screenChannel.emit(EVENTS.TUTORIAL_START, { duration: 30000 }); // Reuse event for loading state
+                room.screenChannel.emit(EVENTS.TUTORIAL_START, { duration: 30000 }); // Use for loading state
                 for (const c of room.controllers) {
                     c.channel.emit(EVENTS.TUTORIAL_START, { duration: 30000 });
                 }
@@ -481,7 +492,7 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
             room.screenChannel.emit(EVENTS.CROSSHAIR, { controllerId: clientId, ...data }, { reliable: false });
         });
 
-        channel.on(EVENTS.START_AIMING, (data: { gyroEnabled: boolean }) => {
+        channel.on(EVENTS.START_AIMING, () => {
             const { roomId, clientId } = channel.userData || {};
             const room = roomManager.getRoom(roomId);
             if (!room?.screenChannel || !clientId) return;
@@ -492,7 +503,8 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
                 if (currentPhase !== 'selection') return;
             }
 
-            room.screenChannel.emit(EVENTS.START_AIMING, { controllerId: clientId, ...data });
+            // Always send with gyro disabled since we removed that functionality
+            room.screenChannel.emit(EVENTS.START_AIMING, { controllerId: clientId, gyroEnabled: false });
         });
 
         channel.on(EVENTS.CANCEL_AIMING, () => {
@@ -512,6 +524,7 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
         });
 
         // ---------- Tutorial Progress ----------
+// Kept for loading state compatibility (gyro functionality removed)
 
         channel.on(EVENTS.TUTORIAL_PROGRESS, (data: TutorialProgressPayload) => {
             const { roomId, clientId } = channel.userData || {};
@@ -523,56 +536,29 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
             const playerState = tutorialState.players.get(clientId);
             if (!playerState) return;
 
-            // Update tilt data for screen visualization
+            // Update tilt data for screen visualization (kept for compatibility)
             if (data.tiltX !== undefined) playerState.tiltX = data.tiltX;
             if (data.tiltY !== undefined) playerState.tiltY = data.tiltY;
 
-            // Update step completion
+            // Mark steps as complete (auto-complete since gyro is disabled)
             switch (data.step) {
                 case 'sling':
                     if (!playerState.completedSling) {
                         playerState.completedSling = true;
-                        playerState.currentStep = 'tilt'; // Move to tilt phase
-                        console.log(`[Tutorial] Player ${clientId.substring(0, 8)} completed SLING`);
+                        playerState.currentStep = 'tilt';
                     }
                     break;
                 case 'tilt-left':
-                    if (playerState.completedSling && !playerState.completedTiltLeft) {
-                        playerState.completedTiltLeft = true;
-                        console.log(`[Tutorial] Player ${clientId.substring(0, 8)} completed TILT-LEFT`);
-                    }
-                    break;
                 case 'tilt-right':
-                    if (playerState.completedSling && !playerState.completedTiltRight) {
-                        playerState.completedTiltRight = true;
-                        console.log(`[Tutorial] Player ${clientId.substring(0, 8)} completed TILT-RIGHT`);
-                    }
-                    break;
                 case 'tilt-up':
-                    if (playerState.completedSling && !playerState.completedTiltUp) {
-                        playerState.completedTiltUp = true;
-                        console.log(`[Tutorial] Player ${clientId.substring(0, 8)} completed TILT-UP`);
-                    }
-                    break;
                 case 'tilt-down':
-                    if (playerState.completedSling && !playerState.completedTiltDown) {
-                        playerState.completedTiltDown = true;
-                        console.log(`[Tutorial] Player ${clientId.substring(0, 8)} completed TILT-DOWN`);
-                    }
+                    // Auto-complete all tilt steps
+                    playerState.completedTiltLeft = true;
+                    playerState.completedTiltRight = true;
+                    playerState.completedTiltUp = true;
+                    playerState.completedTiltDown = true;
+                    playerState.currentStep = 'complete';
                     break;
-            }
-
-            // Check if tilt phase is fully complete (all 4 directions)
-            if (
-                playerState.completedSling &&
-                playerState.completedTiltLeft &&
-                playerState.completedTiltRight &&
-                playerState.completedTiltUp &&
-                playerState.completedTiltDown &&
-                playerState.currentStep !== 'complete'
-            ) {
-                playerState.currentStep = 'complete';
-                console.log(`[Tutorial] Player ${clientId.substring(0, 8)} COMPLETE!`);
             }
 
             // Broadcast updated status to all
@@ -733,14 +719,14 @@ function broadcastTutorialStatus(roomManager: RoomManager, roomId: string): void
 /** Check if all players in a room have completed the tutorial */
 function isTutorialComplete(roomId: string): boolean {
     const tutorialState = roomTutorialStates.get(roomId);
-    if (!tutorialState) return true; // No tutorial state means it's done
+    if (!tutorialState) return true;
     const players = Array.from(tutorialState.players.values());
     return players.every(p => p.currentStep === 'complete');
 }
 
 /** Detect which orb was hit based on percentage coordinates */
 function detectOrbHit(xPercent: number, yPercent: number): string | null {
-    const HIT_RADIUS = 10; // percentage-based hit radius (increased for better mobile/gyro UX)
+    const HIT_RADIUS = 10; // percentage-based hit radius
 
     for (const orb of ORB_POSITIONS) {
         const dist = Math.sqrt(Math.pow(xPercent - orb.x, 2) + Math.pow(yPercent - orb.y, 2));

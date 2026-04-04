@@ -161,6 +161,7 @@ export interface PlayerScoreResult {
 }
 
 // ---------- Interactive Tutorial ----------
+// Kept for backward compatibility with loading state (no longer used for gyro)
 
 export type TutorialStep = 'waiting' | 'sling' | 'tilt' | 'complete';
 
@@ -170,9 +171,8 @@ export type TutorialProgressStep = 'sling' | 'tilt-left' | 'tilt-right' | 'tilt-
 /** Sent from controller → server when a player completes a tutorial step */
 export interface TutorialProgressPayload {
     step: TutorialProgressStep;
-    /** Controller's current gyro tilt data for screen visualization */
-    tiltX?: number; // 0-100 percent
-    tiltY?: number; // 0-100 percent
+    tiltX?: number;
+    tiltY?: number;
 }
 
 /** Broadcast from server → all clients with each player's tutorial status */
@@ -184,14 +184,13 @@ export interface TutorialStatusUpdatePayload {
 export interface TutorialPlayerStatus {
     controllerId: string;
     colorIndex: number;
-    name?: string; // Player display name
+    name?: string;
     currentStep: TutorialStep;
     completedSling: boolean;
     completedTiltLeft: boolean;
     completedTiltRight: boolean;
     completedTiltUp: boolean;
     completedTiltDown: boolean;
-    /** Real-time tilt data for screen crosshair visualization */
     tiltX: number;
     tiltY: number;
 }
