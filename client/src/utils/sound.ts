@@ -11,6 +11,17 @@ export class SoundManager {
     private initialized: boolean = false;
     private buffers: Record<string, AudioBuffer> = {};
 
+    // Keep all gameplay audio on controller clients only.
+    private isControllerRoute(): boolean {
+        if (typeof window === 'undefined') return false;
+        const pathname = window.location.pathname.toLowerCase();
+        return pathname === '/controller' || pathname.startsWith('/controller/');
+    }
+
+    private canPlay(): boolean {
+        return this.enabled && this.isControllerRoute();
+    }
+
     private getContext(): AudioContext {
         if (!this.audioContext) {
             const AudioContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
@@ -23,6 +34,7 @@ export class SoundManager {
      * Unlocks audio on iOS/Safari. Should be called on first user gesture.
      */
     async unlock(): Promise<void> {
+        if (!this.isControllerRoute()) return;
         if (this.initialized) return;
         
         const ctx = this.getContext();
@@ -63,7 +75,7 @@ export class SoundManager {
     }
 
     private async playBuffer(name: string, volume: number = 1.0): Promise<void> {
-        if (!this.enabled) return;
+        if (!this.canPlay()) return;
         const buffer = this.buffers[name];
         if (!buffer) return;
 
@@ -88,7 +100,7 @@ export class SoundManager {
     }
 
     vibrate(pattern: number | number[]): void {
-        if (!this.enabled) return;
+        if (!this.canPlay()) return;
         
         // 1. Try standard vibration API first (Android/Desktop)
         try {
@@ -140,7 +152,7 @@ export class SoundManager {
         type: OscillatorType = 'sine',
         volume: number = 0.3
     ): Promise<void> {
-        if (!this.enabled) return;
+        if (!this.canPlay()) return;
 
         try {
             const ctx = this.getContext();
@@ -195,21 +207,27 @@ export class SoundManager {
     }
 
     playTransitionWhoosh(): void {
-        const ctx = this.getContext();
-        const oscillator = ctx.createOscillator();
-        const gainNode = ctx.createGain();
-        
-        oscillator.connect(gainNode);
-        gainNode.connect(ctx.destination);
-        
-        oscillator.frequency.setValueAtTime(200, ctx.currentTime);
-        oscillator.frequency.exponentialRampToValueAtTime(800, ctx.currentTime + 0.5);
-        
-        gainNode.gain.setValueAtTime(0.3, ctx.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
-        
-        oscillator.start(ctx.currentTime);
-        oscillator.stop(ctx.currentTime + 0.5);
+        if (!this.canPlay()) return;
+
+        try {
+            const ctx = this.getContext();
+            const oscillator = ctx.createOscillator();
+            const gainNode = ctx.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(ctx.destination);
+            
+            oscillator.frequency.setValueAtTime(200, ctx.currentTime);
+            oscillator.frequency.exponentialRampToValueAtTime(800, ctx.currentTime + 0.5);
+            
+            gainNode.gain.setValueAtTime(0.3, ctx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
+            
+            oscillator.start(ctx.currentTime);
+            oscillator.stop(ctx.currentTime + 0.5);
+        } catch (e) {
+            console.warn('Sound error:', e);
+        }
     }
 
     playGameStart(): void {

@@ -21,7 +21,6 @@ import type {
     RevealResultPayload,
 } from '../shared/types';
 import '../animations.css';
-import { soundManager } from '../utils/sound';
 import WinnerScene from '../components/WinnerScene';
 
 type GamePhase = 'connecting' | 'qr-lobby' | 'team-lobby' | 'loading' | 'playing' | 'game-over' | 'exit-scores';
@@ -231,14 +230,11 @@ export default function Screen() {
                 console.log('[Screen] Countdown starting:', data.duration);
                 setCountdownActive(true);
                 setCountdownValue(data.duration);
-                
-                // Play countdown beeps
+
                 let count = data.duration;
-                soundManager.playCountdownBeep();
                 const beepInterval = setInterval(() => {
                     count--;
                     if (count > 0) {
-                        soundManager.playCountdownBeep();
                         setCountdownValue(count);
                     } else {
                         clearInterval(beepInterval);
