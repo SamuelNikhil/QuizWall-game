@@ -21,8 +21,10 @@ import type {
     RevealResultPayload,
 } from '../shared/types';
 import '../animations.css';
+import { soundManager } from '../utils/sound';
+import WinnerScene from '../components/WinnerScene';
 
-type GamePhase = 'connecting' | 'qr-lobby' | 'team-lobby' | 'tutorial' | 'playing' | 'game-over' | 'exit-scores';
+type GamePhase = 'connecting' | 'qr-lobby' | 'team-lobby' | 'loading' | 'playing' | 'game-over' | 'exit-scores';
 
 interface Particle { id: string; x: number; y: number; size: number; color: string; '--tx': string; '--ty': string; }
 interface ScorePopup { id: string; x: number; y: number; text: string; type: string; }
@@ -44,11 +46,11 @@ export default function Screen() {
     const [timeLeft, setTimeLeft] = useState(20);
     const [playerScores, setPlayerScores] = useState<PlayerScoreEntry[]>([]);
     const [gameOverData, setGameOverData] = useState<GameOverPayload | null>(null);
-    const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+    const [_leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
 
     // Visual effects (client-only)
-    const [projectiles, setProjectiles] = useState<Projectile[]>([]);
-    const [hitEffects, setHitEffects] = useState<{ id: string; x: number; y: number; correct: boolean }[]>([]);
+    const [_projectiles, setProjectiles] = useState<Projectile[]>([]);
+    const [_hitEffects, setHitEffects] = useState<{ id: string; x: number; y: number; correct: boolean }[]>([]);
     const [particles, setParticles] = useState<Particle[]>([]);
     const [scorePopups, setScorePopups] = useState<ScorePopup[]>([]);
     const [ripples, setRipples] = useState<Ripple[]>([]);
@@ -59,13 +61,14 @@ export default function Screen() {
     // Per-player crosshair colors — imported from shared types
     // Store color index from server when controller joins
     const crosshairColorMap = useRef<Map<string, number>>(new Map());
-    const getPlayerColor = useCallback((controllerId: string): string => {
-        const colorIndex = crosshairColorMap.current.get(controllerId) ?? 0;
-        return CROSSHAIR_COLORS[colorIndex] || CROSSHAIR_COLORS[0];
-    }, []);
     const [isTransitioning, setIsTransitioning] = useState(false);
     const [controllerCount, setControllerCount] = useState(0);
     const [sessionEnding, setSessionEnding] = useState(false);
+
+    // Loading screen state
+    const [countdownActive, setCountdownActive] = useState(false);
+    const [countdownValue, setCountdownValue] = useState(3);
+    const [showReadyOverlay, setShowReadyOverlay] = useState(false);
 
     // Phase-based multiplayer state
     const [currentPhase, setCurrentPhase] = useState<QuestionPhase | null>(null);
@@ -218,35 +221,59 @@ export default function Screen() {
                 console.log('Controller left:', data.controllerId);
             });
 
-client.onTutorialStart((_data: { duration: number }) => {
-                console.log('[Screen] Loading questions...');
-                setPhaseSync('tutorial');
+            client.onLoadingStart((data) => {
+                console.log('[Screen] Loading started, players:', data.playerCount);
+                setPhaseSync('loading');
+                setCountdownActive(false);
             });
 
-            client.onTutorialEnd(() => {
-                console.log('[Screen] Tutorial ended, waiting for game data...');
-            });
-
-            client.onTutorialEnd(() => {
-                console.log('[Screen] Tutorial ended, waiting for game data...');
-                // Phase will change to 'playing' when GAME_STARTED arrives
+            client.onLoadingCountdown((data) => {
+                console.log('[Screen] Countdown starting:', data.duration);
+                setCountdownActive(true);
+                setCountdownValue(data.duration);
+                
+                // Play countdown beeps
+                let count = data.duration;
+                soundManager.playCountdownBeep();
+                const beepInterval = setInterval(() => {
+                    count--;
+                    if (count > 0) {
+                        soundManager.playCountdownBeep();
+                        setCountdownValue(count);
+                    } else {
+                        clearInterval(beepInterval);
+                        setCountdownValue(0);
+                    }
+                }, 1000);
             });
 
             client.onGameStarted((data) => {
-                console.log('[Screen] Game Started event received:', data);
+                console.log('[Screen] Game Started event received:', data, 'current phase:', phaseRef.current);
                 setQuestion(data.question);
                 setTimeLeft(data.timeLeft);
                 setPlayerScores([]);
                 setQuestionNumber(1);
+                // Always transition to playing when game starts
                 setPhaseSync('playing');
+                setShowReadyOverlay(true);
+                setTimeout(() => setShowReadyOverlay(false), 2000);
             });
 
             // Phase-based multiplayer events
             client.onPhaseChange((data) => {
+                console.log('[Screen] Phase change:', data.phase, 'time:', data.timeLeft, 'current phase:', phaseRef.current);
                 setCurrentPhase(data.phase);
                 setPhaseTimeLeft(data.timeLeft);
                 setQuestionNumber(data.questionNumber);
                 setIsMultiplayer(true);
+                // Transition from loading to playing when first phase starts
+                if (phase === 'loading' && (data.phase === 'analysis' || data.phase === 'selection')) {
+                    console.log('[Screen] Transitioning from loading to playing');
+                    setPhaseSync('playing');
+                    // Show "GET READY" overlay for 2 seconds before showing question
+                    setShowReadyOverlay(true);
+                    setTimeout(() => setShowReadyOverlay(false), 2000);
+                }
                 // Clear selections when entering analysis phase (new question)
                 if (data.phase === 'analysis' && data.timeLeft === 1) {
                     setPlayerSelections([]);
@@ -547,6 +574,13 @@ client.onTutorialStart((_data: { duration: number }) => {
 
     // ---- Game Over ----
     if (phase === 'game-over' && gameOverData) {
+        return (
+            <WinnerScene
+                variant="screen"
+                scores={gameOverData.playerScores ?? []}
+            />
+        );
+
         const isCompleted = gameOverData.reason === 'completed';
         const hasPlayerScores = gameOverData.playerScores && gameOverData.playerScores.length > 0;
         return (
@@ -758,160 +792,350 @@ client.onTutorialStart((_data: { duration: number }) => {
         );
     }
 
-    // ---- Loading Questions Phase ----
-    if (phase === 'tutorial') {
-        const myColor = '#6750A4'; // Use primary accent color for loading
+    // ---- Loading Phase (AI Questions Loading + Countdown) ----
+    if (phase === 'loading') {
+        const preConfigNames = ["Wulf", "Talon", "Ryker", "Roux"];
+        const preConfigAvatars = ["wulf", "talon", "ryker", "roux"];
 
         return (
             <div className="screen-container" style={{
-                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                height: '100vh', background: 'linear-gradient(135deg, #1C1B1F 0%, #2D2C31 100%)',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                height: '100vh',
+                background: 'linear-gradient(180deg, #0f0f1a 0%, #1a1a2e 100%)',
                 padding: '2rem',
+                position: 'relative',
             }}>
+                {/* Player Avatars Row */}
                 <div style={{
-                    background: 'var(--glass-bg)', padding: '3rem',
-                    borderRadius: 'var(--radius-lg)', border: '1px solid var(--glass-border)',
-                    backdropFilter: 'blur(20px)', maxWidth: '400px', width: '100%',
-                    textAlign: 'center', boxShadow: 'var(--glass-glow)',
-                    animation: 'bounceIn 0.5s ease-out',
+                    display: 'flex',
+                    gap: '2rem',
+                    marginBottom: '3rem',
+                    animation: 'bounceIn 0.6s ease-out',
                 }}>
-                    <div style={{
-                        width: '60px', height: '60px', margin: '0 auto 2rem',
-                        border: '4px solid rgba(255,255,255,0.1)', borderTop: `4px solid ${myColor}`,
-                        borderRadius: '50%', animation: 'spin 1s linear infinite',
-                        boxShadow: `0 0 20px ${myColor}30`,
-                    }} />
-                    <h2 style={{ fontSize: '2rem', fontWeight: 900, color: '#fff', margin: '0 0 1rem' }}>Loading Questions...</h2>
-                    <p style={{ color: 'var(--text-secondary)', fontSize: '1.1rem', margin: 0 }}>
-                        AI is generating your questions
-                    </p>
-                    <div style={{
-                        marginTop: '2rem', padding: '0.75rem',
-                        background: 'rgba(255,255,255,0.05)', borderRadius: 'var(--radius-md)',
-                        fontSize: '0.9rem', color: 'var(--accent-secondary)', fontWeight: 600
-                    }}>
-                        Get Ready! 🚀
-                    </div>
+                    {lobby?.players.map((player) => (
+                        <div key={player.id} style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            gap: '0.5rem',
+                        }}>
+                            <div style={{
+                                width: '100px',
+                                height: '100px',
+                                borderRadius: '50%',
+                                border: `3px solid ${CROSSHAIR_COLORS[player.colorIndex ?? 0]}`,
+                                boxShadow: `0 0 30px ${CROSSHAIR_COLORS[player.colorIndex ?? 0]}40`,
+                                background: 'rgba(255,255,255,0.05)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                overflow: 'hidden',
+                            }}>
+                                <img
+                                    src={`/avatars/${preConfigAvatars[player.colorIndex ?? 0]}.png`}
+                                    alt={preConfigNames[player.colorIndex ?? 0]}
+                                    style={{
+                                        width: '90%',
+                                        height: '90%',
+                                        objectFit: 'contain',
+                                    }}
+                                />
+                            </div>
+                            <span style={{
+                                fontSize: '1.1rem',
+                                fontWeight: 700,
+                                color: '#fff',
+                            }}>
+                                {preConfigNames[player.colorIndex ?? 0]}
+                            </span>
+                            {player.role === 'leader' && (
+                                <span style={{
+                                    fontSize: '0.7rem',
+                                    fontWeight: 800,
+                                    color: 'rgba(255,255,255,0.5)',
+                                    textTransform: 'uppercase',
+                                    background: 'rgba(255,255,255,0.1)',
+                                    padding: '0.25rem 0.75rem',
+                                    borderRadius: '12px',
+                                }}>
+                                    Host
+                                </span>
+                            )}
+                        </div>
+                    ))}
                 </div>
+
+                {/* Countdown Timer or Loading State */}
+                {countdownActive ? (
+                    <div style={{
+                        width: '120px',
+                        height: '120px',
+                        borderRadius: '50%',
+                        border: '4px solid rgba(255,255,255,0.1)',
+                        borderTop: `4px solid #ff9500`,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        animation: 'spin 1s linear infinite',
+                        marginBottom: '2rem',
+                    }}>
+                        <span className="countdown-number" style={{
+                            fontSize: '3.5rem',
+                            fontWeight: 900,
+                            color: '#fff',
+                        }}>
+                            {countdownValue}
+                        </span>
+                    </div>
+                ) : (
+                    <div style={{
+                        width: '60px',
+                        height: '60px',
+                        border: '4px solid rgba(255,255,255,0.1)',
+                        borderTop: `4px solid #6750a4`,
+                        borderRadius: '50%',
+                        animation: 'spin 1s linear infinite',
+                        marginBottom: '2rem',
+                    }} />
+                )}
+
+                {/* GET READY! Text */}
+                <h2 style={{
+                    fontSize: '3rem',
+                    fontWeight: 950,
+                    color: '#fff',
+                    marginBottom: '0.5rem',
+                    background: 'linear-gradient(135deg, #ff6b35 0%, #ff4444 100%)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    textTransform: 'uppercase',
+                    letterSpacing: '2px',
+                    animation: 'pulse 1.5s ease-in-out infinite',
+                }}>
+                    GET READY!
+                </h2>
+
+                <p style={{
+                    fontSize: '1.1rem',
+                    color: 'rgba(255,255,255,0.5)',
+                    marginBottom: '3rem',
+                }}>
+                    {countdownActive ? 'First question incoming' : 'AI is generating your quiz'}
+                </p>
+
+                {/* Loading Progress Bar */}
+                {!countdownActive && (
+                    <div style={{
+                        width: '300px',
+                        height: '6px',
+                        background: 'rgba(255,255,255,0.1)',
+                        borderRadius: '3px',
+                        overflow: 'hidden',
+                    }}>
+                        <div className="loading-progress-bar" style={{
+                            height: '100%',
+                            background: 'linear-gradient(90deg, #6750a4, #95d4e4)',
+                        }} />
+                    </div>
+                )}
             </div>
         );
     }
 
     // ---- Playing (Game Arena) ----
-    // Phase-aware header: multiplayer shows phase indicator and phase timer; singleplayer shows classic timer
-    const phaseLabel = currentPhase === 'analysis' ? '🔍 ANALYZE' : currentPhase === 'selection' ? '🎯 SELECT NOW!' : currentPhase === 'reveal' ? '✨ REVEAL' : '';
-    const phaseColor = currentPhase === 'analysis' ? 'var(--accent-primary)' : currentPhase === 'selection' ? '#ff9500' : currentPhase === 'reveal' ? 'var(--accent-success)' : 'var(--accent-primary)';
+    const preConfigNames = ["Wulf", "Talon", "Ryker", "Roux"];
+    const preConfigAvatars = ["wulf", "talon", "ryker", "roux"];
 
     return (
         <div className="screen-container" ref={containerRef}>
             <header className="screen-header">
-                <div className="player-count-badge">
-                    <span style={{ fontSize: '1.2rem', filter: 'drop-shadow(0 0 0.6rem rgba(103, 80, 164, 0.5))' }}>👥</span>
-                    <span style={{ fontWeight: '900', color: 'var(--text-primary)', fontSize: '1.4rem' }}>{controllerCount}</span>
-                    <div style={{ display: 'flex', gap: '1.25rem', borderLeft: '2px solid var(--glass-border)', paddingLeft: '1.25rem', marginLeft: '0.5rem' }}>
-                        {playerScores.length > 0 ? (
-                            playerScores.map((ps) => (
-                                <span key={ps.controllerId} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                    <span style={{
-                                        width: '10px', height: '10px', borderRadius: '50%',
-                                        background: CROSSHAIR_COLORS[ps.colorIndex] || CROSSHAIR_COLORS[0],
-                                        boxShadow: `0 0 6px ${CROSSHAIR_COLORS[ps.colorIndex] || CROSSHAIR_COLORS[0]}`,
-                                    }} />
-                                    <span style={{ color: 'var(--accent-secondary)', fontWeight: 700, fontSize: '0.9rem' }}>{ps.name}</span>
-                                    <span style={{ color: 'var(--accent-secondary)', fontWeight: 800, fontSize: '1.1rem' }}>{ps.score}</span>
-                                </span>
-                            ))
-                        ) : (
-                            <span style={{ color: 'var(--text-secondary)', fontWeight: 700, fontSize: '0.9rem' }}>
-                                Waiting for scores...
-                            </span>
-                        )}
+                {/* Top Bar - LIVE NOW and Round Info */}
+                <div style={{
+                    position: 'absolute',
+                    top: '0',
+                    left: '0',
+                    right: '0',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '1.5rem 2.5rem',
+                    zIndex: 1000,
+                }}>
+                    {/* LIVE NOW Badge with animated border */}
+                    <div style={{
+                        position: 'relative',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        padding: '0.6rem 1.5rem',
+                        background: 'rgba(255, 68, 68, 0.1)',
+                        borderRadius: '24px',
+                        overflow: 'hidden',
+                    }}>
+                        {/* Animated progress border */}
+                        <div style={{
+                            position: 'absolute',
+                            inset: 0,
+                            borderRadius: '24px',
+                            background: `conic-gradient(from 0deg, #ff4444 ${(100 - ((phaseTimeLeft || timeLeft) / 20) * 100)}%, transparent ${(100 - ((phaseTimeLeft || timeLeft) / 20) * 100)}%)`,
+                            mask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
+                            WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
+                            maskComposite: 'exclude',
+                            WebkitMaskComposite: 'xor',
+                            padding: '2px',
+                        }} />
+                        <span style={{
+                            width: '8px',
+                            height: '8px',
+                            borderRadius: '50%',
+                            background: '#ff4444',
+                            boxShadow: '0 0 12px #ff4444',
+                            animation: 'pulse 1s ease-in-out infinite',
+                        }} />
+                        <span style={{
+                            fontSize: '0.75rem',
+                            fontWeight: 900,
+                            color: '#ff4444',
+                            letterSpacing: '1.5px',
+                        }}>
+                            LIVE NOW
+                        </span>
+                    </div>
+
+                    {/* Round Info - Shows Question Counter */}
+                    <div style={{
+                        padding: '0.5rem 1.25rem',
+                        background: 'rgba(255, 255, 255, 0.06)',
+                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                        borderRadius: '20px',
+                        backdropFilter: 'blur(10px)',
+                    }}>
+                        <span style={{
+                            fontSize: '0.8rem',
+                            fontWeight: 700,
+                            color: 'rgba(255, 255, 255, 0.6)',
+                            letterSpacing: '0.5px',
+                        }}>
+                            Quiz Battle · Question {questionNumber || 1}
+                        </span>
                     </div>
                 </div>
 
-                {/* Timer Bar / Phase Indicator — phase-aware for multiplayer, classic for singleplayer */}
-                {isMultiplayer && currentPhase ? (
-                    <>
-                        {/* Premium Phase & Timer HUD */}
-                        <div style={{ position: 'absolute', top: '2rem', left: '50%', transform: 'translateX(-50%)', display: 'flex', alignItems: 'center', background: 'rgba(255,255,255,0.05)', padding: '0.4rem', borderRadius: 'var(--radius-full)', border: '1px solid var(--glass-border)', backdropFilter: 'blur(16px)', boxShadow: 'var(--glass-glow)', zIndex: 1000, gap: '1rem' }}>
-                            <div style={{
-                                padding: '0.5rem 1.5rem', borderRadius: 'var(--radius-full)',
-                                background: phaseColor, color: '#fff',
-                                fontWeight: 900, fontSize: '1rem', letterSpacing: '0.15rem',
-                                boxShadow: `0 4px 15px ${phaseColor}40`,
-                                animation: currentPhase === 'selection' ? 'pulse 1.2s ease-in-out infinite' : 'none',
-                                display: 'flex', alignItems: 'center', gap: '0.5rem'
-                            }}>
-                                {phaseLabel}
-                            </div>
-                            <span style={{ fontSize: '1.8rem', fontWeight: '900', color: phaseTimeLeft <= 3 ? '#ff4444' : '#fff', paddingRight: '1.25rem', minWidth: '3.5rem', textAlign: 'center', fontVariantNumeric: 'tabular-nums' }}>
-                                {phaseTimeLeft}s
-                            </span>
-                        </div>
-                    </>
-                ) : (
-                    <>
-                        <div style={{ position: 'absolute', top: '0', left: '0', width: '100%', height: '0.5rem', background: 'rgba(255,255,255,0.1)', zIndex: 1000 }}>
-                            <div style={{ width: `${(timeLeft / 20) * 100}%`, height: '100%', background: timeLeft <= 10 ? 'var(--accent-error)' : 'var(--accent-primary)', transition: 'width 1s linear, background 0.3s ease', boxShadow: `0 0 1.25rem ${timeLeft <= 10 ? 'var(--accent-error)' : 'var(--accent-primary)'}` }} />
-                        </div>
-                        <div style={{ position: 'absolute', top: '2rem', left: '50%', transform: 'translateX(-50%)', background: 'rgba(255,255,255,0.05)', padding: '0.6rem 2rem', borderRadius: 'var(--radius-full)', border: '1px solid var(--glass-border)', backdropFilter: 'blur(16px)', boxShadow: 'var(--glass-glow)', fontSize: '1.8rem', fontWeight: '900', color: timeLeft <= 10 ? 'var(--accent-error)' : 'var(--text-primary)', zIndex: 1000, fontVariantNumeric: 'tabular-nums' }}>
-                            {timeLeft}s
-                        </div>
-                    </>
-                )}
-
-                {/* Unified Premium Question Badge */}
-                {questionNumber > 0 && (
-                    <div style={{ position: 'absolute', top: '2.5rem', right: '2.5rem', background: 'rgba(255,255,255,0.08)', padding: '0.8rem 1.7rem', borderRadius: 'var(--radius-full)', border: '1px solid var(--glass-border)', backdropFilter: 'blur(12px)', boxShadow: 'var(--glass-glow)', display: 'flex', alignItems: 'center', gap: '0.75rem', zIndex: 1000 }}>
-                        <span style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--accent-secondary)', letterSpacing: '2px' }}>QUESTION</span>
-                        <span style={{ fontSize: '1.4rem', fontWeight: 900, color: '#fff' }}>{questionNumber}<span style={{ color: 'var(--text-secondary)', fontSize: '1.1rem' }}>/10</span></span>
-                    </div>
-                )}
+                {/* Question Number - Removed center display, now only in top-right badge */}
             </header>
 
             <div className="game-arena" ref={arenaRef}>
+                {/* Question Display */}
                 {question && (
-                    <div className={`question-display ${isTransitioning ? 'slide-out' : 'slide-in'}`}>
-                        <p className="question-text" style={{ fontFamily: 'var(--font-main)', fontWeight: '800', color: '#fff' }}>{question.text}</p>
+                    <div style={{
+                        position: 'absolute',
+                        top: '7.5rem',
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        width: '90%',
+                        maxWidth: '1100px',
+                        textAlign: 'center',
+                        zIndex: 100,
+                        padding: '0 1rem',
+                    }}>
+                        <h2 style={{
+                            fontSize: 'clamp(1.2rem, 2.8vw, 2rem)',
+                            fontWeight: 900,
+                            color: '#fff',
+                            lineHeight: 1.4,
+                            margin: 0,
+                            textShadow: '0 2px 20px rgba(0,0,0,0.6)',
+                        }}>
+                            {question.text}
+                        </h2>
                         {question.code && (
-                            <pre className="code-block" style={{ borderRadius: 'var(--radius-md)', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--glass-border)', color: 'var(--accent-secondary)', fontWeight: '600' }}>{question.code}</pre>
+                            <pre style={{
+                                marginTop: '1rem',
+                                padding: '1rem',
+                                background: 'rgba(0,0,0,0.6)',
+                                border: '1px solid rgba(255,255,255,0.1)',
+                                borderRadius: '12px',
+                                color: 'var(--accent-secondary)',
+                                fontWeight: 600,
+                                fontSize: '0.85rem',
+                                fontFamily: 'monospace',
+                                overflow: 'auto',
+                                maxWidth: '100%',
+                            }}>{question.code}</pre>
                         )}
                     </div>
                 )}
 
-                {/* Answer Orbs — with multiplayer selection markers and reveal highlights */}
+                {/* Answer Orbs - Pill-shaped with text wrapping */}
                 {question?.options.map((opt, i) => {
-                    // Find players who selected this orb
                     const selectionsForOrb = playerSelections.filter(s => s.orbId === opt.id);
-                    // Reveal styling
                     const isCorrectOrb = revealResult?.correctOrbId === opt.id;
                     const isRevealPhase = currentPhase === 'reveal' && revealResult;
-                    let revealBorder = '';
-                    if (isRevealPhase) {
-                        revealBorder = isCorrectOrb ? '3px solid #10b981' : selectionsForOrb.length > 0 ? '3px solid #ef4444' : '';
-                    }
-
+                    
+                    const pillGradient = 'linear-gradient(135deg, #04026F 0%, #BB3AD2 100%)';
+                    
                     return (
-                        <div key={opt.id}
+                        <div
+                            key={opt.id}
                             className={`orb orb-${opt.id.toLowerCase()} ${targetedOrbId === opt.id ? 'targeted' : ''} ${isTransitioning ? 'exit-animation' : 'entry-animation'}`}
-                            style={{
-                                left: ORB_POSITIONS[i].left, top: ORB_POSITIONS[i].top,
-                                animationDelay: isTransitioning ? '0s' : `${i * 0.15}s`,
-                                border: revealBorder || undefined,
-                                boxShadow: isRevealPhase && isCorrectOrb ? '0 0 30px rgba(16, 185, 129, 0.6)' : isRevealPhase && selectionsForOrb.length > 0 ? '0 0 30px rgba(239, 68, 68, 0.4)' : undefined,
-                                transition: 'border 0.3s ease, box-shadow 0.3s ease',
-                            }}
                             data-option={opt.id}
+                            style={{
+                                position: 'absolute',
+                                left: ORB_POSITIONS[i].left,
+                                top: ORB_POSITIONS[i].top,
+                                transform: 'translate(-50%, -50%)',
+                                background: pillGradient,
+                                padding: '1rem 1.5rem',
+                                minWidth: '140px',
+                                maxWidth: '280px',
+                                borderRadius: '60px',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                boxShadow: '0 6px 24px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.15)',
+                                border: isRevealPhase
+                                    ? isCorrectOrb ? '2px solid #10b981' : '2px solid transparent'
+                                    : '1px solid rgba(255,255,255,0.15)',
+                                transition: 'all 0.3s ease',
+                                cursor: 'pointer',
+                                animationDelay: `${i * 0.1}s`,
+                            }}
                         >
-                            {opt.id}: {opt.text}
-                            {/* Player selection markers */}
+                            <span style={{
+                                fontSize: 'clamp(0.8rem, 1.5vw, 0.95rem)',
+                                fontWeight: 700,
+                                color: '#fff',
+                                textShadow: '0 2px 8px rgba(0,0,0,0.5)',
+                                whiteSpace: 'normal',
+                                textAlign: 'center',
+                                lineHeight: 1.3,
+                                maxWidth: '100%',
+                                wordBreak: 'normal',
+                                overflowWrap: 'anywhere',
+                            }}>
+                                {opt.text}
+                            </span>
+                            
+                            {/* Player selection indicators */}
                             {selectionsForOrb.length > 0 && (
-                                <div style={{ position: 'absolute', bottom: '-12px', left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: '4px' }}>
+                                <div style={{
+                                    position: 'absolute',
+                                    bottom: '-12px',
+                                    left: '50%',
+                                    transform: 'translateX(-50%)',
+                                    display: 'flex',
+                                    gap: '4px',
+                                }}>
                                     {selectionsForOrb.map(sel => (
                                         <div key={sel.controllerId} style={{
-                                            width: '12px', height: '12px', borderRadius: '50%',
+                                            width: '14px',
+                                            height: '14px',
+                                            borderRadius: '50%',
                                             background: CROSSHAIR_COLORS[sel.colorIndex] || CROSSHAIR_COLORS[0],
-                                            border: '2px solid rgba(255,255,255,0.8)',
+                                            border: '2px solid #fff',
                                             boxShadow: `0 0 8px ${CROSSHAIR_COLORS[sel.colorIndex] || CROSSHAIR_COLORS[0]}`,
                                         }} />
                                     ))}
@@ -921,30 +1145,182 @@ client.onTutorialStart((_data: { duration: number }) => {
                     );
                 })}
 
-                {/* Projectiles */}
-                {projectiles.map((p) => (
-                    <div key={p.id} className="projectile" style={{ left: p.targetX - 10, top: p.targetY - 10, transition: 'all 0.3s ease-out' }} />
-                ))}
-
-                {/* Per-player Crosshairs — hidden during analysis phase in multiplayer */}
-                {(!isMultiplayer || currentPhase === 'selection') && Array.from(crosshairs.entries()).map(([cid, pos]) => {
-                    const color = getPlayerColor(cid);
+                {/* Player Avatar Crosshairs - Visible for both singleplayer and multiplayer */}
+                {crosshairs.size > 0 && Array.from(crosshairs.entries()).map(([controllerId, crosshairData]) => {
+                    // Find player info for this controller
+                    const player = lobby?.players.find(p => p.id === controllerId);
+                    const colorIndex = player?.colorIndex ?? 0;
+                    const color = CROSSHAIR_COLORS[colorIndex];
+                    const avatar = preConfigAvatars[colorIndex];
+                    const playerName = player ? preConfigNames[colorIndex] : 'Player';
+                    
                     return (
-                        <div key={cid} style={{ position: 'absolute', left: `${pos.x}%`, top: `${pos.y}%`, transform: 'translate(-50%, -50%)', width: '50px', height: '50px', pointerEvents: 'none', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'left 0.08s linear, top 0.08s linear' }}>
-                            <div style={{ position: 'absolute', width: '100%', height: '100%', borderRadius: '50%', border: `2px dashed ${color}55`, boxShadow: `0 0 20px ${color}40, inset 0 0 15px ${color}15` }} />
-                            {[0, 90, 180, 270].map((deg) => (
-                                <div key={deg} style={{ position: 'absolute', width: '2px', height: '10px', background: color, transform: `rotate(${deg}deg) translateY(-22px)`, boxShadow: `0 0 10px ${color}` }} />
-                            ))}
-                            <div style={{ width: '6px', height: '6px', background: '#fff', borderRadius: '50%', boxShadow: `0 0 12px #fff, 0 0 24px ${color}` }} />
+                        <div
+                            key={controllerId}
+                            style={{
+                                position: 'absolute',
+                                left: `${crosshairData.x}%`,
+                                top: `${crosshairData.y}%`,
+                                transform: 'translate(-50%, -50%)',
+                                width: 'clamp(40px, 8vw, 56px)',
+                                height: 'clamp(40px, 8vw, 56px)',
+                                pointerEvents: 'none',
+                                zIndex: 250,
+                                transition: 'left 0.08s linear, top 0.08s linear',
+                            }}
+                        >
+                            <div style={{
+                                width: '100%',
+                                height: '100%',
+                                borderRadius: '50%',
+                                border: `2px solid ${color}`,
+                                boxShadow: `0 0 12px ${color}80, 0 0 24px ${color}40`,
+                                background: 'rgba(15,15,25,0.95)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                overflow: 'visible',
+                                position: 'relative',
+                            }}>
+                                <img
+                                    src={`/avatars/${avatar}.png`}
+                                    alt={playerName}
+                                    style={{ width: '75%', height: '75%', objectFit: 'contain', zIndex: 2 }}
+                                />
+                                {/* Crosshair lines - extending beyond circle */}
+                                <div style={{
+                                    position: 'absolute',
+                                    width: '100%',
+                                    height: '100%',
+                                    zIndex: 1,
+                                }}>
+                                    {/* Vertical line */}
+                                    <div style={{
+                                        position: 'absolute',
+                                        left: '50%',
+                                        top: '-30%',
+                                        width: '1.5px',
+                                        height: '160%',
+                                        background: color,
+                                        transform: 'translateX(-50%)',
+                                        opacity: 0.9,
+                                        boxShadow: `0 0 6px ${color}`,
+                                    }} />
+                                    {/* Horizontal line */}
+                                    <div style={{
+                                        position: 'absolute',
+                                        left: '-30%',
+                                        top: '50%',
+                                        width: '160%',
+                                        height: '1.5px',
+                                        background: color,
+                                        transform: 'translateY(-50%)',
+                                        opacity: 0.9,
+                                        boxShadow: `0 0 6px ${color}`,
+                                    }} />
+                                </div>
+                            </div>
                         </div>
                     );
                 })}
 
-
-                {/* Hit Effects */}
-                {hitEffects.map((e) => (
-                    <div key={e.id} className={`hit-effect ${e.correct ? 'hit-correct' : 'hit-wrong'}`} style={{ left: e.x - 75, top: e.y - 75 }} />
-                ))}
+                {/* Bottom Scoreboard - Compact */}
+                <div style={{
+                    position: 'absolute',
+                    bottom: '0',
+                    left: '0',
+                    right: '0',
+                    display: 'flex',
+                    background: 'rgba(8,8,16,0.95)',
+                    borderTop: '1px solid rgba(255,255,255,0.06)',
+                    zIndex: 200,
+                }}>
+                    {[0, 1, 2, 3].map((slotIndex) => {
+                        const player = lobby?.players.find(p => p.colorIndex === slotIndex);
+                        const scoreEntry = playerScores.find(ps => ps.colorIndex === slotIndex);
+                        const score = scoreEntry?.score ?? 0;
+                        const playerName = preConfigNames[slotIndex];
+                        const playerColor = CROSSHAIR_COLORS[slotIndex];
+                        const hasPlayer = !!player;
+                        
+                        return (
+                            <div key={slotIndex} style={{
+                                flex: 1,
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                padding: '0.5rem 0.25rem',
+                                borderRight: slotIndex < 3 ? '1px solid rgba(255,255,255,0.05)' : 'none',
+                                background: hasPlayer ? `${playerColor}05` : 'transparent',
+                            }}>
+                                {hasPlayer ? (
+                                    <>
+                                        <div style={{
+                                            width: 'clamp(32px, 6vw, 48px)',
+                                            height: 'clamp(32px, 6vw, 48px)',
+                                            borderRadius: '50%',
+                                            border: `2px solid ${playerColor}`,
+                                            boxShadow: `0 0 10px ${playerColor}30`,
+                                            background: `${playerColor}15`,
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            marginBottom: '0.25rem',
+                                            overflow: 'hidden',
+                                        }}>
+                                            <img
+                                                src={`/avatars/${preConfigAvatars[slotIndex]}.png`}
+                                                alt={playerName}
+                                                style={{ width: '80%', height: '80%', objectFit: 'contain' }}
+                                            />
+                                        </div>
+                                        <span style={{
+                                            fontSize: 'clamp(0.65rem, 1.2vw, 0.85rem)',
+                                            fontWeight: 800,
+                                            color: '#fff',
+                                            marginBottom: '0.15rem',
+                                        }}>
+                                            {playerName}
+                                        </span>
+                                        <span style={{
+                                            fontSize: 'clamp(1.2rem, 2.5vw, 1.6rem)',
+                                            fontWeight: 900,
+                                            color: playerColor,
+                                            fontVariantNumeric: 'tabular-nums',
+                                        }}>
+                                            {score.toString().padStart(2, '0')}
+                                        </span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <div style={{
+                                            width: 'clamp(32px, 6vw, 48px)',
+                                            height: 'clamp(32px, 6vw, 48px)',
+                                            borderRadius: '50%',
+                                            border: '2px dashed rgba(255,255,255,0.15)',
+                                            background: 'rgba(255,255,255,0.02)',
+                                            marginBottom: '0.25rem',
+                                        }} />
+                                        <span style={{
+                                            fontSize: 'clamp(0.6rem, 1.1vw, 0.75rem)',
+                                            fontWeight: 700,
+                                            color: 'rgba(255,255,255,0.25)',
+                                        }}>
+                                            Waiting
+                                        </span>
+                                        <span style={{
+                                            fontSize: 'clamp(1.2rem, 2.5vw, 1.6rem)',
+                                            fontWeight: 900,
+                                            color: 'rgba(255,255,255,0.15)',
+                                        }}>
+                                            00
+                                        </span>
+                                    </>
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
 
                 {/* Particles */}
                 {particles.map((p) => (
@@ -965,6 +1341,92 @@ client.onTutorialStart((_data: { duration: number }) => {
                 {confetti.map((c) => (
                     <div key={c.id} className="confetti" style={{ left: c.x, top: c.y, width: c.width, height: c.height, backgroundColor: c.color, '--dx': c['--dx'], '--dy': c['--dy'], '--rot': c['--rot'] } as React.CSSProperties} />
                 ))}
+
+                {/* GET READY Overlay - Shows for 2 seconds when transitioning from loading */}
+                {showReadyOverlay && (
+                    <div style={{
+                        position: 'absolute',
+                        inset: 0,
+                        background: 'rgba(15, 15, 26, 0.95)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        zIndex: 2000,
+                        animation: 'loadingZoomIn 0.5s ease-out forwards',
+                    }}>
+                        {/* Player Avatars Row */}
+                        <div style={{
+                            display: 'flex',
+                            gap: '3rem',
+                            marginBottom: '4rem',
+                            animation: 'bounceIn 0.6s ease-out',
+                        }}>
+                            {lobby?.players.map((player) => (
+                                <div key={player.id} style={{
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: 'center',
+                                    gap: '0.75rem',
+                                }}>
+                                    <div style={{
+                                        width: '120px',
+                                        height: '120px',
+                                        borderRadius: '50%',
+                                        border: `4px solid ${CROSSHAIR_COLORS[player.colorIndex ?? 0]}`,
+                                        boxShadow: `0 0 40px ${CROSSHAIR_COLORS[player.colorIndex ?? 0]}60`,
+                                        background: 'rgba(255,255,255,0.05)',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        overflow: 'hidden',
+                                    }}>
+                                        <img
+                                            src={`/avatars/${preConfigAvatars[player.colorIndex ?? 0]}.png`}
+                                            alt={preConfigNames[player.colorIndex ?? 0]}
+                                            style={{
+                                                width: '95%',
+                                                height: '95%',
+                                                objectFit: 'contain',
+                                            }}
+                                        />
+                                    </div>
+                                    <span style={{
+                                        fontSize: '1.3rem',
+                                        fontWeight: 800,
+                                        color: '#fff',
+                                        textShadow: `0 0 20px ${CROSSHAIR_COLORS[player.colorIndex ?? 0]}`,
+                                    }}>
+                                        {preConfigNames[player.colorIndex ?? 0]}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+
+                        <h2 style={{
+                            fontSize: '4rem',
+                            fontWeight: 950,
+                            color: '#fff',
+                            marginBottom: '1rem',
+                            background: 'linear-gradient(135deg, #ff6b35 0%, #ff4444 100%)',
+                            WebkitBackgroundClip: 'text',
+                            WebkitTextFillColor: 'transparent',
+                            textTransform: 'uppercase',
+                            letterSpacing: '3px',
+                            animation: 'pulse 1s ease-in-out infinite',
+                        }}>
+                            GET READY!
+                        </h2>
+
+                        <p style={{
+                            fontSize: '1.3rem',
+                            color: 'rgba(255,255,255,0.6)',
+                            textAlign: 'center',
+                        }}>
+                            First question incoming
+                        </p>
+                    </div>
+                )}
             </div>
         </div >
     );

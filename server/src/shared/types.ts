@@ -26,7 +26,7 @@ export interface QuestionOption {
 export type PlayerRole = 'leader' | 'member';
 
 export interface PlayerInfo {
-    id: string;        // channel id
+    id: string;        // persistent client id
     role: PlayerRole;
     isReady: boolean;
     colorIndex?: number; // 0, 1, 2 for crosshair color
@@ -118,6 +118,16 @@ export interface StartAimingPayload {
     gyroEnabled: boolean;
 }
 
+// ---------- Loading Screen ----------
+
+export interface LoadingStartPayload {
+    playerCount: number;
+}
+
+export interface LoadingCountdownPayload {
+    duration: number;
+}
+
 // ---------- Phase-based Multiplayer ----------
 
 export type QuestionPhase = 'analysis' | 'selection' | 'reveal';
@@ -191,8 +201,8 @@ export interface TutorialPlayerStatus {
 // ---------- Orb positions (shared constant) ----------
 
 export const ORB_POSITIONS = [
-    { id: 'A', left: '15%', top: '55%', x: 25, y: 65 },
-    { id: 'B', left: '40%', top: '70%', x: 50, y: 80 },
-    { id: 'C', left: '60%', top: '55%', x: 70, y: 65 },
-    { id: 'D', left: '80%', top: '70%', x: 90, y: 80 },
+    { id: 'A', left: '15%', top: '45%', x: 20, y: 55 },
+    { id: 'B', left: '40%', top: '60%', x: 45, y: 70 },
+    { id: 'C', left: '60%', top: '45%', x: 65, y: 55 },
+    { id: 'D', left: '80%', top: '60%', x: 85, y: 70 },
 ] as const;

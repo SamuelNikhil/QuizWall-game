@@ -189,6 +189,34 @@ export class SoundManager {
     playBeep(): void {
         this.playTone(600, 0.08, 'sine', 0.2);
     }
+
+    playCountdownBeep(): void {
+        this.playTone(800, 0.1, 'sine', 0.3);
+    }
+
+    playTransitionWhoosh(): void {
+        const ctx = this.getContext();
+        const oscillator = ctx.createOscillator();
+        const gainNode = ctx.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(ctx.destination);
+        
+        oscillator.frequency.setValueAtTime(200, ctx.currentTime);
+        oscillator.frequency.exponentialRampToValueAtTime(800, ctx.currentTime + 0.5);
+        
+        gainNode.gain.setValueAtTime(0.3, ctx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
+        
+        oscillator.start(ctx.currentTime);
+        oscillator.stop(ctx.currentTime + 0.5);
+    }
+
+    playGameStart(): void {
+        this.playTone(523.25, 0.15, 'triangle', 0.4);
+        setTimeout(() => this.playTone(659.25, 0.15, 'triangle', 0.4), 100);
+        setTimeout(() => this.playTone(783.99, 0.2, 'triangle', 0.4), 200);
+    }
 }
 
 export const soundManager = new SoundManager();

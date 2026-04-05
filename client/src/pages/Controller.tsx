@@ -9,19 +9,51 @@ import { GameClient } from '../transport/GameClient';
 import Lobby from './Lobby';
 import type { LobbyState, PlayerRole, ScoreUpdate, QuestionPhase, PlayerSelectionPayload, RevealResultPayload, PlayerScoreEntry } from '../shared/types';
 import { CROSSHAIR_COLORS } from '../shared/types';
-import slingCenterImg from '../assets/sling-center.svg';
 import '../index.css';
 import '../animations.css';
+import './controller-ui.css';
 import { soundManager } from '../utils/sound';
+import WinnerScene from '../components/WinnerScene';
 
 
 type ControllerPhase = 'connecting' | 'lobby' | 'loading' | 'playing' | 'game-over';
+
+const TOTAL_QUESTIONS = 10;
+const CONTROLLER_AVATARS = ['wulf', 'talon', 'ryker', 'roux'] as const;
+const CONTROLLER_NAMES = ['Wulf', 'Talon', 'Ryker', 'Roux'] as const;
+const SUCCESS_PARTICLES = [
+    { left: '6%', bottom: '8%', size: '1.5rem', rotate: '-18deg', delay: '0s', variant: 'bar' },
+    { left: '14%', bottom: '24%', size: '0.85rem', rotate: '18deg', delay: '0.12s', variant: 'spark' },
+    { left: '24%', bottom: '18%', size: '1rem', rotate: '-30deg', delay: '0.25s', variant: 'bar' },
+    { left: '30%', bottom: '34%', size: '0.8rem', rotate: '0deg', delay: '0.1s', variant: 'spark' },
+    { left: '40%', bottom: '12%', size: '1.75rem', rotate: '-12deg', delay: '0.2s', variant: 'bar' },
+    { left: '52%', bottom: '26%', size: '0.9rem', rotate: '0deg', delay: '0.3s', variant: 'spark' },
+    { left: '62%', bottom: '14%', size: '1.2rem', rotate: '24deg', delay: '0.15s', variant: 'bar' },
+    { left: '72%', bottom: '32%', size: '0.9rem', rotate: '0deg', delay: '0.28s', variant: 'spark' },
+    { left: '80%', bottom: '20%', size: '1.1rem', rotate: '-24deg', delay: '0.18s', variant: 'bar' },
+    { left: '90%', bottom: '10%', size: '1.4rem', rotate: '18deg', delay: '0.35s', variant: 'bar' },
+] as const;
+
+function hexToRgba(hex: string, alpha: number): string {
+    const normalized = hex.replace('#', '');
+    const safeHex = normalized.length === 3
+        ? normalized.split('').map((char) => char + char).join('')
+        : normalized;
+
+    const r = parseInt(safeHex.slice(0, 2), 16);
+    const g = parseInt(safeHex.slice(2, 4), 16);
+    const b = parseInt(safeHex.slice(4, 6), 16);
+
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
 
 export default function Controller() {
     const { roomId, token } = useParams<{ roomId: string; token: string }>();
 
     // ---- Connection ----
     const [phase, setPhase] = useState<ControllerPhase>('connecting');
+    const phaseRef = useRef<ControllerPhase>('connecting');
+    const setPhaseSync = (p: ControllerPhase) => { phaseRef.current = p; setPhase(p); };
     const [role, setRole] = useState<PlayerRole>('member');
     const [colorIndex, setColorIndex] = useState<number>(0);
     const [lobby, setLobby] = useState<LobbyState | null>(null);
@@ -42,7 +74,6 @@ export default function Controller() {
 
     // ---- Game state (from server) ----
     const [timeLeft, setTimeLeft] = useState(20);
-    const [gameOverReason, setGameOverReason] = useState<'time' | 'completed' | 'all_wrong'>('time');
     const [lastHit, setLastHit] = useState<{ correct: boolean } | null>(null);
     const [playerScores, setPlayerScores] = useState<PlayerScoreEntry[]>([]);
     const [scorePopups, setScorePopups] = useState<{ id: string; score: number; bonus: number; colorIndex: number }[]>([]);
@@ -54,8 +85,14 @@ export default function Controller() {
     const [selectedOrbId, setSelectedOrbId] = useState<string | null>(null);
     const [isMultiplayer, setIsMultiplayer] = useState(false);
     const [isSpectating, setIsSpectating] = useState(false);
+    const [questionNumber, setQuestionNumber] = useState(0);
     const currentPhaseRef = useRef<QuestionPhase | null>(null);
     const hasSelectedRef = useRef(false);
+    const isMultiplayerRef = useRef(false);
+
+    // Loading screen state
+    const [countdownActive, setCountdownActive] = useState(false);
+    const [countdownValue, setCountdownValue] = useState(3);
 
     // ---- Slingshot state ----
     const [isDragging, setIsDragging] = useState(false);
@@ -77,16 +114,6 @@ export default function Controller() {
     const clientRef = useRef<GameClient | null>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const wakeLockRef = useRef<WakeLockSentinel | null>(null);
-
-    // Throttle crosshair updates to ~30fps
-    const lastCrosshairSend = useRef<number>(0);
-    const throttledSendCrosshair = useCallback((x: number, y: number) => {
-        const now = Date.now();
-        if (now - lastCrosshairSend.current >= 33) { // ~30fps
-            lastCrosshairSend.current = now;
-            clientRef.current?.sendCrosshair(x, y);
-        }
-    }, []);
 
     // ---- Connect and wire events ----
     useEffect(() => {
@@ -133,11 +160,41 @@ export default function Controller() {
             // Tutorial events - kept for compatibility but no longer used
             // client.onTutorialStart and onTutorialEnd removed
 
+            client.onLoadingStart((data) => {
+                console.log('[Controller] Loading started, players:', data.playerCount);
+                setPhaseSync('loading');
+                setCountdownActive(false);
+            });
+
+            client.onLoadingCountdown((data) => {
+                console.log('[Controller] Countdown starting:', data.duration);
+                setCountdownActive(true);
+                setCountdownValue(data.duration);
+                
+                let count = data.duration;
+                soundManager.playCountdownBeep();
+                const beepInterval = setInterval(() => {
+                    count--;
+                    if (count > 0) {
+                        soundManager.playCountdownBeep();
+                        setCountdownValue(count);
+                    } else {
+                        clearInterval(beepInterval);
+                        setCountdownValue(0);
+                    }
+                }, 1000);
+            });
+
             client.onGameStarted(() => {
-                // Game started event - transition to loading screen
-                console.log('[Controller] Game started, showing loading screen');
-                setPhase('loading');
-                // Player scores are tracked via SCORE_UPDATE events
+                console.log('[Controller] Game started event, transitioning to playing');
+                setPhaseSync('playing');
+                setQuestionNumber(1);
+            });
+
+            client.onQuestion(() => {
+                if (!isMultiplayerRef.current) {
+                    setQuestionNumber((prev) => prev + 1);
+                }
             });
 
             client.onTimerSync((data) => {
@@ -175,20 +232,22 @@ export default function Controller() {
             });
 
             client.onGameOver((data) => {
-                setGameOverReason(data.reason || 'time');
                 setPlayerScores(data.playerScores || []);
-                setPhase('game-over');
+                setPhaseSync('game-over');
             });
 
             // Phase-based multiplayer events
             client.onPhaseChange((data) => {
+                console.log('[Controller] Phase change:', data.phase, 'time:', data.timeLeft, 'current phase:', phaseRef.current);
                 setCurrentPhase(data.phase);
                 currentPhaseRef.current = data.phase;
                 setPhaseTimeLeft(data.timeLeft);
+                setQuestionNumber(data.questionNumber);
                 setIsMultiplayer(true);
-                // Transition from loading to playing when phase starts
-                if (phase === 'loading' && (data.phase === 'selection' || data.phase === 'analysis')) {
-                    setPhase('playing');
+                isMultiplayerRef.current = true;
+                // Transition from loading to playing when first phase starts
+                if (phaseRef.current === 'loading' && (data.phase === 'selection' || data.phase === 'analysis')) {
+                    setPhaseSync('playing');
                 }
                 // Reset selection lock when entering analysis phase (new question)
                 if (data.phase === 'analysis' && data.timeLeft === 1) {
@@ -246,7 +305,7 @@ export default function Controller() {
             });
 
             client.onGameRestarted(() => {
-                setPhase('lobby');
+                setPhaseSync('lobby');
                 setIsSpectating(false);
                 setPlayerScores([]);
                 setTimeLeft(20);
@@ -255,6 +314,8 @@ export default function Controller() {
                 setHasSelectedThisRound(false);
                 hasSelectedRef.current = false;
                 setIsMultiplayer(false);
+                isMultiplayerRef.current = false;
+                setQuestionNumber(0);
             });
 
             // Tutorial status updates from server
@@ -339,9 +400,7 @@ export default function Controller() {
         // Light haptic feedback when starting to pull the sling
         soundManager.vibrate(15);
 
-        if (phase === 'playing') {
-            clientRef.current?.sendStartAiming();
-        }
+        // Don't send startAiming - keep crosshair visible during aiming
     }, [phase, isMultiplayer]);
 
     const handleMove = useCallback((e: React.TouchEvent | React.MouseEvent) => {
@@ -386,11 +445,11 @@ export default function Controller() {
             return;
         }
 
-        // Cancel crosshair on screen when not dragging
-        clientRef.current?.sendCancelAiming();
-
+        // Shoot first, then cancel crosshair
         if (power > 10 && phase === 'playing') {
             clientRef.current?.shoot(targetXPercent, targetYPercent, power / 100);
+            // Cancel crosshair after shooting
+            clientRef.current?.sendCancelAiming();
         } else {
             clientRef.current?.sendCancelAiming();
         }
@@ -431,12 +490,15 @@ export default function Controller() {
         return (
             <Lobby
                 role={role}
-                colorIndex={colorIndex}
+                colorIndex={lobby?.players.find((p) => p.id === clientIdRef.current)?.colorIndex ?? colorIndex}
                 lobby={lobby}
                 persistentName={persistentName || undefined}
                 onSetPlayerName={(name) => clientRef.current?.setPlayerName(name)}
                 onReady={() => clientRef.current?.setReady()}
-                onStartGame={() => clientRef.current?.startGame()}
+                onStartGame={() => {
+                    console.log('[Controller] onStartGame called, emitting START_GAME');
+                    clientRef.current?.startGame();
+                }}
                 onLeave={() => {
                     clientRef.current?.close();
                     window.location.href = '/';
@@ -449,15 +511,22 @@ export default function Controller() {
     // ---- Slingshot Layout Calculations (shared by loading + playing phases) ----
     const width = containerRef.current?.offsetWidth || 400;
     const height = containerRef.current?.offsetHeight || 800;
+    const activeColorIndex = lobby?.players.find((p) => p.id === clientIdRef.current)?.colorIndex ?? colorIndex;
     const slingshotCenterX = width / 2;
     const slingshotCenterY = height / 2;
     const boundaryRadius = 100;
     const pullEndX = isDragging ? slingshotCenterX - Math.cos(aimAngle) * pullBack : slingshotCenterX;
     const pullEndY = isDragging ? slingshotCenterY - Math.sin(aimAngle) * pullBack : slingshotCenterY;
+    const pullOffsetX = pullEndX - slingshotCenterX;
+    const pullOffsetY = pullEndY - slingshotCenterY;
 
     // ---- Loading Questions Phase ----
     if (phase === 'loading') {
-        const myColor = CROSSHAIR_COLORS[colorIndex] || '#6750A4';
+        const myColor = CROSSHAIR_COLORS[activeColorIndex] || '#6750A4';
+        const preConfigAvatars = ["wulf", "talon", "ryker", "roux"];
+        const preConfigNames = ["Wulf", "Talon", "Ryker", "Roux"];
+        const characterAvatar = preConfigAvatars[activeColorIndex] || 'wulf';
+        const characterName = preConfigNames[activeColorIndex] || `Player ${activeColorIndex + 1}`;
 
         return (
             <div className="controller-container" style={{
@@ -466,55 +535,101 @@ export default function Controller() {
                 alignItems: 'center',
                 justifyContent: 'center',
                 height: '100%',
-                textAlign: 'center',
                 padding: '2rem',
-                background: 'linear-gradient(180deg, #1C1B1F 0%, #2D2C31 100%)',
+                background: 'linear-gradient(180deg, #0f0f1a 0%, #1a1a2e 100%)',
             }}>
-                <div style={{
-                    background: 'var(--glass-bg)',
-                    padding: '2.5rem 2rem',
-                    borderRadius: 'var(--radius-lg)',
-                    border: `1px solid ${myColor}40`,
-                    backdropFilter: 'blur(20px)',
-                    maxWidth: '320px',
-                    width: '100%',
-                    boxShadow: `0 10px 40px ${myColor}15`,
-                    animation: 'bounceIn 0.5s ease-out',
-                }}>
+                {/* Player Avatar */}
+                <img
+                    src={`/avatars/${characterAvatar}.png`}
+                    alt={characterName}
+                    style={{
+                        width: '120px',
+                        height: '120px',
+                        objectFit: 'contain',
+                        filter: `drop-shadow(0 0 20px ${myColor}40)`,
+                        marginBottom: '2rem',
+                        animation: 'bounceIn 0.6s ease-out avatar-float',
+                    }}
+                />
+
+                {/* Countdown Timer or Loading State */}
+                {countdownActive ? (
+                    <div style={{
+                        width: '100px',
+                        height: '100px',
+                        borderRadius: '50%',
+                        border: '4px solid rgba(255,255,255,0.1)',
+                        borderTop: `4px solid #ff9500`,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        animation: 'spin 1s linear infinite',
+                        marginBottom: '2rem',
+                    }}>
+                        <span className="countdown-number" style={{
+                            fontSize: '2.5rem',
+                            fontWeight: 900,
+                            color: '#fff',
+                        }}>
+                            {countdownValue}
+                        </span>
+                    </div>
+                ) : (
                     <div style={{
                         width: '50px',
                         height: '50px',
-                        margin: '0 auto 1.5rem',
-                        border: '4px solid rgba(255,255,255,0.05)',
+                        border: '4px solid rgba(255,255,255,0.1)',
                         borderTop: `4px solid ${myColor}`,
                         borderRadius: '50%',
                         animation: 'spin 1s linear infinite',
+                        marginBottom: '2rem',
                     }} />
-                    <h2 style={{
-                        fontSize: '1.5rem',
-                        fontWeight: 900,
-                        color: '#fff',
-                        margin: '0 0 0.5rem',
-                    }}>
-                        Loading Questions...
-                    </h2>
-                    <p style={{
-                        color: 'var(--text-secondary)',
-                        fontSize: '0.9rem',
-                        margin: 0,
-                        opacity: 0.8,
-                    }}>
-                        AI is generating your quiz
-                    </p>
-                    <div style={{
-                        marginTop: '1.5rem',
+                )}
+
+                {/* GET READY! Text */}
+                <h2 style={{
+                    fontSize: '2rem',
+                    fontWeight: 950,
+                    color: '#fff',
+                    marginBottom: '0.5rem',
+                    background: 'linear-gradient(135deg, #ff6b35 0%, #ff4444 100%)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    textTransform: 'uppercase',
+                    letterSpacing: '2px',
+                    animation: 'pulse 1.5s ease-in-out infinite',
+                }}>
+                    GET READY!
+                </h2>
+
+                <p style={{
+                    fontSize: '0.95rem',
+                    color: 'rgba(255,255,255,0.5)',
+                    marginBottom: '3rem',
+                    textAlign: 'center',
+                }}>
+                    {countdownActive ? 'First question incoming' : 'The question is coming'}
+                </p>
+
+                {/* AIM ZONE • LOADING Bar */}
+                <div style={{
+                    width: '100%',
+                    maxWidth: '300px',
+                    padding: '1rem 1.5rem',
+                    background: 'rgba(255,255,255,0.05)',
+                    borderRadius: '16px',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    textAlign: 'center',
+                }}>
+                    <span style={{
                         fontSize: '0.8rem',
-                        color: myColor,
-                        fontWeight: 800,
-                        letterSpacing: '1px',
+                        fontWeight: 700,
+                        color: 'rgba(255,255,255,0.4)',
+                        letterSpacing: '2px',
+                        textTransform: 'uppercase',
                     }}>
-                        GET READY!
-                    </div>
+                        AIM ZONE • LOADING
+                    </span>
                 </div>
             </div>
         );
@@ -522,7 +637,21 @@ export default function Controller() {
 
     // ---- Game Over ----
     if (phase === 'game-over') {
-        const isCompleted = gameOverReason === 'completed';
+        return (
+            <WinnerScene
+                variant="controller"
+                scores={playerScores}
+                role={role}
+                currentControllerId={clientIdRef.current}
+                onRestart={() => clientRef.current?.restartGame()}
+                onClose={() => {
+                    clientRef.current?.close();
+                    window.location.href = '/';
+                }}
+            />
+        );
+
+        const isCompleted = false;
         return (
             <div className="controller-container" style={{ justifyContent: 'center', alignItems: 'center', padding: '2rem', position: 'relative' }}>
                 {/* Header with Close Button */}
@@ -643,6 +772,160 @@ export default function Controller() {
 
     // ---- Playing (Slingshot) ----
 
+    const characterAvatar = CONTROLLER_AVATARS[activeColorIndex] || 'wulf';
+    const _characterName = CONTROLLER_NAMES[activeColorIndex] || `Player ${activeColorIndex + 1}`;
+    const controllerAccent = CROSSHAIR_COLORS[activeColorIndex] || CROSSHAIR_COLORS[0];
+    const currentScore = playerScores.find((p) => p.controllerId === clientIdRef.current)?.score ?? 0;
+    const latestPopup = scorePopups[scorePopups.length - 1] ?? null;
+    const displayQuestionNumber = Math.max(1, questionNumber || 1);
+    const isAnswerLocked = isMultiplayer && hasSelectedThisRound && currentPhase === 'selection';
+    const isAnalysisPhase = isMultiplayer && currentPhase === 'analysis' && phase === 'playing';
+    const showSuccessCelebration = Boolean(latestPopup);
+    const showAimHint = !isDragging && !isAnswerLocked && !isAnalysisPhase && !lastHit;
+    const showPowerMeter = isDragging && !lastHit;
+    const showCorrectScore = showSuccessCelebration;
+    const controllerTone =
+        showSuccessCelebration ? 'success' :
+            lastHit?.correct ? 'success' :
+            lastHit ? 'danger' :
+                isAnswerLocked ? 'locked' :
+                    isDragging ? 'aiming' :
+                        isAnalysisPhase ? 'analysis' :
+                            'default';
+
+    return (
+        <div
+            ref={containerRef}
+            className={`controller-container controller-playfield controller-playfield--${controllerTone}`}
+            onTouchStart={handleStart}
+            onTouchMove={handleMove}
+            onTouchEnd={handleEnd}
+            onTouchCancel={handleEnd}
+            onMouseDown={handleStart}
+            onMouseMove={handleMove}
+            onMouseUp={handleEnd}
+            onMouseLeave={handleEnd}
+            style={{
+                position: 'relative',
+                overflow: 'hidden',
+                touchAction: 'none',
+                '--controller-accent': controllerAccent,
+                '--controller-accent-soft': hexToRgba(controllerAccent, 0.22),
+                '--controller-accent-glow': hexToRgba(controllerAccent, 0.16),
+                '--controller-accent-ambient': hexToRgba(controllerAccent, 0.08),
+                '--controller-accent-ambient-strong': hexToRgba(controllerAccent, 0.12),
+                '--controller-accent-core': hexToRgba(controllerAccent, 0.26),
+                '--controller-accent-border': hexToRgba(controllerAccent, 0.28),
+                '--controller-accent-copy': hexToRgba(controllerAccent, 0.72),
+            } as React.CSSProperties}
+        >
+            <div className="controller-playfield__background" />
+            <div className="controller-playfield__ambient" />
+
+            {showSuccessCelebration && (
+                <div className="controller-success-particles" aria-hidden="true">
+                    {SUCCESS_PARTICLES.map((particle, index) => (
+                        <span
+                            key={`${particle.left}-${index}`}
+                            className={`controller-success-particle controller-success-particle--${particle.variant}`}
+                            style={{
+                                left: particle.left,
+                                bottom: particle.bottom,
+                                width: particle.variant === 'spark' ? particle.size : `calc(${particle.size} * 0.8)`,
+                                height: particle.size,
+                                transform: `rotate(${particle.rotate})`,
+                                animationDelay: particle.delay,
+                            }}
+                        />
+                    ))}
+                </div>
+            )}
+
+            <header className="controller-shell__topbar">
+                <div className="controller-score-label">
+                    <span aria-hidden="true">&#x1F451;</span>
+                    <span>Score: {currentScore}</span>
+                </div>
+
+                <div className="controller-question-label">Q{displayQuestionNumber}/{TOTAL_QUESTIONS}</div>
+
+                <button
+                    className="controller-close-button"
+                    onTouchStart={(e) => e.stopPropagation()}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onClick={() => {
+                        if (phase === 'playing') {
+                            clientRef.current?.sendLeaveGame();
+                            setIsSpectating(true);
+                            setPhase('lobby');
+                        } else {
+                            clientRef.current?.close();
+                            window.location.href = '/';
+                        }
+                    }}
+                    aria-label="Leave controller"
+                    type="button"
+                >
+                    &times;
+                </button>
+            </header>
+
+            <div className="controller-shell__center">
+                <p className="controller-release-copy">Release to Shoot</p>
+
+                <div
+                    className={`controller-crosshair ${isDragging ? 'is-active' : ''}`}
+                    style={{
+                        transform: `translate(calc(-50% + ${pullOffsetX}px), calc(-50% + ${pullOffsetY}px))`,
+                    }}
+                >
+                    <span className="controller-crosshair__line controller-crosshair__line--vertical" />
+                    <span className="controller-crosshair__line controller-crosshair__line--horizontal" />
+                    <div className="controller-avatar-core">
+                        <div className="controller-avatar-core__halo" />
+                        <img
+                            src={`/avatars/${characterAvatar}.png`}
+                            alt=""
+                            className="controller-avatar-core__image"
+                            draggable={false}
+                        />
+                    </div>
+                </div>
+            </div>
+
+            <div className="controller-shell__bottom">
+                {showCorrectScore && latestPopup && (
+                    <div key={latestPopup.id} className="controller-bottom-score">
+                        {latestPopup.score}
+                    </div>
+                )}
+
+                {showPowerMeter && (
+                    <div className="controller-bottom-score controller-bottom-score--power">
+                        {Math.max(0, Math.round(power))}
+                    </div>
+                )}
+
+                {isAnswerLocked && (
+                    <div className="controller-lock-pill">
+                        <span className="controller-lock-pill__title">Answer Locked</span>
+                        <span className="controller-lock-pill__meta">Option {selectedOrbId || '?'}</span>
+                    </div>
+                )}
+
+                {isAnalysisPhase && (
+                    <div className="controller-phase-pill">
+                        Selection opens in {phaseTimeLeft}s
+                    </div>
+                )}
+
+                {showAimHint && (
+                    <div className="controller-bottom-hint">DRAG TO AIM</div>
+                )}
+            </div>
+        </div>
+    );
+
     return (
         <div
             ref={containerRef}
@@ -718,75 +1001,124 @@ export default function Controller() {
                 </div>
             ))}
 
-            {/* Header — phase-aware for multiplayer, classic for singleplayer */}
-            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, padding: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 10 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', background: 'rgba(255,255,255,0.05)', padding: '0.6rem 1rem', borderRadius: 'var(--radius-md)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.1)' }}>
-                    <span style={{ fontSize: '1.4rem' }}>{role === 'leader' ? '👑' : '🎮'}</span>
-                    <span style={{ fontWeight: 800, color: '#fff', fontSize: '1rem', letterSpacing: '0.5px' }}>Score: {playerScores.find(p => p.controllerId === clientIdRef.current)?.score ?? 0}</span>
-                    {/* Crosshair Color Indicator */}
-                    <div
-                        style={{
-                            width: '0.75rem',
-                            height: '0.75rem',
-                            borderRadius: '50%',
-                            background: CROSSHAIR_COLORS[colorIndex],
-                            boxShadow: `0 0 0.5rem ${CROSSHAIR_COLORS[colorIndex]}`,
-                            marginLeft: '0.25rem'
-                        }}
-                        title="Your crosshair color"
-                    />
+            {/* Header — Redesigned to match Screen UI */}
+            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, padding: '1rem 1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 10 }}>
+                {/* LIVE NOW Badge */}
+                <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.4rem',
+                    padding: '0.4rem 1rem',
+                    background: 'rgba(255, 68, 68, 0.1)',
+                    borderRadius: '20px',
+                    border: '1px solid rgba(255, 68, 68, 0.2)',
+                }}>
+                    <span style={{
+                        width: '6px',
+                        height: '6px',
+                        borderRadius: '50%',
+                        background: '#ff4444',
+                        boxShadow: '0 0 8px #ff4444',
+                        animation: 'pulse 1s ease-in-out infinite',
+                    }} />
+                    <span style={{
+                        fontSize: '0.65rem',
+                        fontWeight: 900,
+                        color: '#ff4444',
+                        letterSpacing: '1px',
+                    }}>
+                        LIVE
+                    </span>
                 </div>
+
+                {/* Timer / Phase Indicator */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    {/* Phase indicator or classic timer */}
                     {isMultiplayer && currentPhase ? (
                         <div style={{
                             display: 'flex', alignItems: 'center', gap: '0.5rem',
-                            background: currentPhase === 'analysis' ? 'rgba(103,80,164,0.2)' : currentPhase === 'selection' ? 'rgba(255,149,0,0.2)' : 'rgba(16,185,129,0.2)',
-                            padding: '0.5rem 1rem', borderRadius: 'var(--radius-md)',
-                            border: `1px solid ${currentPhase === 'analysis' ? '#6750A4' : currentPhase === 'selection' ? '#ff9500' : '#10b981'}40`,
-                            animation: currentPhase === 'selection' ? 'pulse 0.8s ease-in-out infinite' : 'none',
+                            background: 'rgba(255,255,255,0.06)',
+                            padding: '0.4rem 0.8rem', borderRadius: '16px',
+                            border: '1px solid rgba(255,255,255,0.1)',
                         }}>
-                            <span style={{ fontWeight: 800, fontSize: '0.85rem', letterSpacing: '1px', color: currentPhase === 'analysis' ? '#b8a9d4' : currentPhase === 'selection' ? '#ffb347' : '#6ee7b7' }}>
-                                {currentPhase === 'analysis' ? '🔍' : currentPhase === 'selection' ? '🎯' : '✨'}
-                                {' '}{currentPhase.toUpperCase()}
-                            </span>
-                            <span style={{ fontWeight: 900, fontSize: '1.1rem', color: phaseTimeLeft <= 3 ? '#ff6b6b' : '#fff', fontVariantNumeric: 'tabular-nums' }}>
+                            <span style={{ fontWeight: 900, fontSize: '1.2rem', color: phaseTimeLeft <= 3 ? '#ff4444' : '#fff', fontVariantNumeric: 'tabular-nums' }}>
                                 {phaseTimeLeft}s
                             </span>
                         </div>
                     ) : (
-                        <div style={{ background: 'rgba(255,255,255,0.05)', padding: '0.6rem 1rem', borderRadius: 'var(--radius-md)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.1)' }}>
-                            <span style={{ fontWeight: 800, color: timeLeft <= 10 ? '#ff6b6b' : '#fff', fontSize: '1.1rem', fontVariantNumeric: 'tabular-nums' }}>
+                        <div style={{
+                            background: 'rgba(255,255,255,0.06)',
+                            padding: '0.4rem 0.8rem', borderRadius: '16px',
+                            border: '1px solid rgba(255,255,255,0.1)',
+                        }}>
+                            <span style={{ fontWeight: 900, color: timeLeft <= 5 ? '#ff4444' : '#fff', fontSize: '1.2rem', fontVariantNumeric: 'tabular-nums' }}>
                                 {timeLeft}s
                             </span>
                         </div>
                     )}
+                    
+                    {/* Leave button */}
                     <button
                         onClick={() => {
                             if (phase === 'playing') {
-                                // If playing, just leave to lobby (save score, don't disconnect)
                                 clientRef.current?.sendLeaveGame();
                                 setIsSpectating(true);
                                 setPhase('lobby');
                             } else {
-                                // Default behavior for other screens (disconnect)
                                 clientRef.current?.close();
                                 window.location.href = '/';
                             }
                         }}
                         style={{
-                            width: '42px', height: '42px', borderRadius: '50%',
+                            width: '36px', height: '36px', borderRadius: '50%',
                             background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)',
-                            color: '#fff', fontSize: '1.2rem', cursor: 'pointer',
+                            color: '#fff', fontSize: '1rem', cursor: 'pointer',
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                             backdropFilter: 'blur(10px)', transition: 'all 0.2s ease',
                         }}
-                        onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.15)')}
-                        onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.08)')}
                     >
                         ✕
                     </button>
                 </div>
+            </div>
+
+            {/* Question Number Badge */}
+            {questionNumber > 0 && (
+                <div style={{
+                    position: 'absolute',
+                    top: '4rem',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    zIndex: 10,
+                }}>
+                    <span style={{
+                        fontSize: '0.65rem',
+                        fontWeight: 800,
+                        color: 'rgba(255,255,255,0.35)',
+                        letterSpacing: '2px',
+                        textTransform: 'uppercase',
+                    }}>
+                        Question {questionNumber}/10
+                    </span>
+                </div>
+            )}
+
+            {/* Score Display */}
+            <div style={{
+                position: 'absolute',
+                top: '5.5rem',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                zIndex: 10,
+            }}>
+                <span style={{
+                    fontSize: '1.5rem',
+                    fontWeight: 900,
+                    color: CROSSHAIR_COLORS[colorIndex],
+                    textShadow: `0 0 20px ${CROSSHAIR_COLORS[colorIndex]}60`,
+                    fontVariantNumeric: 'tabular-nums',
+                }}>
+                    {playerScores.find(p => p.controllerId === clientIdRef.current)?.score ?? 0}
+                </span>
             </div>
 
             {/* Multiplayer selection lock indicator — below slingshot */}

@@ -240,10 +240,7 @@ body {
 /* Orbs */
 .orb {
     position: absolute;
-    width: 8rem;
-    height: 8rem;
     border-radius: 42%;
-    /* Squircle effect */
     display: flex;
     align-items: center;
     justify-content: center;
@@ -259,7 +256,6 @@ body {
     animation: expressiveFloat 6s ease-in-out infinite;
     border: 0.2rem solid rgba(255, 255, 255, 0.2);
     transform: translate(-50%, -50%);
-    /* GPU acceleration for smooth animations */
     will-change: transform, opacity;
     -webkit-transform: translate(-50%, -50%);
     contain: layout style paint;

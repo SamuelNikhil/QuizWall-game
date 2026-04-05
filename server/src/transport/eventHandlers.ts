@@ -121,46 +121,54 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
             const { roomId, clientId } = channel.userData || {};
 
             if (!roomId || !clientId) {
-
+                console.warn('[Game] START_GAME: Missing roomId or clientId. roomId:', roomId, 'clientId:', clientId);
                 return;
             }
+
+            console.log(`[Game] START_GAME received from clientId=${clientId} in room ${roomId}`);
 
             const started = roomManager.startGame(roomId, clientId);
             if (!started) {
-
+                console.warn(`[Game] startGame() returned false for room ${roomId}, clientId ${clientId}`);
                 return;
             }
 
+            console.log(`[Game] startGame() returned true, getting room...`);
 
             const room = roomManager.getRoom(roomId);
             if (!room) {
-
+                console.error(`[Game] Room ${roomId} not found after startGame()`);
                 return;
             }
 
-            // Step 1: Initialize quiz engine in background
-            console.log(`[Game] Initializing quiz engine for room ${roomId}...`);
-            try {
-                // Emit a signal to show loading on Screen
-                room.screenChannel.emit(EVENTS.TUTORIAL_START, { duration: 30000 }); // Use for loading state
-                for (const c of room.controllers) {
-                    c.channel.emit(EVENTS.TUTORIAL_START, { duration: 30000 });
-                }
+            console.log(`[Game] Room found, emitting LOADING_START to ${room.controllers.length} controllers`);
 
+            // Step 1: Emit LOADING_START to show loading screen on all devices
+            console.log(`[Game] Initializing quiz engine for room ${roomId}...`);
+            const playerCount = room.controllers.length;
+            room.screenChannel.emit(EVENTS.LOADING_START, { playerCount });
+            for (const c of room.controllers) {
+                c.channel.emit(EVENTS.LOADING_START, { playerCount });
+            }
+
+            try {
                 await room.quizEngine.initialize();
                 console.log(`[Game] Quiz engine initialized with ${room.quizEngine.getTotalQuestions()} questions for room ${roomId}`);
             } catch (error) {
                 console.error(`[Game] Failed to initialize quiz engine:`, error);
             }
 
-            // Step 2: Send TUTORIAL_END to clear loading state
-            room.screenChannel.emit(EVENTS.TUTORIAL_END, {});
+            // Step 2: Start 3-second countdown before gameplay
+            console.log(`[Game] Starting countdown...`);
+            room.screenChannel.emit(EVENTS.LOADING_COUNTDOWN, { duration: 3 });
             for (const c of room.controllers) {
-                c.channel.emit(EVENTS.TUTORIAL_END, {});
+                c.channel.emit(EVENTS.LOADING_COUNTDOWN, { duration: 3 });
             }
 
-            // Set player count for timer logic
-            const playerCount = room.controllers.length;
+            // Wait for countdown to complete
+            await new Promise(resolve => setTimeout(resolve, 3000));
+
+            // Set player count for timer logic (reuse playerCount from above)
             const modeChanged = room.quizEngine.setPlayerCount(playerCount);
 
             // If switching between singleplayer and multiplayer, reset scores
@@ -333,6 +341,7 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
 
             // Determine which orb was hit based on coordinates
             const hitOrb = detectOrbHit(data.targetXPercent, data.targetYPercent);
+            console.log(`[Game] SHOOT from ${clientId?.substring(0, 8)}... hitOrb: ${hitOrb}, coords: (${data.targetXPercent.toFixed(1)}, ${data.targetYPercent.toFixed(1)})`);
 
             if (room.quizEngine.isMultiplayer()) {
                 // ==========================================
@@ -340,21 +349,30 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
                 // ==========================================
 
                 const currentPhase = room.quizEngine.getCurrentPhase();
+                console.log(`[Game] Multiplayer shoot, currentPhase: ${currentPhase}`);
 
                 if (currentPhase !== 'selection') {
                     // During analysis and reveal phases, ignore shots completely
                     // But still show the projectile visual if during analysis (so players see the slingshot animating)
+                    console.log(`[Game] Ignoring shot - not in selection phase (current: ${currentPhase})`);
                     return;
                 }
 
-                if (!hitOrb) return; // Missed all orbs
+                if (!hitOrb) {
+                    console.log(`[Game] Shot missed all orbs`);
+                    return; // Missed all orbs
+                }
 
                 // Find the controller's color index
                 const controller = room.controllers.find(c => c.clientId === clientId);
-                if (!controller) return;
+                if (!controller) {
+                    console.log(`[Game] Controller not found for clientId: ${clientId}`);
+                    return;
+                }
 
                 // Try to record the selection
                 const accepted = room.quizEngine.recordSelection(clientId!, hitOrb, controller.colorIndex);
+                console.log(`[Game] Selection accepted: ${accepted} for ${clientId?.substring(0, 8)}... orb: ${hitOrb}`);
                 if (!accepted) return; // Already selected or wrong phase
 
                 // Send projectile to screen for visual
@@ -599,11 +617,9 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
             room.lastActivity = Date.now();
             roomManager.resetSpectatingStatus(roomId);
 
-            // Reset ready states for members
+            // Keep players ready after restart so host can immediately start the next round.
             for (const c of room.controllers) {
-                if (c.role === 'member') {
-                    c.isReady = false;
-                }
+                c.isReady = true;
             }
 
             // Player scores are intentionally NOT reset — they persist across games in the same lobby
@@ -653,7 +669,8 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
                 const { room, wasLeader, promotedControllerId } = roomManager.removeController(channel.id);
                 if (room) {
 
-                    room.screenChannel.emit(EVENTS.CONTROLLER_LEFT, { controllerId: channel.id });
+                    // Use persistent clientId so screen and controllers resolve the same player identity.
+                    room.screenChannel.emit(EVENTS.CONTROLLER_LEFT, { controllerId: clientId || channel.id, wasLeader });
                     broadcastLobbyUpdate(roomManager, room.roomId);
 
                     // If NO active players left, return everyone to lobby

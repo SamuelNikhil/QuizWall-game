@@ -18,6 +18,8 @@ export const EVENTS = {
     PLAYER_READY: 'playerReady',
     SET_PLAYER_NAME: 'setPlayerName',
     START_GAME: 'startGame',
+    LOADING_START: 'loadingStart',
+    LOADING_COUNTDOWN: 'loadingCountdown',
     TUTORIAL_START: 'tutorialStart',
     TUTORIAL_END: 'tutorialEnd',
     TUTORIAL_PROGRESS: 'tutorialProgress',

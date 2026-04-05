@@ -7,11 +7,13 @@ import { useState } from 'react';
 import type { LobbyState, PlayerRole } from '../shared/types';
 import { CROSSHAIR_COLORS } from '../shared/types';
 import '../index.css';
+import './controller-ui.css';
 
 interface LobbyProps {
     role: PlayerRole;
     colorIndex: number;
     lobby: LobbyState | null;
+    persistentName?: string;
     onSetPlayerName: (name: string) => void;
     onReady: () => void;
     onStartGame: () => void;
@@ -179,6 +181,22 @@ export default function Lobby({
     const characterName = preConfigNames[colorIndex] || `Player ${colorIndex + 1}`;
     const characterAvatar = preConfigAvatars[colorIndex] || 'wulf';
     const characterColor = CROSSHAIR_COLORS[colorIndex] || '#6750A4';
+    const closeButton = (
+        <button
+            className="controller-close-button"
+            type="button"
+            aria-label="Leave controller"
+            onClick={onLeave}
+            style={{
+                position: 'absolute',
+                top: 'max(1rem, calc(env(safe-area-inset-top) + 0.9rem))',
+                right: 'clamp(1rem, 4vw, 1.5rem)',
+                zIndex: 20,
+            }}
+        >
+            &times;
+        </button>
+    );
 
     // Build lobby list (all 4 slots)
     const lobbySlots = [0, 1, 2, 3].map(slotIndex => {
@@ -217,14 +235,16 @@ export default function Lobby({
         const canStart = playerCount >= 1;
         
         return (
-            <div className="controller-container" style={{
+            <div className="controller-container controller-lobby-shell" style={{
                 display: 'flex',
                 flexDirection: 'column',
-                padding: '1.5rem',
                 position: 'relative',
-                minHeight: '100vh',
+                minHeight: '100dvh',
+                height: '100dvh',
                 background: 'linear-gradient(180deg, #0f0f1a 0%, #1a1a2e 100%)',
             }}>
+                {closeButton}
+
                 {/* Header - Connected Status */}
                 <div style={{
                     display: 'flex',
@@ -382,57 +402,61 @@ export default function Lobby({
                     </div>
                 </div>
 
-                {/* Helper Text */}
-                <p style={{
-                    fontSize: '0.8rem',
-                    color: 'rgba(255, 255, 255, 0.4)',
-                    textAlign: 'center',
-                    marginBottom: '1rem',
-                }}>
-                    You can start with any number of players
-                </p>
+                <div className="controller-lobby-shell__footer">
+                    {/* Helper Text */}
+                    <p style={{
+                        fontSize: '0.8rem',
+                        color: 'rgba(255, 255, 255, 0.4)',
+                        textAlign: 'center',
+                        marginBottom: '1rem',
+                    }}>
+                        You can start with any number of players
+                    </p>
 
-                {/* Start Game Button */}
-                <button
-                    onClick={() => {
-                        if (playerCount < 4) {
-                            setShowConfirmPopup(true);
-                        } else {
-                            onStartGame();
-                        }
-                    }}
-                    disabled={!canStart || isSpectating}
-                    style={{
-                        width: '100%',
-                        padding: '1.1rem',
-                        fontSize: '1.2rem',
-                        fontWeight: 900,
-                        background: canStart && !isSpectating
-                            ? 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)'
-                            : 'rgba(255, 255, 255, 0.08)',
-                        border: 'none',
-                        borderRadius: '20px',
-                        color: canStart && !isSpectating ? '#fff' : 'rgba(255, 255, 255, 0.3)',
-                        cursor: canStart && !isSpectating ? 'pointer' : 'not-allowed',
-                        boxShadow: canStart && !isSpectating ? '0 8px 25px rgba(59, 130, 246, 0.4)' : 'none',
-                        transition: 'all 0.2s ease',
-                        letterSpacing: '0.5px',
-                    }}
-                    onMouseEnter={(e) => {
-                        if (canStart && !isSpectating) {
-                            e.currentTarget.style.transform = 'scale(1.02)';
-                            e.currentTarget.style.boxShadow = '0 12px 35px rgba(59, 130, 246, 0.5)';
-                        }
-                    }}
-                    onMouseLeave={(e) => {
-                        if (canStart && !isSpectating) {
-                            e.currentTarget.style.transform = 'scale(1)';
-                            e.currentTarget.style.boxShadow = '0 8px 25px rgba(59, 130, 246, 0.4)';
-                        }
-                    }}
-                >
-                    {isSpectating ? 'GAME IN PROGRESS' : 'Start Game'}
-                </button>
+                    {/* Start Game Button */}
+                    <button
+                        onClick={() => {
+                            console.log('[Lobby] Start Game clicked, playerCount:', playerCount, 'canStart:', canStart);
+                            if (playerCount < 4) {
+                                setShowConfirmPopup(true);
+                            } else {
+                                console.log('[Lobby] Starting game immediately (4 players)');
+                                onStartGame();
+                            }
+                        }}
+                        disabled={!canStart || isSpectating}
+                        style={{
+                            width: '100%',
+                            padding: '1.1rem',
+                            fontSize: '1.2rem',
+                            fontWeight: 900,
+                            background: canStart && !isSpectating
+                                ? 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)'
+                                : 'rgba(255, 255, 255, 0.08)',
+                            border: 'none',
+                            borderRadius: '20px',
+                            color: canStart && !isSpectating ? '#fff' : 'rgba(255, 255, 255, 0.3)',
+                            cursor: canStart && !isSpectating ? 'pointer' : 'not-allowed',
+                            boxShadow: canStart && !isSpectating ? '0 8px 25px rgba(59, 130, 246, 0.4)' : 'none',
+                            transition: 'all 0.2s ease',
+                            letterSpacing: '0.5px',
+                        }}
+                        onMouseEnter={(e) => {
+                            if (canStart && !isSpectating) {
+                                e.currentTarget.style.transform = 'scale(1.02)';
+                                e.currentTarget.style.boxShadow = '0 12px 35px rgba(59, 130, 246, 0.5)';
+                            }
+                        }}
+                        onMouseLeave={(e) => {
+                            if (canStart && !isSpectating) {
+                                e.currentTarget.style.transform = 'scale(1)';
+                                e.currentTarget.style.boxShadow = '0 8px 25px rgba(59, 130, 246, 0.4)';
+                            }
+                        }}
+                    >
+                        {isSpectating ? 'GAME IN PROGRESS' : 'Start Game'}
+                    </button>
+                </div>
 
                 {/* Confirmation Popup */}
                 {showConfirmPopup && (
@@ -440,6 +464,7 @@ export default function Lobby({
                         playerCount={playerCount}
                         readyPlayers={readyPlayers}
                         onConfirm={() => {
+                            console.log('[Lobby] Confirmation confirmed, starting game');
                             setShowConfirmPopup(false);
                             onStartGame();
                         }}
@@ -460,6 +485,8 @@ export default function Lobby({
             minHeight: '100vh',
             background: 'linear-gradient(180deg, #0f0f1a 0%, #1a1a2e 100%)',
         }}>
+            {closeButton}
+
             {/* Header - Connected Status */}
             <div style={{
                 display: 'flex',

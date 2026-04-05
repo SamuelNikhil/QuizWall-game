@@ -1,6 +1,6 @@
 {
     "topic": "animals-easy-and-simple",
-    "generatedAt": "2026-04-04T04:29:42.939Z",
+    "generatedAt": "2026-04-05T07:51:37.392Z",
     "questions": [
         {
             "id": 1,
@@ -8,7 +8,7 @@
             "options": [
                 {
                     "id": "A",
-                    "text": "1-2 weeks"
+                    "text": "6-8 months"
                 },
                 {
                     "id": "B",
@@ -16,11 +16,11 @@
                 },
                 {
                     "id": "C",
-                    "text": "6-12 months"
+                    "text": "1-2 years"
                 },
                 {
                     "id": "D",
-                    "text": "1-2 years"
+                    "text": "1-2 weeks"
                 }
             ],
             "correct": "B",
@@ -28,26 +28,26 @@
         },
         {
             "id": 2,
-            "text": "Which of the following animals has the longest migration route?",
+            "text": "Which of the following animals has the longest migration pattern?",
             "options": [
                 {
                     "id": "A",
-                    "text": "Caribou"
+                    "text": "Monarch Butterfly"
                 },
                 {
                     "id": "B",
-                    "text": "Arctic Tern"
+                    "text": "Caribou"
                 },
                 {
                     "id": "C",
-                    "text": "Monarch Butterfly"
+                    "text": "Arctic Tern"
                 },
                 {
                     "id": "D",
                     "text": "Gray Whale"
                 }
             ],
-            "correct": "B",
+            "correct": "C",
             "category": "animals-easy-and-simple"
         },
         {
@@ -56,22 +56,22 @@
             "options": [
                 {
                     "id": "A",
-                    "text": "Lion"
-                },
-                {
-                    "id": "B",
                     "text": "Jaguar"
                 },
                 {
-                    "id": "C",
+                    "id": "B",
                     "text": "Cheetah"
                 },
                 {
-                    "id": "D",
+                    "id": "C",
                     "text": "Leopard"
+                },
+                {
+                    "id": "D",
+                    "text": "Lion"
                 }
             ],
-            "correct": "C",
+            "correct": "B",
             "category": "animals-easy-and-simple"
         },
         {
@@ -80,7 +80,7 @@
             "options": [
                 {
                     "id": "A",
-                    "text": "Lion"
+                    "text": "Saltwater Crocodile"
                 },
                 {
                     "id": "B",
@@ -88,143 +88,95 @@
                 },
                 {
                     "id": "C",
-                    "text": "Saltwater Crocodile"
+                    "text": "Tiger"
                 },
                 {
                     "id": "D",
-                    "text": "Tiger"
+                    "text": "Lion"
                 }
             ],
-            "correct": "C",
+            "correct": "A",
             "category": "animals-easy-and-simple"
         },
         {
             "id": 5,
-            "text": "What is the largest species of turtle?",
+            "text": "What is the largest species of shark?",
             "options": [
                 {
                     "id": "A",
-                    "text": "Aldabra Tortoise"
+                    "text": "Whale Shark"
                 },
                 {
                     "id": "B",
-                    "text": "Leatherback Sea Turtle"
+                    "text": "Hammerhead Shark"
                 },
                 {
                     "id": "C",
-                    "text": "Galapagos Giant Tortoise"
+                    "text": "Tiger Shark"
                 },
                 {
                     "id": "D",
-                    "text": "Green Sea Turtle"
+                    "text": "Great White Shark"
+                }
+            ],
+            "correct": "A",
+            "category": "animals-easy-and-simple"
+        },
+        {
+            "id": 6,
+            "text": "Which animal is known for its unique ability to change its body color?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Octopus"
+                },
+                {
+                    "id": "B",
+                    "text": "Chameleon"
+                },
+                {
+                    "id": "C",
+                    "text": "Cuttlefish"
+                },
+                {
+                    "id": "D",
+                    "text": "Squid"
                 }
             ],
             "correct": "B",
             "category": "animals-easy-and-simple"
         },
         {
-            "id": 6,
-            "text": "Which of the following birds is known for its distinctive call that sounds like laughter?",
-            "options": [
-                {
-                    "id": "A",
-                    "text": "Pelican"
-                },
-                {
-                    "id": "B",
-                    "text": "Penguin"
-                },
-                {
-                    "id": "C",
-                    "text": "Kookaburra"
-                },
-                {
-                    "id": "D",
-                    "text": "Ostrich"
-                }
-            ],
-            "correct": "C",
-            "category": "animals-easy-and-simple"
-        },
-        {
             "id": 7,
-            "text": "What is the smallest species of mammal?",
+            "text": "What is the smallest species of bird?",
             "options": [
                 {
                     "id": "A",
-                    "text": "Bumblebee Bat"
+                    "text": "Hummingbird"
                 },
                 {
                     "id": "B",
-                    "text": "Etruscan Shrew"
+                    "text": "Sparrow"
                 },
                 {
                     "id": "C",
-                    "text": "Pygmy Mouse"
+                    "text": "Finch"
                 },
                 {
                     "id": "D",
-                    "text": "African Pygmy Mouse"
-                }
-            ],
-            "correct": "A",
-            "category": "animals-easy-and-simple"
-        },
-        {
-            "id": 8,
-            "text": "Which of the following animals has a unique ability to change its body color?",
-            "options": [
-                {
-                    "id": "A",
-                    "text": "Chameleon"
-                },
-                {
-                    "id": "B",
-                    "text": "Octopus"
-                },
-                {
-                    "id": "C",
-                    "text": "Squid"
-                },
-                {
-                    "id": "D",
-                    "text": "Cuttlefish"
-                }
-            ],
-            "correct": "A",
-            "category": "animals-easy-and-simple"
-        },
-        {
-            "id": 9,
-            "text": "What is the fastest water animal?",
-            "options": [
-                {
-                    "id": "A",
-                    "text": "Sailfish"
-                },
-                {
-                    "id": "B",
-                    "text": "Black Marlin"
-                },
-                {
-                    "id": "C",
-                    "text": "Bluefin Tuna"
-                },
-                {
-                    "id": "D",
-                    "text": "Shortfin Mako Shark"
+                    "text": "Bee Hummingbird"
                 }
             ],
             "correct": "D",
             "category": "animals-easy-and-simple"
         },
         {
-            "id": 10,
-            "text": "Which of the following animals has the longest gestation period?",
+            "id": 8,
+            "text": "Which of the following animals is a herbivore?",
             "options": [
                 {
                     "id": "A",
-                    "text": "Elephant"
+                    "text": "Kangaroo"
                 },
                 {
                     "id": "B",
@@ -232,11 +184,59 @@
                 },
                 {
                     "id": "C",
-                    "text": "Rhinoceros"
+                    "text": "Tiger"
                 },
                 {
                     "id": "D",
-                    "text": "Hippopotamus"
+                    "text": "Lion"
+                }
+            ],
+            "correct": "B",
+            "category": "animals-easy-and-simple"
+        },
+        {
+            "id": 9,
+            "text": "What is the longest-lived species of turtle?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Leatherback Sea Turtle"
+                },
+                {
+                    "id": "B",
+                    "text": "Green Sea Turtle"
+                },
+                {
+                    "id": "C",
+                    "text": "Aldabra Tortoise"
+                },
+                {
+                    "id": "D",
+                    "text": "Galapagos Giant Tortoise"
+                }
+            ],
+            "correct": "D",
+            "category": "animals-easy-and-simple"
+        },
+        {
+            "id": 10,
+            "text": "Which animal has the most complex social structure?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Elephant"
+                },
+                {
+                    "id": "B",
+                    "text": "Orangutan"
+                },
+                {
+                    "id": "C",
+                    "text": "Gorilla"
+                },
+                {
+                    "id": "D",
+                    "text": "Chimpanzee"
                 }
             ],
             "correct": "A",

@@ -224,23 +224,26 @@ export class RoomManager {
     startGame(roomId: string, clientId: string): boolean {
         const room = this.rooms.get(roomId);
         if (!room) {
-
+            console.warn(`[RoomManager] Room ${roomId} not found`);
             return false;
         }
 
         // Only leader can start — look up by clientId, NOT channel.id
         const controller = room.controllers.find((c) => c.clientId === clientId);
         if (!controller || controller.role !== 'leader') {
-
+            console.warn(`[RoomManager] Controller ${clientId} is not leader (role: ${controller?.role})`);
             return false;
         }
 
         const canStart = this.canStartGame(roomId);
         if (!canStart) {
-
+            const room = this.rooms.get(roomId)!;
+            const readyStatus = room.controllers.map(c => `${c.clientId.substring(0, 8)}: ready=${c.isReady}, role=${c.role}`).join(', ');
+            console.warn(`[RoomManager] Cannot start game - not all players ready. Controllers: ${room.controllers.length}. Status: [${readyStatus}]`);
             return false;
         }
 
+        console.log(`[RoomManager] Starting game in room ${roomId} with ${room.controllers.length} players`);
         room.gameStarted = true;
         room.lastActivity = Date.now();
 
@@ -259,7 +262,7 @@ export class RoomManager {
         if (!room) return null;
 
         const players: PlayerInfo[] = room.controllers.map((c) => ({
-            id: c.id,
+            id: c.clientId,
             role: c.role,
             isReady: c.isReady,
             colorIndex: c.colorIndex,

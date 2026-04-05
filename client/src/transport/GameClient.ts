@@ -240,7 +240,7 @@ export class GameClient {
         this.channel?.on(EVENTS.CONTROLLER_JOINED, cb);
     }
 
-    onControllerLeft(cb: (data: { controllerId: string }) => void): void {
+    onControllerLeft(cb: (data: { controllerId?: string; wasLeader?: boolean }) => void): void {
         this.channel?.on(EVENTS.CONTROLLER_LEFT, cb);
     }
 
@@ -250,6 +250,22 @@ export class GameClient {
 
     onLobbyUpdate(cb: (data: LobbyState) => void): void {
         this.channel?.on(EVENTS.LOBBY_UPDATE, cb);
+    }
+
+    onLoadingStart(cb: (data: { playerCount: number }) => void): void {
+        console.log('[GameClient] Registering onLoadingStart listener');
+        this.channel?.on(EVENTS.LOADING_START, (data: { playerCount: number }) => {
+            console.log('[GameClient] LOADING_START event received:', data);
+            cb(data);
+        });
+    }
+
+    onLoadingCountdown(cb: (data: { duration: number }) => void): void {
+        console.log('[GameClient] Registering onLoadingCountdown listener');
+        this.channel?.on(EVENTS.LOADING_COUNTDOWN, (data: { duration: number }) => {
+            console.log('[GameClient] LOADING_COUNTDOWN event received:', data);
+            cb(data);
+        });
     }
 
     onGameStarted(cb: (data: { question: ClientQuestion; timeLeft: number }) => void): void {
