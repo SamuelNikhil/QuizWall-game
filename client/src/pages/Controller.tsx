@@ -533,11 +533,25 @@ export default function Controller() {
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
-                justifyContent: 'center',
-                height: '100%',
-                padding: '2rem',
+                justifyContent: 'space-between',
+                width: '100vw',
+                minHeight: '100vh',
+                height: '100dvh',
+                boxSizing: 'border-box',
+                paddingTop: 'max(1.25rem, calc(env(safe-area-inset-top) + 1rem))',
+                paddingRight: '2rem',
+                paddingBottom: 'max(1.5rem, calc(env(safe-area-inset-bottom) + 1.25rem))',
+                paddingLeft: '2rem',
                 background: 'linear-gradient(180deg, #0f0f1a 0%, #1a1a2e 100%)',
             }}>
+                <div style={{
+                    flex: 1,
+                    width: '100%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                }}>
                 {/* Player Avatar */}
                 <img
                     src={`/avatars/${characterAvatar}.png`}
@@ -605,11 +619,12 @@ export default function Controller() {
                 <p style={{
                     fontSize: '0.95rem',
                     color: 'rgba(255,255,255,0.5)',
-                    marginBottom: '3rem',
+                    marginBottom: '1.5rem',
                     textAlign: 'center',
                 }}>
                     {countdownActive ? 'First question incoming' : 'The question is coming'}
                 </p>
+                </div>
 
                 {/* AIM ZONE • LOADING Bar */}
                 <div style={{

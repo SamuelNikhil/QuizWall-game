@@ -415,8 +415,6 @@ export default function Screen() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    const controllerUrl = roomId && joinToken ? `${window.location.origin}/controller/${roomId}/${joinToken}` : '';
-
     // ---- Session Timeout: empty room detection ----
     useEffect(() => {
         if (controllerCount > 0) {
@@ -478,6 +476,10 @@ export default function Screen() {
             video.removeEventListener('pause', playVideo);
         };
     }, [phase]);
+
+    const controllerUrl = roomId && joinToken
+        ? `${window.location.origin}/controller/${roomId}/${joinToken}`
+        : '';
 
     // ==========================================
     // RENDER — preserving existing UI/UX exactly
@@ -773,7 +775,7 @@ export default function Screen() {
                             <QRCodeSVG value={controllerUrl} size={180} level="H" fgColor="#1c1b1f" />
                         </div>
                         <div className="saas-scan-prompt" style={{ fontSize: '0.75rem' }}>
-                            <i>{isTeamLobby ? '📱' : '🎯'}</i> 
+                            <i>{isTeamLobby ? '📱' : '🎯'}</i>
                             {isTeamLobby ? <span>Scan to Join</span> : <span>Scan to be <br />lobby leader</span>}
                         </div>
                     </div>
@@ -946,7 +948,11 @@ export default function Screen() {
     const preConfigAvatars = ["wulf", "talon", "ryker", "roux"];
 
     return (
-        <div className="screen-container" ref={containerRef}>
+        <div
+            className="screen-container"
+            ref={containerRef}
+            style={{ background: 'linear-gradient(180deg, #0D0D12 0%, #15151D 100%)' }}
+        >
             <header className="screen-header">
                 {/* Top Bar - LIVE NOW and Round Info */}
                 <div style={{
@@ -1068,10 +1074,9 @@ export default function Screen() {
                 {/* Answer Orbs - Pill-shaped with text wrapping */}
                 {question?.options.map((opt, i) => {
                     const selectionsForOrb = playerSelections.filter(s => s.orbId === opt.id);
-                    const isCorrectOrb = revealResult?.correctOrbId === opt.id;
-                    const isRevealPhase = currentPhase === 'reveal' && revealResult;
                     
-                    const pillGradient = 'linear-gradient(135deg, #04026F 0%, #BB3AD2 100%)';
+                    const pillGradient = 'linear-gradient(135deg, #030158 0%, #771089 100%)';
+                    const pillBorder = '2px solid #FFFFFF';
                     
                     return (
                         <div
@@ -1092,9 +1097,7 @@ export default function Screen() {
                                 alignItems: 'center',
                                 justifyContent: 'center',
                                 boxShadow: '0 6px 24px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.15)',
-                                border: isRevealPhase
-                                    ? isCorrectOrb ? '2px solid #10b981' : '2px solid transparent'
-                                    : '1px solid rgba(255,255,255,0.15)',
+                                border: pillBorder,
                                 transition: 'all 0.3s ease',
                                 cursor: 'pointer',
                                 animationDelay: `${i * 0.1}s`,

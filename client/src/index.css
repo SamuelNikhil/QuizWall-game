@@ -675,6 +675,13 @@ body {
     color: var(--accent-secondary);
 }
 
+/* Show QR only on desktop/TV layouts */
+@media (max-width: 1024px) {
+    .saas-fixed-right-container {
+        display: none;
+    }
+}
+
 /* Floating Badges */
 .saas-player-badge {
     position: absolute;
