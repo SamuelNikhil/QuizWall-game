@@ -300,22 +300,27 @@ export class RoomManager {
                 room.controllers.splice(idx, 1);
                 room.lastActivity = Date.now();
 
-                // Only reassign color indices if game hasn't started (in lobby)
-                // During gameplay, preserve color indices to avoid duplicate colors on scoreboard
-                if (!room.gameStarted) {
-                    room.controllers.forEach((c, i) => {
-                        c.colorIndex = i;
-                    });
-                }
+                // Preserve color indices in lobby to maintain character consistency
+                // Only reassign during gameplay to avoid duplicate colors on scoreboard
+                // Note: Color indices may have gaps now, which is fine for lobby consistency
 
                 let promotedControllerId: string | undefined;
 
-                // If leader left and there are still members, promote first member
+                // If leader left and there are still members, promote the controller with the lowest colorIndex
+                // This ensures consistent leadership hierarchy (Wulf -> Talon -> Ryker -> Roux)
                 if (wasLeader && room.controllers.length > 0) {
-                    room.controllers[0].role = 'leader';
-                    room.controllers[0].isReady = true; // New leader is always ready
-                    promotedControllerId = room.controllers[0].clientId;
-                    console.log(`[Room] Leader left - promoted controller ${room.controllers[0].clientId} as new leader`);
+                    // Find the controller with the smallest colorIndex (maintains character hierarchy)
+                    let nextLeader = room.controllers[0];
+                    for (const controller of room.controllers) {
+                        if (controller.colorIndex < nextLeader.colorIndex) {
+                            nextLeader = controller;
+                        }
+                    }
+
+                    nextLeader.role = 'leader';
+                    nextLeader.isReady = true; // New leader is always ready
+                    promotedControllerId = nextLeader.clientId;
+                    console.log(`[Room] Leader left - promoted controller ${nextLeader.clientId} (${nextLeader.name}, colorIndex: ${nextLeader.colorIndex}) as new leader`);
                 }
 
                 console.log(`[Room] Controller left (colorIndex: ${leftColorIndex}), remaining: ${room.controllers.length}`);
@@ -378,7 +383,7 @@ export class RoomManager {
         if (!room) return;
 
         room.gameStarted = false;
-        room.quizEngine.reset(true); // Silent reset
+        room.quizEngine.reset(); // Silent reset
 
         // Reset ready states and spectating status
         this.resetSpectatingStatus(roomId);

@@ -114,6 +114,22 @@ export default function Controller() {
     const clientRef = useRef<GameClient | null>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const wakeLockRef = useRef<WakeLockSentinel | null>(null);
+    const loadingCountdownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const pendingTimeoutsRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
+
+    const scheduleTimeout = useCallback((cb: () => void, delayMs: number): ReturnType<typeof setTimeout> => {
+        const timeoutId = setTimeout(() => {
+            pendingTimeoutsRef.current.delete(timeoutId);
+            cb();
+        }, delayMs);
+        pendingTimeoutsRef.current.add(timeoutId);
+        return timeoutId;
+    }, []);
+
+    const clearAllScheduledTimeouts = useCallback(() => {
+        pendingTimeoutsRef.current.forEach((timeoutId) => clearTimeout(timeoutId));
+        pendingTimeoutsRef.current.clear();
+    }, []);
 
     // ---- Connect and wire events ----
     useEffect(() => {
@@ -163,6 +179,10 @@ export default function Controller() {
             client.onLoadingStart((data) => {
                 console.log('[Controller] Loading started, players:', data.playerCount);
                 setPhaseSync('loading');
+                if (loadingCountdownIntervalRef.current) {
+                    clearInterval(loadingCountdownIntervalRef.current);
+                    loadingCountdownIntervalRef.current = null;
+                }
                 setCountdownActive(false);
             });
 
@@ -170,16 +190,23 @@ export default function Controller() {
                 console.log('[Controller] Countdown starting:', data.duration);
                 setCountdownActive(true);
                 setCountdownValue(data.duration);
-                
+
+                if (loadingCountdownIntervalRef.current) {
+                    clearInterval(loadingCountdownIntervalRef.current);
+                    loadingCountdownIntervalRef.current = null;
+                }
                 let count = data.duration;
                 soundManager.playCountdownBeep();
-                const beepInterval = setInterval(() => {
+                loadingCountdownIntervalRef.current = setInterval(() => {
                     count--;
                     if (count > 0) {
                         soundManager.playCountdownBeep();
                         setCountdownValue(count);
                     } else {
-                        clearInterval(beepInterval);
+                        if (loadingCountdownIntervalRef.current) {
+                            clearInterval(loadingCountdownIntervalRef.current);
+                            loadingCountdownIntervalRef.current = null;
+                        }
                         setCountdownValue(0);
                     }
                 }, 1000);
@@ -189,6 +216,11 @@ export default function Controller() {
                 console.log('[Controller] Game started event, transitioning to playing');
                 setPhaseSync('playing');
                 setQuestionNumber(1);
+                if (loadingCountdownIntervalRef.current) {
+                    clearInterval(loadingCountdownIntervalRef.current);
+                    loadingCountdownIntervalRef.current = null;
+                }
+                setCountdownActive(false);
             });
 
             client.onQuestion(() => {
@@ -213,7 +245,7 @@ export default function Controller() {
 
                 // Haptic feedback (safe for all browsers including iOS)
                 soundManager.vibrate(data.correct ? [50, 50, 50] : [200]);
-                setTimeout(() => setLastHit(null), 800);
+                scheduleTimeout(() => setLastHit(null), 800);
 
                 // Show score popup for singleplayer (similar to multiplayer reveal)
                 if (data.correct && data.points > 0) {
@@ -225,7 +257,7 @@ export default function Controller() {
                         colorIndex: colorIndex, // Use player's color
                     }]);
                     // Remove popup after animation
-                    setTimeout(() => {
+                    scheduleTimeout(() => {
                         setScorePopups(prev => prev.filter(p => p.id !== popupId));
                     }, 2000);
                 }
@@ -248,6 +280,11 @@ export default function Controller() {
                 // Transition from loading to playing when first phase starts
                 if (phaseRef.current === 'loading' && (data.phase === 'selection' || data.phase === 'analysis')) {
                     setPhaseSync('playing');
+                    if (loadingCountdownIntervalRef.current) {
+                        clearInterval(loadingCountdownIntervalRef.current);
+                        loadingCountdownIntervalRef.current = null;
+                    }
+                    setCountdownActive(false);
                 }
                 // Reset selection lock when entering analysis phase (new question)
                 if (data.phase === 'analysis' && data.timeLeft === 1) {
@@ -286,7 +323,7 @@ export default function Controller() {
 
                 // Show visual individual hit feedback (green for correct, red for wrong)
                 setLastHit({ correct: isPersonallyCorrect });
-                setTimeout(() => setLastHit(null), 1500);
+                scheduleTimeout(() => setLastHit(null), 1500);
 
                 // Show score popup ONLY for this player (already implemented, but confirmed it uses clientIdRef)
                 if (data.playerScores && myResult && myResult.correct && myResult.score > 0) {
@@ -298,7 +335,7 @@ export default function Controller() {
                         colorIndex: myResult.colorIndex
                     }]);
                     // Remove popup after animation
-                    setTimeout(() => {
+                    scheduleTimeout(() => {
                         setScorePopups(prev => prev.filter(p => p.id !== popupId));
                     }, 2000);
                 }
@@ -316,6 +353,11 @@ export default function Controller() {
                 setIsMultiplayer(false);
                 isMultiplayerRef.current = false;
                 setQuestionNumber(0);
+                if (loadingCountdownIntervalRef.current) {
+                    clearInterval(loadingCountdownIntervalRef.current);
+                    loadingCountdownIntervalRef.current = null;
+                }
+                setCountdownActive(false);
             });
 
             // Tutorial status updates from server
@@ -325,8 +367,15 @@ export default function Controller() {
             setError('Connection failed');
         });
 
-        return () => { client.close(); };
-    }, [roomId, token]);
+        return () => {
+            if (loadingCountdownIntervalRef.current) {
+                clearInterval(loadingCountdownIntervalRef.current);
+                loadingCountdownIntervalRef.current = null;
+            }
+            clearAllScheduledTimeouts();
+            client.close();
+        };
+    }, [roomId, token, clearAllScheduledTimeouts, scheduleTimeout]);
 
     // ---- Gyroscope handler REMOVED ----
 

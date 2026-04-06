@@ -8,17 +8,16 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { GameClient } from '../transport/GameClient';
 import backgroundVideo from '../assets/QuizWall.webm';
+import shuffleSoundUrl from '../assets/sounds/shuffle.mp3';
 import { ORB_POSITIONS, CROSSHAIR_COLORS } from '../shared/types';
 import type {
     ClientQuestion,
     HitResultPayload,
     LobbyState,
     GameOverPayload,
-    LeaderboardEntry,
     QuestionPhase,
     PlayerSelectionPayload,
     PlayerScoreEntry,
-    RevealResultPayload,
 } from '../shared/types';
 import '../animations.css';
 import WinnerScene from '../components/WinnerScene';
@@ -29,7 +28,6 @@ interface Particle { id: string; x: number; y: number; size: number; color: stri
 interface ScorePopup { id: string; x: number; y: number; text: string; type: string; }
 interface Ripple { id: string; x: number; y: number; color: string; size: number; }
 interface Confetti { id: string; x: number; y: number; color: string; '--dx': string; '--dy': string; '--rot': string; width: number; height: number; }
-interface Projectile { id: string; x: number; y: number; targetX: number; targetY: number; }
 
 export default function Screen() {
     // ---- State ----
@@ -45,11 +43,8 @@ export default function Screen() {
     const [timeLeft, setTimeLeft] = useState(20);
     const [playerScores, setPlayerScores] = useState<PlayerScoreEntry[]>([]);
     const [gameOverData, setGameOverData] = useState<GameOverPayload | null>(null);
-    const [_leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
 
     // Visual effects (client-only)
-    const [_projectiles, setProjectiles] = useState<Projectile[]>([]);
-    const [_hitEffects, setHitEffects] = useState<{ id: string; x: number; y: number; correct: boolean }[]>([]);
     const [particles, setParticles] = useState<Particle[]>([]);
     const [scorePopups, setScorePopups] = useState<ScorePopup[]>([]);
     const [ripples, setRipples] = useState<Ripple[]>([]);
@@ -57,9 +52,6 @@ export default function Screen() {
     const [crosshairs, setCrosshairs] = useState<Map<string, { x: number; y: number }>>(new Map());
     const [targetedOrbId, setTargetedOrbId] = useState<string | null>(null);
 
-    // Per-player crosshair colors — imported from shared types
-    // Store color index from server when controller joins
-    const crosshairColorMap = useRef<Map<string, number>>(new Map());
     const [isTransitioning, setIsTransitioning] = useState(false);
     const [controllerCount, setControllerCount] = useState(0);
     const [sessionEnding, setSessionEnding] = useState(false);
@@ -74,7 +66,6 @@ export default function Screen() {
     const [phaseTimeLeft, setPhaseTimeLeft] = useState(0);
     const [questionNumber, setQuestionNumber] = useState(0);
     const [playerSelections, setPlayerSelections] = useState<PlayerSelectionPayload[]>([]);
-    const [revealResult, setRevealResult] = useState<RevealResultPayload | null>(null);
     const [isMultiplayer, setIsMultiplayer] = useState(false);
 
     // Tutorial state removed
@@ -86,7 +77,51 @@ export default function Screen() {
     const hadControllersRef = useRef(false);
     const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const gameOverIdleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const loadingCountdownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const pendingTimeoutsRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
+    const isMultiplayerRef = useRef(false);
     const videoRef = useRef<HTMLVideoElement>(null);
+    const hasPlayedShuffleRef = useRef(false);
+    const audioContextRef = useRef<AudioContext | null>(null);
+
+    const unlockAudio = useCallback(async () => {
+        if (!audioContextRef.current) {
+            const AudioContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
+            audioContextRef.current = new AudioContextClass();
+        }
+        const ctx = audioContextRef.current;
+        if (!ctx) return; // Guard against null context
+        if (ctx.state === 'suspended') {
+            await ctx.resume();
+        }
+        // Play a silent buffer to fully unlock
+        const buffer = ctx.createBuffer(1, 1, 22050);
+        const source = ctx.createBufferSource();
+        source.buffer = buffer;
+        source.connect(ctx.destination);
+        source.start(0);
+        console.log('[Screen] AudioContext unlocked');
+    }, []);
+
+    const scheduleTimeout = useCallback((cb: () => void, delayMs: number): ReturnType<typeof setTimeout> => {
+        const timeoutId = setTimeout(() => {
+            pendingTimeoutsRef.current.delete(timeoutId);
+            cb();
+        }, delayMs);
+        pendingTimeoutsRef.current.add(timeoutId);
+        return timeoutId;
+    }, []);
+
+    const clearTrackedTimeout = useCallback((timeoutId: ReturnType<typeof setTimeout> | null) => {
+        if (!timeoutId) return;
+        clearTimeout(timeoutId);
+        pendingTimeoutsRef.current.delete(timeoutId);
+    }, []);
+
+    const clearAllScheduledTimeouts = useCallback(() => {
+        pendingTimeoutsRef.current.forEach((timeoutId) => clearTimeout(timeoutId));
+        pendingTimeoutsRef.current.clear();
+    }, []);
 
     // ---- Visual effect helpers (identical to original) ----
 
@@ -104,20 +139,27 @@ export default function Screen() {
             });
         }
         setParticles((prev) => [...prev, ...newParticles]);
-        setTimeout(() => { setParticles((prev) => prev.filter((p) => !newParticles.some((np) => np.id === p.id))); }, 1000);
-    }, []);
+        const particleIds = new Set(newParticles.map((p) => p.id));
+        scheduleTimeout(() => {
+            setParticles((prev) => prev.filter((p) => !particleIds.has(p.id)));
+        }, 1000);
+    }, [scheduleTimeout]);
 
     const createScorePopup = useCallback((x: number, y: number, text: string, type: string) => {
         const popupId = `popup-${Date.now()}`;
         setScorePopups((prev) => [...prev, { id: popupId, x, y, text, type }]);
-        setTimeout(() => { setScorePopups((prev) => prev.filter((p) => p.id !== popupId)); }, 1500);
-    }, []);
+        scheduleTimeout(() => {
+            setScorePopups((prev) => prev.filter((p) => p.id !== popupId));
+        }, 1500);
+    }, [scheduleTimeout]);
 
     const createRipple = useCallback((x: number, y: number, color: string) => {
         const rippleId = `ripple-${Date.now()}`;
         setRipples((prev) => [...prev, { id: rippleId, x, y, color, size: 60 }]);
-        setTimeout(() => { setRipples((prev) => prev.filter((r) => r.id !== rippleId)); }, 1000);
-    }, []);
+        scheduleTimeout(() => {
+            setRipples((prev) => prev.filter((r) => r.id !== rippleId));
+        }, 1000);
+    }, [scheduleTimeout]);
 
     const createConfetti = useCallback((x: number, y: number) => {
         const newConfetti: Confetti[] = [];
@@ -135,8 +177,11 @@ export default function Screen() {
             });
         }
         setConfetti((prev) => [...prev, ...newConfetti]);
-        setTimeout(() => { setConfetti((prev) => prev.filter((c) => !newConfetti.some((nc) => nc.id === c.id))); }, 1800);
-    }, []);
+        const confettiIds = new Set(newConfetti.map((c) => c.id));
+        scheduleTimeout(() => {
+            setConfetti((prev) => prev.filter((c) => !confettiIds.has(c.id)));
+        }, 1800);
+    }, [scheduleTimeout]);
 
     // ---- Handle hit result from server (triggers all visual effects) ----
     const handleHitResultRef = useRef<((data: HitResultPayload) => void) | null>(null);
@@ -150,11 +195,6 @@ export default function Screen() {
             ? (ORB_POSITIONS.find((o) => o.id === orbId)?.y ?? 50) / 100 * window.innerHeight
             : window.innerHeight / 2;
 
-        // Hit effect on orb
-        const hitId = `hit-${Date.now()}`;
-        setHitEffects((prev) => [...prev, { id: hitId, x: targetX, y: targetY, correct }]);
-        setTimeout(() => { setHitEffects((prev) => prev.filter((e) => e.id !== hitId)); }, 500);
-
         // Orb animations via DOM
         const orbElements = document.querySelectorAll('.orb');
         const orbClass = correct ? 'correct-answer' : 'wrong-answer';
@@ -164,7 +204,7 @@ export default function Screen() {
                 orb.classList.add('hit-orb');
             }
         });
-        setTimeout(() => {
+        scheduleTimeout(() => {
             orbElements.forEach((orb) => { orb.classList.remove('correct-answer', 'wrong-answer', 'hit-orb'); });
         }, 1200);
 
@@ -175,14 +215,14 @@ export default function Screen() {
             createConfetti(targetX, targetY);
 
             // Transition animation before next question
-            setTimeout(() => setIsTransitioning(true), 800);
-            setTimeout(() => setIsTransitioning(false), 1500);
+            scheduleTimeout(() => setIsTransitioning(true), 800);
+            scheduleTimeout(() => setIsTransitioning(false), 1500);
         } else {
             createParticles(targetX, targetY, 15, '#ef4444');
             createScorePopup(targetX, targetY, '✗', 'wrong');
             createRipple(targetX, targetY, '#ef4444');
         }
-    }, [createParticles, createScorePopup, createRipple, createConfetti]);
+    }, [createParticles, createScorePopup, createRipple, createConfetti, scheduleTimeout]);
 
     // ---- Connect and wire events ----
     useEffect(() => {
@@ -195,7 +235,6 @@ export default function Screen() {
             client.onRoomCreated((data) => {
                 setRoomId(data.roomId);
                 setJoinToken(data.joinToken);
-                if (data.leaderboard) setLeaderboard(data.leaderboard);
                 setPhaseSync('qr-lobby');
             });
 
@@ -209,20 +248,30 @@ export default function Screen() {
                 }
             });
 
-            client.onControllerJoined((data) => {
+            client.onControllerJoined((_data) => {
                 setControllerCount((prev) => prev + 1);
-                // Store the color index from server for this controller
-                crosshairColorMap.current.set(data.controllerId, data.colorIndex ?? 0);
             });
 
             client.onControllerLeft((data) => {
                 setControllerCount((prev) => Math.max(0, prev - 1));
                 console.log('Controller left:', data.controllerId);
+                if (data.controllerId) {
+                    setCrosshairs((prev) => {
+                        if (!prev.has(data.controllerId!)) return prev;
+                        const next = new Map(prev);
+                        next.delete(data.controllerId!);
+                        return next;
+                    });
+                }
             });
 
             client.onLoadingStart((data) => {
                 console.log('[Screen] Loading started, players:', data.playerCount);
                 setPhaseSync('loading');
+                if (loadingCountdownIntervalRef.current) {
+                    clearInterval(loadingCountdownIntervalRef.current);
+                    loadingCountdownIntervalRef.current = null;
+                }
                 setCountdownActive(false);
             });
 
@@ -231,13 +280,20 @@ export default function Screen() {
                 setCountdownActive(true);
                 setCountdownValue(data.duration);
 
+                if (loadingCountdownIntervalRef.current) {
+                    clearInterval(loadingCountdownIntervalRef.current);
+                    loadingCountdownIntervalRef.current = null;
+                }
                 let count = data.duration;
-                const beepInterval = setInterval(() => {
+                loadingCountdownIntervalRef.current = setInterval(() => {
                     count--;
                     if (count > 0) {
                         setCountdownValue(count);
                     } else {
-                        clearInterval(beepInterval);
+                        if (loadingCountdownIntervalRef.current) {
+                            clearInterval(loadingCountdownIntervalRef.current);
+                            loadingCountdownIntervalRef.current = null;
+                        }
                         setCountdownValue(0);
                     }
                 }, 1000);
@@ -252,7 +308,12 @@ export default function Screen() {
                 // Always transition to playing when game starts
                 setPhaseSync('playing');
                 setShowReadyOverlay(true);
-                setTimeout(() => setShowReadyOverlay(false), 2000);
+                if (loadingCountdownIntervalRef.current) {
+                    clearInterval(loadingCountdownIntervalRef.current);
+                    loadingCountdownIntervalRef.current = null;
+                }
+                setCountdownActive(false);
+                scheduleTimeout(() => setShowReadyOverlay(false), 2000);
             });
 
             // Phase-based multiplayer events
@@ -262,28 +323,43 @@ export default function Screen() {
                 setPhaseTimeLeft(data.timeLeft);
                 setQuestionNumber(data.questionNumber);
                 setIsMultiplayer(true);
+                isMultiplayerRef.current = true;
                 // Transition from loading to playing when first phase starts
-                if (phase === 'loading' && (data.phase === 'analysis' || data.phase === 'selection')) {
+                if (phaseRef.current === 'loading' && (data.phase === 'analysis' || data.phase === 'selection')) {
                     console.log('[Screen] Transitioning from loading to playing');
                     setPhaseSync('playing');
                     // Show "GET READY" overlay for 2 seconds before showing question
                     setShowReadyOverlay(true);
-                    setTimeout(() => setShowReadyOverlay(false), 2000);
+                    if (loadingCountdownIntervalRef.current) {
+                        clearInterval(loadingCountdownIntervalRef.current);
+                        loadingCountdownIntervalRef.current = null;
+                    }
+                    setCountdownActive(false);
+                    scheduleTimeout(() => setShowReadyOverlay(false), 2000);
                 }
                 // Clear selections when entering analysis phase (new question)
                 if (data.phase === 'analysis' && data.timeLeft === 1) {
                     setPlayerSelections([]);
-                    setRevealResult(null);
                 }
             });
 
             client.onPlayerSelection((data) => {
-                setPlayerSelections(prev => [...prev, data]);
+                setPlayerSelections((prev) => {
+                    const existingIndex = prev.findIndex((selection) => selection.controllerId === data.controllerId);
+                    if (existingIndex === -1) {
+                        return [...prev, data];
+                    }
+                    const existing = prev[existingIndex];
+                    if (existing.orbId === data.orbId && existing.colorIndex === data.colorIndex) {
+                        return prev;
+                    }
+                    const next = [...prev];
+                    next[existingIndex] = data;
+                    return next;
+                });
             });
 
             client.onRevealResult((data) => {
-                setRevealResult(data);
-
                 // Trigger the classic correct/wrong orb animations
                 const correctOrb = ORB_POSITIONS.find((o) => o.id === data.correctOrbId);
                 const correctX = correctOrb ? (correctOrb.x / 100) * window.innerWidth : window.innerWidth / 2;
@@ -299,7 +375,7 @@ export default function Screen() {
                         orb.classList.add('wrong-answer');
                     }
                 });
-                setTimeout(() => {
+                scheduleTimeout(() => {
                     orbElements.forEach((orb) => {
                         orb.classList.remove('correct-answer', 'wrong-answer', 'hit-orb');
                     });
@@ -312,8 +388,8 @@ export default function Screen() {
                     createConfetti(correctX, correctY);
 
                     // Transition animation before next question
-                    setTimeout(() => setIsTransitioning(true), 1800);
-                    setTimeout(() => setIsTransitioning(false), 2500);
+                    scheduleTimeout(() => setIsTransitioning(true), 1800);
+                    scheduleTimeout(() => setIsTransitioning(false), 2500);
                 } else {
                     createParticles(correctX, correctY, 15, '#ef4444');
                     createScorePopup(correctX, correctY, '✗', 'wrong');
@@ -324,7 +400,7 @@ export default function Screen() {
             client.onQuestion((data) => {
                 setQuestion(data);
                 // Increment question counter for singleplayer
-                if (!isMultiplayer) {
+                if (!isMultiplayerRef.current) {
                     setQuestionNumber(prev => prev + 1);
                 }
             });
@@ -341,16 +417,12 @@ export default function Screen() {
                 handleHitResultRef.current?.(data);
             });
 
-            client.onProjectile((data) => {
-                const id = `shot-${Date.now()}`;
-                const targetX = (data.targetXPercent / 100) * window.innerWidth;
-                const targetY = (data.targetYPercent / 100) * window.innerHeight;
-                setProjectiles((prev) => [...prev, { id, x: window.innerWidth / 2, y: window.innerHeight, targetX, targetY }]);
-                setTimeout(() => { setProjectiles((prev) => prev.filter((p) => p.id !== id)); }, 300);
-            });
-
             client.onCrosshair((data) => {
                 setCrosshairs(prev => {
+                    const current = prev.get(data.controllerId);
+                    if (current && current.x === data.x && current.y === data.y) {
+                        return prev;
+                    }
                     const next = new Map(prev);
                     next.set(data.controllerId, { x: data.x, y: data.y });
                     return next;
@@ -377,17 +449,23 @@ export default function Screen() {
 
             client.onTargeting((data) => {
                 setTargetedOrbId(data.orbId);
-                if (targetTimeoutRef.current) clearTimeout(targetTimeoutRef.current);
-                targetTimeoutRef.current = setTimeout(() => setTargetedOrbId(null), 500);
+                if (targetTimeoutRef.current) {
+                    clearTrackedTimeout(targetTimeoutRef.current);
+                }
+                targetTimeoutRef.current = scheduleTimeout(() => {
+                    setTargetedOrbId(null);
+                    targetTimeoutRef.current = null;
+                }, 500);
             });
 
             client.onGameOver((data) => {
                 setGameOverData(data);
-                if (data.leaderboard) setLeaderboard(data.leaderboard);
                 setPhaseSync('game-over');
                 // Start 60-second idle timer: if nobody interacts, reload after 1 min
-                if (gameOverIdleTimerRef.current) clearTimeout(gameOverIdleTimerRef.current);
-                gameOverIdleTimerRef.current = setTimeout(() => {
+                if (gameOverIdleTimerRef.current) {
+                    clearTrackedTimeout(gameOverIdleTimerRef.current);
+                }
+                gameOverIdleTimerRef.current = scheduleTimeout(() => {
                     console.log('[Screen] Game-over idle timeout (1 min), refreshing...');
                     window.location.reload();
                 }, 60 * 1000);
@@ -400,20 +478,80 @@ export default function Screen() {
                 setTimeLeft(20);
                 setGameOverData(null);
                 setPlayerSelections([]);
-                setRevealResult(null);
                 setCurrentPhase(null);
                 setIsMultiplayer(false);
+                isMultiplayerRef.current = false;
+                hasPlayedShuffleRef.current = false;
                 // Cancel any pending game-over idle timer
-                if (gameOverIdleTimerRef.current) { clearTimeout(gameOverIdleTimerRef.current); gameOverIdleTimerRef.current = null; }
+                if (gameOverIdleTimerRef.current) {
+                    clearTrackedTimeout(gameOverIdleTimerRef.current);
+                    gameOverIdleTimerRef.current = null;
+                }
+                if (loadingCountdownIntervalRef.current) {
+                    clearInterval(loadingCountdownIntervalRef.current);
+                    loadingCountdownIntervalRef.current = null;
+                }
+                setCountdownActive(false);
             });
         }).catch((err) => {
             console.error('Connection failed:', err);
             setConnectionError(err?.message || 'Failed to connect to server');
         });
 
-        return () => { client.close(); };
+        return () => {
+            if (loadingCountdownIntervalRef.current) {
+                clearInterval(loadingCountdownIntervalRef.current);
+                loadingCountdownIntervalRef.current = null;
+            }
+            if (targetTimeoutRef.current) {
+                clearTrackedTimeout(targetTimeoutRef.current);
+                targetTimeoutRef.current = null;
+            }
+            if (idleTimerRef.current) {
+                clearTimeout(idleTimerRef.current);
+                idleTimerRef.current = null;
+            }
+            if (gameOverIdleTimerRef.current) {
+                clearTrackedTimeout(gameOverIdleTimerRef.current);
+                gameOverIdleTimerRef.current = null;
+            }
+            clearAllScheduledTimeouts();
+            client.close();
+        };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
+
+    // ---- Audio unlock on user gesture ----
+    useEffect(() => {
+        const handleUserGesture = () => {
+            unlockAudio().catch(() => {
+                // Silently fail if not possible
+            });
+            // Remove listeners after first gesture
+            document.removeEventListener('click', handleUserGesture);
+            document.removeEventListener('touchstart', handleUserGesture);
+            document.removeEventListener('keydown', handleUserGesture);
+        };
+
+        // Add listeners for user gestures
+        document.addEventListener('click', handleUserGesture);
+        document.addEventListener('touchstart', handleUserGesture);
+        document.addEventListener('keydown', handleUserGesture);
+
+        return () => {
+            document.removeEventListener('click', handleUserGesture);
+            document.removeEventListener('touchstart', handleUserGesture);
+            document.removeEventListener('keydown', handleUserGesture);
+        };
+    }, [unlockAudio]);
+
+    // ---- Audio unlock on mount (fallback) ----
+    useEffect(() => {
+        // Try to unlock audio on component mount (may fail due to autoplay policies)
+        unlockAudio().catch(() => {
+            // Silently fail if not possible - will be unlocked on user gesture
+        });
+    }, [unlockAudio]);
 
     // ---- Session Timeout: empty room detection ----
     useEffect(() => {
@@ -424,9 +562,9 @@ export default function Screen() {
         if (hadControllersRef.current && controllerCount === 0 && !sessionEnding
             && phase !== 'connecting' && phase !== 'qr-lobby') {
             setSessionEnding(true);
-            setTimeout(() => { window.location.reload(); }, 3000);
+            scheduleTimeout(() => { window.location.reload(); }, 3000);
         }
-    }, [controllerCount, sessionEnding, phase]);
+    }, [controllerCount, sessionEnding, phase, scheduleTimeout]);
 
     // ---- Session Timeout: 2-minute lobby idle ----
     useEffect(() => {
@@ -444,7 +582,10 @@ export default function Screen() {
     }, [phase, lobby]);
 
     // ---- Video Optimization: Ensure smooth playback ----
+    const isLobbyPhase = phase === 'qr-lobby' || phase === 'team-lobby';
+
     useEffect(() => {
+        if (!isLobbyPhase) return;
         const video = videoRef.current;
         if (!video) return;
 
@@ -468,14 +609,33 @@ export default function Screen() {
         video.addEventListener('ended', playVideo);
         video.addEventListener('pause', playVideo);
 
-        // Preload video data for smooth playback
-        video.load();
-
         return () => {
             video.removeEventListener('ended', playVideo);
             video.removeEventListener('pause', playVideo);
         };
-    }, [phase]);
+    }, [isLobbyPhase]);
+
+    // ---- Shuffle sound for lobby cards ----
+    useEffect(() => {
+        if (phase === 'team-lobby' && !hasPlayedShuffleRef.current) {
+            hasPlayedShuffleRef.current = true;
+            // Unlock audio context first
+            unlockAudio().then(() => {
+                // Play shuffle sound for each card spawn (4 cards with 0.1s delays)
+                for (let i = 0; i < 4; i++) {
+                    scheduleTimeout(() => {
+                        const audio = new Audio(shuffleSoundUrl);
+                        audio.volume = 0.3; // Reduced volume for subtle effect
+                        audio.play().catch((e) => {
+                            console.warn('[Screen] Shuffle sound failed to play:', e);
+                        });
+                    }, i * 100); // 0ms, 100ms, 200ms, 300ms delays
+                }
+            }).catch((e) => {
+                console.warn('[Screen] Audio unlock failed:', e);
+            });
+        }
+    }, [phase, scheduleTimeout, unlockAudio]);
 
     const controllerUrl = roomId && joinToken
         ? `${window.location.origin}/controller/${roomId}/${joinToken}`
@@ -578,102 +738,6 @@ export default function Screen() {
                 scores={gameOverData.playerScores ?? []}
             />
         );
-
-        const isCompleted = gameOverData.reason === 'completed';
-        const hasPlayerScores = gameOverData.playerScores && gameOverData.playerScores.length > 0;
-        return (
-            <div className="screen-container">
-                <div
-                    className="game-over-screen"
-                    style={{
-                        display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-                        height: '100vh',
-                        animation: 'bounceIn 0.8s cubic-bezier(0.34, 1.56, 0.64, 1)',
-                        position: 'relative', scale: '0.8',
-                        gap: '3rem', padding: '2rem',
-                    }}
-                >
-                    {/* LEFT SIDE — Player Scoreboard */}
-                    {hasPlayerScores && (
-                        <div style={{
-                            display: 'flex', flexDirection: 'column', gap: '1rem',
-                            minWidth: '280px', maxWidth: '320px', alignSelf: 'center',
-                        }}>
-                            <div style={{
-                                background: 'var(--glass-bg)', padding: '1.5rem', borderRadius: 'var(--radius-lg)',
-                                border: '1px solid var(--glass-border)', backdropFilter: 'blur(20px)',
-                                boxShadow: 'var(--glass-glow)',
-                            }}>
-                                <h3 style={{ color: '#90e0ef', fontWeight: 800, marginBottom: '1rem', fontSize: '1.1rem', letterSpacing: '2px', textTransform: 'uppercase', textAlign: 'center' }}>Player Scoreboard</h3>
-                                {gameOverData.playerScores!.map((ps, idx) => (
-                                    <div key={ps.controllerId} style={{
-                                        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                                        padding: '0.7rem 1rem', marginBottom: '0.35rem', borderRadius: '10px',
-                                        background: idx === 0 ? 'rgba(103, 80, 164, 0.2)' : 'rgba(255,255,255,0.03)',
-                                        border: idx === 0 ? '1px solid rgba(103, 80, 164, 0.4)' : '1px solid transparent',
-                                    }}>
-                                        <span style={{ fontWeight: 700, fontSize: '1rem', color: '#fff', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                            <span style={{
-                                                width: '10px', height: '10px', borderRadius: '50%',
-                                                background: CROSSHAIR_COLORS[ps.colorIndex] || CROSSHAIR_COLORS[0],
-                                                boxShadow: `0 0 6px ${CROSSHAIR_COLORS[ps.colorIndex] || CROSSHAIR_COLORS[0]}`,
-                                            }} />
-                                            {idx === 0 ? '🏆' : `#${idx + 1}`} {ps.name}
-                                        </span>
-                                        <span style={{ color: 'var(--accent-secondary)', fontWeight: 800, fontSize: '1rem' }}>
-                                            {ps.score} pts
-                                        </span>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* CENTER — Main Content */}
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
-                        <h1 style={{
-                            fontSize: isCompleted ? '3.5rem' : '5rem',
-                            fontWeight: '900',
-                            color: isCompleted ? '#10b981' : '#ff4444',
-                            textShadow: isCompleted ? '0 0 40px rgba(16, 185, 129, 0.5)' : '0 0 40px rgba(255, 0, 0, 0.5)',
-                            marginBottom: '0.5rem',
-                            lineHeight: 1.2,
-                        }}>
-                            {isCompleted ? 'ALL QUESTIONS COMPLETED!' : "TIME'S UP!"}
-                        </h1>
-
-                        {isCompleted && (
-                            <p style={{ fontSize: '1.2rem', color: '#90e0ef', marginBottom: '1rem' }}>
-                                Great job! You answered all 10 questions.
-                            </p>
-                        )}
-
-                        <div style={{ background: 'rgba(255, 255, 255, 0.05)', padding: '2.5rem', borderRadius: '30px', border: '1px solid rgba(255, 255, 255, 0.1)', backdropFilter: 'blur(20px)', minWidth: '350px', marginBottom: '1.5rem' }}>
-                            <h2 style={{ fontSize: '1.5rem', marginBottom: '0.5rem', color: 'rgba(255, 255, 255, 0.8)', fontWeight: '600' }}>Final Score</h2>
-                            <p style={{ fontSize: '4.5rem', fontWeight: '900', color: '#90e0ef', margin: 0 }}>{gameOverData.playerScores?.[0]?.score ?? 0}</p>
-                            <p style={{ fontSize: '1rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
-                                Questions answered: {gameOverData.questionsAnswered}/10
-                            </p>
-                        </div>
-
-                        {/* Historical Leaderboard - Hidden per user request */}
-
-                        {/* Controller Actions Indicator */}
-                        <div style={{
-                            background: 'var(--glass-bg)',
-                            padding: '1rem 2rem',
-                            borderRadius: 'var(--radius-md)',
-                            border: '1px solid var(--glass-border)',
-                            marginTop: '1rem'
-                        }}>
-                            <p style={{ color: 'var(--text-secondary)', fontSize: '1rem', fontWeight: 600 }}>
-                                📱 Use your controller to <span style={{ color: 'var(--accent-primary)' }}>Play Again</span> or <span style={{ color: 'var(--accent-secondary)' }}>Close</span>
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        );
     }
 
     // ---- LOBBY PHASES (qr-lobby and team-lobby combined for seamless video transition) ----
@@ -708,7 +772,7 @@ export default function Screen() {
                         <div className="lobby-content" style={{ justifyContent: 'flex-start', paddingRight: '0', paddingLeft: '12%' }}>
                             <div className="lobby-players-grid" style={{ flex: 'none', width: 'auto', gap: '1rem', justifySelf: 'center' }}>
                                 {[0, 1, 2, 3].map(slotIndex => {
-                                    const player = lobby?.players[slotIndex];
+                                    const player = lobby?.players.find(p => p.colorIndex === slotIndex);
                                     const name = preConfigNames[slotIndex];
                                     const avatar = preConfigAvatars[slotIndex];
                                     const isJoined = !!player;
