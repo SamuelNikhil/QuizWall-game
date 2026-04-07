@@ -101,6 +101,8 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
             if (!roomId || !clientId) return;
 
             roomManager.setPlayerReady(roomId, clientId);
+            const room = roomManager.getRoom(roomId);
+            if (room) room.lastActivity = Date.now();
             broadcastLobbyUpdate(roomManager, roomId);
         });
 
@@ -113,6 +115,8 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
 
             const success = roomManager.setPlayerName(roomId, clientId, trimmedName);
             if (success) {
+                const room = roomManager.getRoom(roomId);
+                if (room) room.lastActivity = Date.now();
                 broadcastLobbyUpdate(roomManager, roomId);
             }
         });
@@ -341,6 +345,7 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
 
             // Determine which orb was hit based on coordinates
             const hitOrb = detectOrbHit(data.targetXPercent, data.targetYPercent);
+            room.lastActivity = Date.now();
             console.log(`[Game] SHOOT from ${clientId?.substring(0, 8)}... hitOrb: ${hitOrb}, coords: (${data.targetXPercent.toFixed(1)}, ${data.targetYPercent.toFixed(1)})`);
 
             if (room.quizEngine.isMultiplayer()) {
@@ -500,6 +505,9 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
                 const currentPhase = room.quizEngine.getCurrentPhase();
                 if (currentPhase !== 'selection') return;
             }
+
+            // Update activity on crosshair move (throttled by the check below naturally)
+            room.lastActivity = Date.now();
 
             // Throttle relay to ~30fps per controller to reduce bandwidth
             const now = Date.now();

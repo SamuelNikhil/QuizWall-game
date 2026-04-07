@@ -12,6 +12,7 @@ export const EVENTS = {
     CONTROLLER_JOINED: 'controllerJoined',
     CONTROLLER_LEFT: 'controllerLeft',
     ROLE_PROMOTED: 'rolePromoted',
+    ROOM_EXPIRED: 'roomExpired',
 
     // --- Lobby ---
     LOBBY_UPDATE: 'lobbyUpdate',
