@@ -15,7 +15,6 @@ import type {
     HitResultPayload,
     LobbyState,
     GameOverPayload,
-    QuestionPhase,
     PlayerSelectionPayload,
     PlayerScoreEntry,
 } from '../shared/types';
@@ -62,11 +61,10 @@ export default function Screen() {
     const [showReadyOverlay, setShowReadyOverlay] = useState(false);
 
     // Phase-based multiplayer state
-    const [currentPhase, setCurrentPhase] = useState<QuestionPhase | null>(null);
     const [phaseTimeLeft, setPhaseTimeLeft] = useState(0);
     const [questionNumber, setQuestionNumber] = useState(0);
     const [playerSelections, setPlayerSelections] = useState<PlayerSelectionPayload[]>([]);
-    const [isMultiplayer, setIsMultiplayer] = useState(false);
+
 
     // Tutorial state removed
 
@@ -318,11 +316,8 @@ export default function Screen() {
 
             // Phase-based multiplayer events
             client.onPhaseChange((data) => {
-                console.log('[Screen] Phase change:', data.phase, 'time:', data.timeLeft, 'current phase:', phaseRef.current);
-                setCurrentPhase(data.phase);
                 setPhaseTimeLeft(data.timeLeft);
                 setQuestionNumber(data.questionNumber);
-                setIsMultiplayer(true);
                 isMultiplayerRef.current = true;
                 // Transition from loading to playing when first phase starts
                 if (phaseRef.current === 'loading' && (data.phase === 'analysis' || data.phase === 'selection')) {
@@ -461,14 +456,22 @@ export default function Screen() {
             client.onGameOver((data) => {
                 setGameOverData(data);
                 setPhaseSync('game-over');
-                // Start 60-second idle timer: if nobody interacts, reload after 1 min
+                // Local 2-min safety net: if server room:expired doesn't arrive (e.g. connection drop),
+                // still reload after 2 min to prevent the Winner Screen from hanging forever.
                 if (gameOverIdleTimerRef.current) {
                     clearTrackedTimeout(gameOverIdleTimerRef.current);
                 }
                 gameOverIdleTimerRef.current = scheduleTimeout(() => {
-                    console.log('[Screen] Game-over idle timeout (1 min), refreshing...');
+                    console.log('[Screen] Game-over idle timeout (2 min), refreshing...');
                     window.location.reload();
-                }, 60 * 1000);
+                }, 2 * 60 * 1000);
+            });
+
+            // Server-authoritative session expiry — reaper killed the room.
+            // Only fires for Game Lobby and Winner Screen idle (not Landing Page).
+            client.onRoomExpired(() => {
+                console.log('[Screen] room:expired received from server, reloading for new session...');
+                window.location.reload();
             });
 
             client.onGameRestarted(() => {
@@ -478,8 +481,6 @@ export default function Screen() {
                 setTimeLeft(20);
                 setGameOverData(null);
                 setPlayerSelections([]);
-                setCurrentPhase(null);
-                setIsMultiplayer(false);
                 isMultiplayerRef.current = false;
                 hasPlayedShuffleRef.current = false;
                 // Cancel any pending game-over idle timer
@@ -566,20 +567,10 @@ export default function Screen() {
         }
     }, [controllerCount, sessionEnding, phase, scheduleTimeout]);
 
-    // ---- Session Timeout: 2-minute lobby idle ----
-    useEffect(() => {
-        // Only active in lobby phases
-        if (phase !== 'qr-lobby' && phase !== 'team-lobby') {
-            if (idleTimerRef.current) { clearTimeout(idleTimerRef.current); idleTimerRef.current = null; }
-            return;
-        }
-        if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
-        idleTimerRef.current = setTimeout(() => {
-            console.log('[Screen] Lobby idle timeout (2 min), refreshing...');
-            window.location.reload();
-        }, 2 * 60 * 1000);
-        return () => { if (idleTimerRef.current) { clearTimeout(idleTimerRef.current); idleTimerRef.current = null; } };
-    }, [phase, lobby]);
+    // ---- Session Timeout: handled server-side by the idle reaper ----
+    // The server emits 'room:expired' after 2 min idle in Game Lobby or Winner Screen.
+    // The Landing Page (qr-lobby with 0 players) is intentionally exempt from reaping.
+    // No client-side lobby timer is needed — the server is the single source of truth.
 
     // ---- Video Optimization: Ensure smooth playback ----
     const isLobbyPhase = phase === 'qr-lobby' || phase === 'team-lobby';

@@ -4,6 +4,7 @@
 
 import { randomBytes } from 'crypto';
 import { QuizEngine } from './QuizEngine.ts';
+import { EVENTS } from '../shared/protocol.ts';
 import { PlayerManager } from './PlayerManager.ts';
 import { CONFIG } from '../infrastructure/config.ts';
 import type { PlayerRole, PlayerInfo, PlayerScoreEntry, LobbyState } from '../shared/types.ts';
@@ -491,19 +492,42 @@ export class RoomManager {
         console.log(`[Room] Cleared disconnected scores in ${roomId}`);
     }
 
-    /** Reap idle rooms that have no controllers and haven't been active */
+    /** Reap idle rooms — Landing Page (0 players, game not started) is exempt.
+     *  Only reaps rooms that have progressed to Lobby or Game Over and gone idle. */
     private reapIdleRooms(): void {
         const now = Date.now();
+        const STALE_ROOM_TTL_MS = 2 * 60 * 60 * 1000; // 2 hours — safety net for orphaned screen rooms
+
         for (const [roomId, room] of this.rooms) {
             const idleTime = now - room.lastActivity;
-            if (room.controllers.length === 0 && !room.gameStarted && idleTime > RoomManager.IDLE_TIMEOUT_MS) {
-                console.log(`[RoomManager] Reaping idle room ${roomId} (idle for ${Math.round(idleTime / 1000)}s)`);
+
+            // Landing Page state: screen is waiting for the first player.
+            // Do NOT reap — the QR code must stay stable indefinitely.
+            // Exception: if the room has been completely idle for 2 hours it's orphaned (screen left).
+            if (room.controllers.length === 0 && !room.gameStarted) {
+                if (idleTime > STALE_ROOM_TTL_MS) {
+                    console.log(`[RoomManager] Reaping orphaned landing-page room ${roomId} (idle for ${Math.round(idleTime / 60000)}min)`);
+                    room.quizEngine.destroy();
+                    this.rooms.delete(roomId);
+                    try { room.screenChannel.emit('room:expired', { reason: 'idle_timeout' }); } catch { /* closed */ }
+                }
+                continue; // Skip the 2-min check for Landing Page
+            }
+
+            // Lobby (team-lobby) or Winner Screen (game-over): reap after 2 minutes idle.
+            // Gameplay is excluded — the QuizEngine timer drives it to game-over naturally.
+            if (!room.gameStarted && idleTime > RoomManager.IDLE_TIMEOUT_MS) {
+                console.log(`[RoomManager] Reaping idle lobby/game-over room ${roomId} (idle for ${Math.round(idleTime / 1000)}s)`);
                 room.quizEngine.destroy();
                 this.rooms.delete(roomId);
-
-                // Notify screen that room was cleaned up
                 try {
-                    room.screenChannel.emit('room:expired', { reason: 'idle_timeout' });
+                    room.screenChannel.emit(EVENTS.ROOM_EXPIRED, { reason: 'idle_timeout' });
+                    // Also notify all connected controllers so they can return to landing page
+                    for (const controller of room.controllers) {
+                        try {
+                            controller.channel.emit(EVENTS.ROOM_EXPIRED, { reason: 'idle_timeout' });
+                        } catch { /* channel closed */ }
+                    }
                 } catch { /* channel may already be closed */ }
             }
         }

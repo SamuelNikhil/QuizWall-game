@@ -358,4 +358,8 @@ export class GameClient {
     onRevealResult(cb: (data: RevealResultPayload) => void): void {
         this.channel?.on(EVENTS.REVEAL_RESULT, cb);
     }
+
+    onRoomExpired(cb: (data: { reason: string }) => void): void {
+        this.channel?.on(EVENTS.ROOM_EXPIRED, cb);
+    }
 }

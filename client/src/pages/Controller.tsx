@@ -14,13 +14,13 @@ import '../animations.css';
 import './controller-ui.css';
 import { soundManager } from '../utils/sound';
 import WinnerScene from '../components/WinnerScene';
+import slingCenterImg from '../assets/sling-center.svg';
 
 
 type ControllerPhase = 'connecting' | 'lobby' | 'loading' | 'playing' | 'game-over';
 
 const TOTAL_QUESTIONS = 10;
 const CONTROLLER_AVATARS = ['wulf', 'talon', 'ryker', 'roux'] as const;
-const CONTROLLER_NAMES = ['Wulf', 'Talon', 'Ryker', 'Roux'] as const;
 const SUCCESS_PARTICLES = [
     { left: '6%', bottom: '8%', size: '1.5rem', rotate: '-18deg', delay: '0s', variant: 'bar' },
     { left: '14%', bottom: '24%', size: '0.85rem', rotate: '18deg', delay: '0.12s', variant: 'spark' },
@@ -360,8 +360,17 @@ export default function Controller() {
                 setCountdownActive(false);
             });
 
-            // Tutorial status updates from server
-// Tutorial status updates - removed
+            // Server-authoritative session expiry — reaper killed the room due to inactivity.
+            client.onRoomExpired(() => {
+                console.log('[Controller] room:expired received, session timed out');
+                setError('Session expired due to inactivity');
+                scheduleTimeout(() => {
+                    window.location.href = '/';
+                }, 2000);
+            });
+
+            // Tutorial status updates - removed
+            // Tutorial status updates - removed
         }).catch((err) => {
             console.error('Connection failed:', err);
             setError('Connection failed');
@@ -837,7 +846,6 @@ export default function Controller() {
     // ---- Playing (Slingshot) ----
 
     const characterAvatar = CONTROLLER_AVATARS[activeColorIndex] || 'wulf';
-    const _characterName = CONTROLLER_NAMES[activeColorIndex] || `Player ${activeColorIndex + 1}`;
     const controllerAccent = CROSSHAIR_COLORS[activeColorIndex] || CROSSHAIR_COLORS[0];
     const currentScore = playerScores.find((p) => p.controllerId === clientIdRef.current)?.score ?? 0;
     const latestPopup = scorePopups[scorePopups.length - 1] ?? null;
@@ -1007,7 +1015,7 @@ export default function Controller() {
                 <div
                     style={{
                         position: 'absolute', inset: 0, zIndex: 2000, pointerEvents: 'none',
-                        background: lastHit.correct
+                        background: lastHit?.correct
                             ? 'radial-gradient(circle at center, rgba(16,185,129,0.4), transparent 80%)'
                             : 'radial-gradient(circle at center, rgba(239,68,68,0.4), transparent 80%)',
                         animation: 'bounceIn 0.5s ease-out',
