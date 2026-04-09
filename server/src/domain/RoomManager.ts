@@ -308,7 +308,7 @@ export class RoomManager {
                 let promotedControllerId: string | undefined;
 
                 // If leader left and there are still members, promote the controller with the lowest colorIndex
-                // This ensures consistent leadership hierarchy (Wulf -> Talon -> Ryker -> Roux)
+                // This ensures consistent leadership hierarchy (Wulf -> Talon -> Ryker -> Zark)
                 if (wasLeader && room.controllers.length > 0) {
                     // Find the controller with the smallest colorIndex (maintains character hierarchy)
                     let nextLeader = room.controllers[0];
