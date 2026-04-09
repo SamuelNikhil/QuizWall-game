@@ -20,7 +20,7 @@ import slingCenterImg from '../assets/sling-center.svg';
 type ControllerPhase = 'connecting' | 'lobby' | 'loading' | 'playing' | 'game-over';
 
 const TOTAL_QUESTIONS = 10;
-const CONTROLLER_AVATARS = ['wulf', 'talon', 'ryker', 'roux'] as const;
+const CONTROLLER_AVATARS = ['wulf', 'talon', 'ryker', 'zark'] as const;
 const SUCCESS_PARTICLES = [
     { left: '6%', bottom: '8%', size: '1.5rem', rotate: '-18deg', delay: '0s', variant: 'bar' },
     { left: '14%', bottom: '24%', size: '0.85rem', rotate: '18deg', delay: '0.12s', variant: 'spark' },
@@ -581,8 +581,8 @@ export default function Controller() {
     // ---- Loading Questions Phase ----
     if (phase === 'loading') {
         const myColor = CROSSHAIR_COLORS[activeColorIndex] || '#6750A4';
-        const preConfigAvatars = ["wulf", "talon", "ryker", "roux"];
-        const preConfigNames = ["Wulf", "Talon", "Ryker", "Roux"];
+        const preConfigAvatars = ["wulf", "talon", "ryker", "zark"];
+        const preConfigNames = ["Wulf", "Talon", "Ryker", "Zark"];
         const characterAvatar = preConfigAvatars[activeColorIndex] || 'wulf';
         const characterName = preConfigNames[activeColorIndex] || `Player ${activeColorIndex + 1}`;
 

@@ -21,8 +21,8 @@ interface LobbyProps {
     isSpectating?: boolean;
 }
 
-const preConfigNames = ["Wulf", "Talon", "Ryker", "Roux"];
-const preConfigAvatars = ["wulf", "talon", "ryker", "roux"];
+const preConfigNames = ["Wulf", "Talon", "Ryker", "Zark"];
+const preConfigAvatars = ["wulf", "talon", "ryker", "zark"];
 
 interface ConfirmationPopupProps {
     playerCount: number;

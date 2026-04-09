@@ -253,17 +253,13 @@ export class GameClient {
     }
 
     onLoadingStart(cb: (data: { playerCount: number }) => void): void {
-        console.log('[GameClient] Registering onLoadingStart listener');
         this.channel?.on(EVENTS.LOADING_START, (data: { playerCount: number }) => {
-            console.log('[GameClient] LOADING_START event received:', data);
             cb(data);
         });
     }
 
     onLoadingCountdown(cb: (data: { duration: number }) => void): void {
-        console.log('[GameClient] Registering onLoadingCountdown listener');
         this.channel?.on(EVENTS.LOADING_COUNTDOWN, (data: { duration: number }) => {
-            console.log('[GameClient] LOADING_COUNTDOWN event received:', data);
             cb(data);
         });
     }

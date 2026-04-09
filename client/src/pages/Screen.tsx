@@ -9,6 +9,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { GameClient } from '../transport/GameClient';
 import backgroundVideo from '../assets/QuizWall.webm';
 import shuffleSoundUrl from '../assets/sounds/shuffle.mp3';
+import backgroundImg from '../assets/Background.svg';
 import { ORB_POSITIONS, CROSSHAIR_COLORS } from '../shared/types';
 import type {
     ClientQuestion,
@@ -98,7 +99,6 @@ export default function Screen() {
         source.buffer = buffer;
         source.connect(ctx.destination);
         source.start(0);
-        console.log('[Screen] AudioContext unlocked');
     }, []);
 
     const scheduleTimeout = useCallback((cb: () => void, delayMs: number): ReturnType<typeof setTimeout> => {
@@ -252,7 +252,6 @@ export default function Screen() {
 
             client.onControllerLeft((data) => {
                 setControllerCount((prev) => Math.max(0, prev - 1));
-                console.log('Controller left:', data.controllerId);
                 if (data.controllerId) {
                     setCrosshairs((prev) => {
                         if (!prev.has(data.controllerId!)) return prev;
@@ -263,8 +262,7 @@ export default function Screen() {
                 }
             });
 
-            client.onLoadingStart((data) => {
-                console.log('[Screen] Loading started, players:', data.playerCount);
+            client.onLoadingStart(() => {
                 setPhaseSync('loading');
                 if (loadingCountdownIntervalRef.current) {
                     clearInterval(loadingCountdownIntervalRef.current);
@@ -274,7 +272,6 @@ export default function Screen() {
             });
 
             client.onLoadingCountdown((data) => {
-                console.log('[Screen] Countdown starting:', data.duration);
                 setCountdownActive(true);
                 setCountdownValue(data.duration);
 
@@ -298,7 +295,6 @@ export default function Screen() {
             });
 
             client.onGameStarted((data) => {
-                console.log('[Screen] Game Started event received:', data, 'current phase:', phaseRef.current);
                 setQuestion(data.question);
                 setTimeLeft(data.timeLeft);
                 setPlayerScores([]);
@@ -321,7 +317,6 @@ export default function Screen() {
                 isMultiplayerRef.current = true;
                 // Transition from loading to playing when first phase starts
                 if (phaseRef.current === 'loading' && (data.phase === 'analysis' || data.phase === 'selection')) {
-                    console.log('[Screen] Transitioning from loading to playing');
                     setPhaseSync('playing');
                     // Show "GET READY" overlay for 2 seconds before showing question
                     setShowReadyOverlay(true);
@@ -734,18 +729,18 @@ export default function Screen() {
     // ---- LOBBY PHASES (qr-lobby and team-lobby combined for seamless video transition) ----
     if (phase === 'qr-lobby' || phase === 'team-lobby') {
         const isTeamLobby = phase === 'team-lobby' && (lobby?.players.length ?? 0) > 0;
-        const preConfigNames = ["Wulf", "Talon", "Ryker", "Roux"];
-        const preConfigAvatars = ["wulf", "talon", "ryker", "roux"];
+        const preConfigNames = ["Wulf", "Talon", "Ryker", "Zark"];
+        const preConfigAvatars = ["wulf", "talon", "ryker", "zark"];
 
         return (
             <div className="saas-landing-screen" style={{ background: '#0D0D12' }}>
                 {/* Background Video - optimized for smooth playback */}
-                <video 
+                <video
                     ref={videoRef}
-                    className="landing-bg-video" 
-                    autoPlay 
-                    loop 
-                    muted 
+                    className="landing-bg-video"
+                    autoPlay
+                    loop
+                    muted
                     playsInline
                     preload="auto"
                     disablePictureInPicture
@@ -753,7 +748,7 @@ export default function Screen() {
                     <source src={backgroundVideo} type="video/webm" />
                 </video>
                 <div className="landing-bg-overlay" />
-                
+
                 {isTeamLobby ? (
                     <div className="lobby-overlay" style={{ background: 'transparent' }}>
                         <div className="lobby-header" style={{ top: '6%' }}>
@@ -767,15 +762,15 @@ export default function Screen() {
                                     const name = preConfigNames[slotIndex];
                                     const avatar = preConfigAvatars[slotIndex];
                                     const isJoined = !!player;
-                                    const uiColor = isJoined 
+                                    const uiColor = isJoined
                                         ? (CROSSHAIR_COLORS[player?.colorIndex ?? slotIndex] || CROSSHAIR_COLORS[0])
                                         : 'rgba(255, 255, 255, 0.15)';
 
                                     return (
-                                        <div 
-                                            key={slotIndex} 
+                                        <div
+                                            key={slotIndex}
                                             className={`lobby-card-v2 ${isJoined ? 'is-joined' : 'is-empty'}`}
-                                            style={{ 
+                                            style={{
                                                 '--card-color': uiColor,
                                                 borderColor: uiColor,
                                                 width: '180px',
@@ -784,14 +779,14 @@ export default function Screen() {
                                             } as React.CSSProperties}
                                         >
                                             <div className="card-avatar-wrapper" style={{ width: '110px', height: '110px', marginBottom: '1rem' }}>
-                                                <img 
-                                                    src={`/avatars/${avatar}.png`} 
-                                                    alt={name} 
-                                                    className="lobby-avatar-v2" 
+                                                <img
+                                                    src={`/avatars/${avatar}.png`}
+                                                    alt={name}
+                                                    className="lobby-avatar-v2"
                                                     style={{ width: '120px', height: '120px', opacity: isJoined ? 1 : 0.35 }}
                                                 />
                                             </div>
-                                            
+
                                             <div className="card-info">
                                                 <div className="lobby-name-v2" style={{ fontSize: '1.5rem', marginBottom: '0.75rem' }}>{name}</div>
                                                 {isJoined ? (
@@ -847,8 +842,8 @@ export default function Screen() {
 
     // ---- Loading Phase (AI Questions Loading + Countdown) ----
     if (phase === 'loading') {
-        const preConfigNames = ["Wulf", "Talon", "Ryker", "Roux"];
-        const preConfigAvatars = ["wulf", "talon", "ryker", "roux"];
+        const preConfigNames = ["Wulf", "Talon", "Ryker", "Zark"];
+        const preConfigAvatars = ["wulf", "talon", "ryker", "zark"];
 
         return (
             <div className="screen-container" style={{
@@ -857,7 +852,7 @@ export default function Screen() {
                 alignItems: 'center',
                 justifyContent: 'center',
                 height: '100vh',
-                background: 'linear-gradient(180deg, #0f0f1a 0%, #1a1a2e 100%)',
+                background: `url(${backgroundImg}) center/cover no-repeat`,
                 padding: '2rem',
                 position: 'relative',
             }}>
@@ -999,14 +994,19 @@ export default function Screen() {
     }
 
     // ---- Playing (Game Arena) ----
-    const preConfigNames = ["Wulf", "Talon", "Ryker", "Roux"];
-    const preConfigAvatars = ["wulf", "talon", "ryker", "roux"];
+    const preConfigNames = ["Wulf", "Talon", "Ryker", "Zark"];
+    const preConfigAvatars = ["wulf", "talon", "ryker", "zark"];
+
+    const currentTimerVal = phaseTimeLeft || timeLeft;
+    const timerHue = Math.max(0, Math.min(120, (currentTimerVal / 20) * 120));
+    const timerColor = `hsl(${timerHue}, 100%, 50%)`;
+    const timerBgColor = `hsla(${timerHue}, 100%, 50%, 0.1)`;
 
     return (
         <div
             className="screen-container"
             ref={containerRef}
-            style={{ background: 'linear-gradient(180deg, #0D0D12 0%, #15151D 100%)' }}
+            style={{ background: `url(${backgroundImg}) center/cover no-repeat` }}
         >
             <header className="screen-header">
                 {/* Top Bar - LIVE NOW and Round Info */}
@@ -1021,60 +1021,66 @@ export default function Screen() {
                     padding: '1.5rem 2.5rem',
                     zIndex: 1000,
                 }}>
-                    {/* LIVE NOW Badge with animated border */}
+                    {/* Timer Badge with animated border */}
                     <div style={{
                         position: 'relative',
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '0.5rem',
-                        padding: '0.6rem 1.5rem',
-                        background: 'rgba(255, 68, 68, 0.1)',
-                        borderRadius: '24px',
+                        gap: '0.75rem',
+                        padding: '0.8rem 2rem',
+                        background: timerBgColor,
+                        borderRadius: '30px',
                         overflow: 'hidden',
+                        transition: 'background 0.5s ease',
                     }}>
                         {/* Animated progress border */}
                         <div style={{
                             position: 'absolute',
                             inset: 0,
-                            borderRadius: '24px',
-                            background: `conic-gradient(from 0deg, #ff4444 ${(100 - ((phaseTimeLeft || timeLeft) / 20) * 100)}%, transparent ${(100 - ((phaseTimeLeft || timeLeft) / 20) * 100)}%)`,
+                            borderRadius: '30px',
+                            background: `conic-gradient(from 0deg, ${timerColor} ${(100 - (currentTimerVal / 20) * 100)}%, transparent ${(100 - (currentTimerVal / 20) * 100)}%)`,
                             mask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
                             WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
                             maskComposite: 'exclude',
                             WebkitMaskComposite: 'xor',
-                            padding: '2px',
+                            padding: '3px',
                         }} />
                         <span style={{
-                            width: '8px',
-                            height: '8px',
+                            width: '12px',
+                            height: '12px',
                             borderRadius: '50%',
-                            background: '#ff4444',
-                            boxShadow: '0 0 12px #ff4444',
+                            background: timerColor,
+                            boxShadow: `0 0 16px ${timerColor}`,
                             animation: 'pulse 1s ease-in-out infinite',
+                            transition: 'background 0.5s ease, box-shadow 0.5s ease',
                         }} />
                         <span style={{
-                            fontSize: '0.75rem',
+                            fontSize: '1.2rem',
                             fontWeight: 900,
-                            color: '#ff4444',
-                            letterSpacing: '1.5px',
+                            color: timerColor,
+                            letterSpacing: '2px',
+                            fontVariantNumeric: 'tabular-nums',
+                            transition: 'color 0.5s ease',
                         }}>
-                            LIVE NOW
+                            00:{currentTimerVal.toString().padStart(2, '0')}
                         </span>
                     </div>
 
                     {/* Round Info - Shows Question Counter */}
                     <div style={{
-                        padding: '0.5rem 1.25rem',
+                        padding: '0.8rem 2rem',
                         background: 'rgba(255, 255, 255, 0.06)',
                         border: '1px solid rgba(255, 255, 255, 0.1)',
-                        borderRadius: '20px',
+                        borderRadius: '30px',
                         backdropFilter: 'blur(10px)',
+                        display: 'flex',
+                        alignItems: 'center',
                     }}>
                         <span style={{
-                            fontSize: '0.8rem',
-                            fontWeight: 700,
-                            color: 'rgba(255, 255, 255, 0.6)',
-                            letterSpacing: '0.5px',
+                            fontSize: '1.2rem',
+                            fontWeight: 800,
+                            color: 'rgba(255, 255, 255, 0.8)',
+                            letterSpacing: '2px',
                         }}>
                             Quiz Battle · Question {questionNumber || 1}
                         </span>
@@ -1129,10 +1135,10 @@ export default function Screen() {
                 {/* Answer Orbs - Pill-shaped with text wrapping */}
                 {question?.options.map((opt, i) => {
                     const selectionsForOrb = playerSelections.filter(s => s.orbId === opt.id);
-                    
-                    const pillGradient = 'linear-gradient(135deg, #030158 0%, #771089 100%)';
+
+                    const pillGradient = 'linear-gradient(135deg, #8800feff 0%, #d865ecff 100%)';
                     const pillBorder = '2px solid #FFFFFF';
-                    
+
                     return (
                         <div
                             key={opt.id}
@@ -1172,7 +1178,7 @@ export default function Screen() {
                             }}>
                                 {opt.text}
                             </span>
-                            
+
                             {/* Player selection indicators */}
                             {selectionsForOrb.length > 0 && (
                                 <div style={{
@@ -1207,7 +1213,7 @@ export default function Screen() {
                     const color = CROSSHAIR_COLORS[colorIndex];
                     const avatar = preConfigAvatars[colorIndex];
                     const playerName = player ? preConfigNames[colorIndex] : 'Player';
-                    
+
                     return (
                         <div
                             key={controllerId}
@@ -1296,7 +1302,7 @@ export default function Screen() {
                         const playerName = preConfigNames[slotIndex];
                         const playerColor = CROSSHAIR_COLORS[slotIndex];
                         const hasPlayer = !!player;
-                        
+
                         return (
                             <div key={slotIndex} style={{
                                 flex: 1,

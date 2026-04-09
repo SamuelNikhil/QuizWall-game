@@ -34,7 +34,7 @@ export interface PlayerInfo {
     isSpectating?: boolean; // Whether the player is in the lobby while a game is active
 }
 
-// Profile accent colors for each fixed character slot: Wulf, Talon, Ryker, Roux
+// Profile accent colors for each fixed character slot: Wulf, Talon, Ryker, Zark
 export const CROSSHAIR_COLORS = ['#2EA8FF', '#F5A623', '#FF7A45', '#FF5FA2'] as const;
 
 // ---------- Lobby ----------

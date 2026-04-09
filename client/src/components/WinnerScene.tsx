@@ -3,8 +3,8 @@ import type { PlayerRole, PlayerScoreEntry } from '../shared/types';
 import { CROSSHAIR_COLORS } from '../shared/types';
 import './winner-ui.css';
 
-const CHARACTER_NAMES = ['Wulf', 'Talon', 'Ryker', 'Roux'] as const;
-const CHARACTER_AVATARS = ['wulf', 'talon', 'ryker', 'roux'] as const;
+const CHARACTER_NAMES = ['Wulf', 'Talon', 'Ryker', 'Zark'] as const;
+const CHARACTER_AVATARS = ['wulf', 'talon', 'ryker', 'zark'] as const;
 const CONTROLLER_CONFETTI = [
     { left: '6%', top: '7%', width: '0.95rem', height: '1.7rem', rotate: '-18deg', delay: '0s' },
     { left: '14%', top: '4%', width: '0.4rem', height: '0.4rem', rotate: '22deg', delay: '0.08s' },
