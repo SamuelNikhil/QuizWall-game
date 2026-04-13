@@ -394,7 +394,7 @@ export default function Lobby({
                                         color: 'rgba(255, 255, 255, 0.5)',
                                         textTransform: 'uppercase',
                                     }}>
-                                        Ready
+                                        {lobby?.players.find(p => p.colorIndex === slot.colorIndex)?.role === 'leader' ? '👑 Host' : 'Ready'}
                                     </span>
                                 )}
                             </div>
@@ -554,6 +554,23 @@ export default function Lobby({
                 }}>
                     {characterName}
                 </h2>
+                <div style={{
+                    marginTop: '0.75rem',
+                    padding: '0.35rem 1rem',
+                    background: `linear-gradient(135deg, ${characterColor}40, ${characterColor}20)`,
+                    borderRadius: '20px',
+                    border: `1px solid ${characterColor}60`,
+                }}>
+                    <span style={{
+                        fontSize: '0.75rem',
+                        fontWeight: 800,
+                        color: '#fff',
+                        textTransform: 'uppercase',
+                        letterSpacing: '1px',
+                    }}>
+                        Member
+                    </span>
+                </div>
             </div>
 
             {/* Ready Status */}
@@ -644,14 +661,14 @@ export default function Lobby({
                                     •••
                                 </span>
                             ) : (
-                                <span style={{
-                                    fontSize: '0.75rem',
-                                    fontWeight: 700,
-                                    color: 'rgba(255, 255, 255, 0.5)',
-                                    textTransform: 'uppercase',
-                                }}>
-                                    Ready
-                                </span>
+                                    <span style={{
+                                        fontSize: '0.75rem',
+                                        fontWeight: 700,
+                                        color: 'rgba(255, 255, 255, 0.5)',
+                                        textTransform: 'uppercase',
+                                    }}>
+                                        {lobby?.players.find(p => p.colorIndex === slot.colorIndex)?.role === 'leader' ? '👑 Host' : 'Ready'}
+                                    </span>
                             )}
                         </div>
                     ))}

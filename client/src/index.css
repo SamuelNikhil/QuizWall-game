@@ -506,24 +506,25 @@ body {
 }
 
 .landing-bg-video {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    object-fit: cover;
-    z-index: 0;
-}
-
-.landing-bg-overlay {
-    position: absolute;
+    position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background: radial-gradient(circle at 30% 0%, rgba(30, 30, 46, 0.4) 0%, rgba(10, 10, 15, 0.7) 100%);
-    backdrop-filter: blur(2px);
+    object-fit: cover;
+    z-index: 0;
+}
+
+.lobby-bg-blur {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle at 30% 0%, rgba(30, 30, 46, 0.3) 0%, rgba(10, 10, 15, 0.5) 100%);
+    backdrop-filter: blur(12px);
     z-index: 1;
+    pointer-events: none;
 }
 
 /* Left Content Area */
@@ -534,7 +535,7 @@ body {
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
-    padding: 8% 8% 5% 10%;
+    padding: 8% 8% 5% 5%;
     padding-top: 6%;
     /* Moved title higher */
     z-index: 10;
@@ -552,8 +553,10 @@ body {
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
-    text-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    text-align: left;
     animation: fadeInUp 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    filter: drop-shadow(0 0 20px rgba(103, 80, 164, 0.4)) 
+            drop-shadow(0 0 40px rgba(149, 212, 228, 0.2));
 }
 
 .saas-title-highlight {
@@ -794,7 +797,8 @@ body {
     position: relative;
     opacity: 0;
     transform: translateX(-100px) rotate(-10deg);
-    animation: rummyShuffle 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    animation: rummyShuffle 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards,
+               cardWave 3s ease-in-out 1.2s infinite;
     transition: all 0.4s ease;
 }
 
@@ -881,6 +885,18 @@ body {
     100% {
         opacity: 1;
         transform: translateX(0) rotate(0deg) scale(1);
+    }
+}
+
+@keyframes cardWave {
+    0%, 100% {
+        transform: translateY(0) rotate(0deg);
+    }
+    25% {
+        transform: translateY(-8px) rotate(1deg);
+    }
+    75% {
+        transform: translateY(4px) rotate(-0.5deg);
     }
 }
 

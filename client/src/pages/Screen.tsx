@@ -747,7 +747,7 @@ export default function Screen() {
                 >
                     <source src={backgroundVideo} type="video/webm" />
                 </video>
-                <div className="landing-bg-overlay" />
+                {isTeamLobby && <div className="lobby-bg-blur" />}
 
                 {isTeamLobby ? (
                     <div className="lobby-overlay" style={{ background: 'transparent' }}>
@@ -772,10 +772,11 @@ export default function Screen() {
                                             className={`lobby-card-v2 ${isJoined ? 'is-joined' : 'is-empty'}`}
                                             style={{
                                                 '--card-color': uiColor,
+                                                '--wave-delay': `${slotIndex * 0.4}s`,
                                                 borderColor: uiColor,
                                                 width: '180px',
                                                 height: '280px',
-                                                animationDelay: `${slotIndex * 0.1}s`
+                                                animationDelay: `${slotIndex * 0.1}s, ${1.2 + slotIndex * 0.4}s`
                                             } as React.CSSProperties}
                                         >
                                             <div className="card-avatar-wrapper" style={{ width: '110px', height: '110px', marginBottom: '1rem' }}>
@@ -790,11 +791,26 @@ export default function Screen() {
                                             <div className="card-info">
                                                 <div className="lobby-name-v2" style={{ fontSize: '1.5rem', marginBottom: '0.75rem' }}>{name}</div>
                                                 {isJoined ? (
-                                                    player.isReady ? (
-                                                        <div className="status-badge ready" style={{ fontSize: '0.7rem' }}>READY</div>
-                                                    ) : (
-                                                        <div className="status-badge joined" style={{ fontSize: '0.7rem' }}>JOINED</div>
-                                                    )
+                                                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.4rem' }}>
+                                                        {player.role === 'leader' && (
+                                                            <div style={{
+                                                                padding: '0.35rem 1rem',
+                                                                background: `linear-gradient(135deg, ${uiColor}40, ${uiColor}20)`,
+                                                                borderRadius: '20px',
+                                                                border: `1px solid ${uiColor}60`,
+                                                                fontSize: '0.7rem',
+                                                                fontWeight: 800,
+                                                                color: '#fff',
+                                                                textTransform: 'uppercase',
+                                                                letterSpacing: '1px',
+                                                            }}>HOST</div>
+                                                        )}
+                                                        {player.isReady ? (
+                                                            <div className="status-badge ready" style={{ fontSize: '0.7rem' }}>READY</div>
+                                                        ) : (
+                                                            <div className="status-badge joined" style={{ fontSize: '0.7rem' }}>JOINED</div>
+                                                        )}
+                                                    </div>
                                                 ) : (
                                                     <div className="status-badge empty" style={{ fontSize: '0.7rem' }}>CONNECTING...</div>
                                                 )}
