@@ -10,6 +10,7 @@ import { GameClient } from '../transport/GameClient';
 import backgroundVideo from '../assets/QuizWall.webm';
 import shuffleSoundUrl from '../assets/sounds/shuffle.mp3';
 import backgroundImg from '../assets/Background.svg';
+import thumbnailImg from '../assets/thumbnail/ShootQuiz.png';
 import { ORB_POSITIONS, CROSSHAIR_COLORS } from '../shared/types';
 import type {
     ClientQuestion,
@@ -61,6 +62,11 @@ export default function Screen() {
     const [countdownValue, setCountdownValue] = useState(3);
     const [showReadyOverlay, setShowReadyOverlay] = useState(false);
 
+    // Card shuffle reveal state — avatars hidden until all cards have landed
+    const [cardShuffleComplete, setCardShuffleComplete] = useState(false);
+    // QR card collapse — shrinks sidebar after avatars have flown out
+    const [qrCardCollapsed, setQrCardCollapsed] = useState(false);
+
     // Phase-based multiplayer state
     const [phaseTimeLeft, setPhaseTimeLeft] = useState(0);
     const [questionNumber, setQuestionNumber] = useState(0);
@@ -80,6 +86,7 @@ export default function Screen() {
     const pendingTimeoutsRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
     const isMultiplayerRef = useRef(false);
     const videoRef = useRef<HTMLVideoElement>(null);
+    const mosaicClearVideoRef = useRef<HTMLVideoElement>(null);
     const hasPlayedShuffleRef = useRef(false);
     const audioContextRef = useRef<AudioContext | null>(null);
 
@@ -243,6 +250,8 @@ export default function Screen() {
                 const livePhase = phaseRef.current;
                 if (data.players.length > 0 && livePhase !== 'playing' && livePhase !== 'game-over') {
                     setPhaseSync('team-lobby');
+                } else if (data.players.length === 0 && livePhase === 'team-lobby') {
+                    setPhaseSync('qr-lobby');
                 }
             });
 
@@ -601,6 +610,23 @@ export default function Screen() {
         };
     }, [isLobbyPhase]);
 
+    // ---- Sync mosaic clear video with blurred background video ----
+    useEffect(() => {
+        if (!isLobbyPhase || phase !== 'qr-lobby') return;
+        const blurred = videoRef.current;
+        const clear = mosaicClearVideoRef.current;
+        if (!blurred || !clear) return;
+
+        const syncVideos = () => {
+            if (Math.abs(clear.currentTime - blurred.currentTime) > 0.3) {
+                clear.currentTime = blurred.currentTime;
+            }
+        };
+
+        const interval = setInterval(syncVideos, 1000);
+        return () => clearInterval(interval);
+    }, [isLobbyPhase, phase]);
+
     // ---- Shuffle sound for lobby cards ----
     useEffect(() => {
         if (phase === 'team-lobby' && !hasPlayedShuffleRef.current) {
@@ -622,6 +648,28 @@ export default function Screen() {
             });
         }
     }, [phase, scheduleTimeout, unlockAudio]);
+
+    // ---- Card shuffle complete: fire quickly after cards land ----
+    // rummyShuffle = 0.8s, last card delay = 0.3s → total 1.1s.
+    useEffect(() => {
+        if (phase === 'team-lobby') {
+            setCardShuffleComplete(false);
+            setQrCardCollapsed(false);
+            const t = setTimeout(() => setCardShuffleComplete(true), 1100);
+            return () => clearTimeout(t);
+        } else {
+            setCardShuffleComplete(false);
+            setQrCardCollapsed(false);
+        }
+    }, [phase]);
+
+    // ---- QR card collapse: shrink sidebar after avatars have all flown out ----
+    // Avatar fly duration: 0.65s + last stagger 0.07*3 = 0.86s → use 900ms.
+    useEffect(() => {
+        if (!cardShuffleComplete) return;
+        const t = setTimeout(() => setQrCardCollapsed(true), 900);
+        return () => clearTimeout(t);
+    }, [cardShuffleComplete]);
 
     const controllerUrl = roomId && joinToken
         ? `${window.location.origin}/controller/${roomId}/${joinToken}`
@@ -732,31 +780,59 @@ export default function Screen() {
         const preConfigNames = ["Wulf", "Talon", "Ryker", "Zark"];
         const preConfigAvatars = ["wulf", "talon", "ryker", "zark"];
 
-        return (
-            <div className="saas-landing-screen" style={{ background: '#0D0D12' }}>
-                {/* Background Video - optimized for smooth playback */}
-                <video
-                    ref={videoRef}
-                    className="landing-bg-video"
-                    autoPlay
-                    loop
-                    muted
-                    playsInline
-                    preload="auto"
-                    disablePictureInPicture
-                >
-                    <source src={backgroundVideo} type="video/webm" />
-                </video>
-                {isTeamLobby && <div className="lobby-bg-blur" />}
+        const limeGreen = '#C8F526';
+        const panelBg = '#5a5a5a';
+        const darkerGray = '#444444';
 
-                {isTeamLobby ? (
-                    <div className="lobby-overlay" style={{ background: 'transparent' }}>
-                        <div className="lobby-header" style={{ top: '6%' }}>
-                            <div className="saas-title lobby-screen-title">Game Lobby</div>
+        // ── Team Lobby (Game Lobby) — same wireframe layout as landing page ──
+        if (isTeamLobby) {
+            // Approximate translateX values for each avatar to fly toward its card.
+            // Cards are in the left column (~68% of screen). QR sidebar is on the far right.
+            // Stagger each slot differently so they fan out visibly.
+            const flyX = ['-62vw', '-52vw', '-41vw', '-30vw'];
+            const flyY = '-8vh';
+
+            return (
+                <div style={{
+                    background: '#121215',
+                    height: '100vh',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    padding: '0 3rem',
+                    justifyContent: 'center',
+                    fontFamily: 'Inter, sans-serif',
+                    overflow: 'hidden',
+                }}>
+                    {/* Header — Absolute top */}
+                    <div style={{ 
+                        position: 'absolute', 
+                        top: '2.5rem', 
+                        left: '0', 
+                        right: '0', 
+                        padding: '0 3rem',
+                        display: 'flex', 
+                        justifyContent: 'space-between', 
+                        alignItems: 'center', 
+                        zIndex: 100 
+                    }}>
+                        <div className="saas-title" style={{ margin: 0, fontSize: '4.5rem', lineHeight: 1 }}>
+                            Game <span className="saas-title-highlight">Lobby</span>
                         </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                            <div style={{ color: limeGreen, fontSize: '0.8rem', fontWeight: 800, letterSpacing: '2px', marginBottom: '4px' }}>WONDER LOOP</div>
+                            <div style={{ display: 'flex', gap: '4px', alignItems: 'flex-end', height: '34px' }}>
+                                <div style={{ width: '8px', height: '100%', borderRadius: '10px', border: `3px solid ${limeGreen}` }}></div>
+                                <div style={{ width: '8px', height: '70%', borderRadius: '10px', border: `3px solid ${limeGreen}` }}></div>
+                                <div style={{ width: '8px', height: '100%', borderRadius: '10px', border: `3px solid ${limeGreen}` }}></div>
+                            </div>
+                        </div>
+                    </div>
 
-                        <div className="lobby-content" style={{ justifyContent: 'flex-start', paddingRight: '0', paddingLeft: '12%' }}>
-                            <div className="lobby-players-grid" style={{ flex: 'none', width: 'auto', gap: '1rem', justifySelf: 'center' }}>
+                    {/* Main Content */}
+                    <div style={{ flex: 1, display: 'flex', gap: '2rem', minHeight: 0, marginTop: '8rem', marginBottom: '4rem', alignItems: 'center' }}>
+                        {/* Left Column — Player Cards */}
+                        <div style={{ flex: 1.8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <div style={{ display: 'flex', gap: '1rem', flexWrap: 'nowrap' }}>
                                 {[0, 1, 2, 3].map(slotIndex => {
                                     const player = lobby?.players.find(p => p.colorIndex === slotIndex);
                                     const name = preConfigNames[slotIndex];
@@ -784,32 +860,37 @@ export default function Screen() {
                                                     src={`/avatars/${avatar}.png`}
                                                     alt={name}
                                                     className="lobby-avatar-v2"
-                                                    style={{ width: '120px', height: '120px', opacity: isJoined ? 1 : 0.35 }}
+                                                    style={{
+                                                        width: '120px',
+                                                        height: '120px',
+                                                        opacity: cardShuffleComplete ? (isJoined ? 1 : 0.35) : 0,
+                                                        transform: cardShuffleComplete ? 'scale(1) translateY(0)' : 'scale(0.6) translateY(10px)',
+                                                        transition: 'opacity 0.5s ease, transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                                                        transitionDelay: cardShuffleComplete ? `${slotIndex * 0.08}s` : '0s',
+                                                    }}
                                                 />
                                             </div>
-
-                                            <div className="card-info">
-                                                <div className="lobby-name-v2" style={{ fontSize: '1.5rem', marginBottom: '0.75rem' }}>{name}</div>
-                                                {isJoined ? (
-                                                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.4rem' }}>
+                                            
+                                            <div style={{ textAlign: 'center' }}>
+                                                <div style={{ color: player ? '#fff' : 'rgba(255, 255, 255, 0.4)', fontWeight: 700, fontSize: '1.2rem', marginBottom: '0.25rem' }}>
+                                                    {name}
+                                                </div>
+                                                {player ? (
+                                                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.3rem' }}>
                                                         {player.role === 'leader' && (
-                                                            <div style={{
+                                                            <div style={{ 
                                                                 padding: '0.35rem 1rem',
                                                                 background: `linear-gradient(135deg, ${uiColor}40, ${uiColor}20)`,
                                                                 borderRadius: '20px',
                                                                 border: `1px solid ${uiColor}60`,
-                                                                fontSize: '0.7rem',
-                                                                fontWeight: 800,
-                                                                color: '#fff',
-                                                                textTransform: 'uppercase',
-                                                                letterSpacing: '1px',
+                                                                fontSize: '0.7rem', fontWeight: 800,
+                                                                color: '#fff', textTransform: 'uppercase', letterSpacing: '1px',
                                                             }}>HOST</div>
                                                         )}
-                                                        {player.isReady ? (
-                                                            <div className="status-badge ready" style={{ fontSize: '0.7rem' }}>READY</div>
-                                                        ) : (
-                                                            <div className="status-badge joined" style={{ fontSize: '0.7rem' }}>JOINED</div>
-                                                        )}
+                                                        {player.isReady
+                                                            ? <div className="status-badge ready" style={{ fontSize: '0.7rem' }}>READY</div>
+                                                            : <div className="status-badge joined" style={{ fontSize: '0.7rem' }}>JOINED</div>
+                                                        }
                                                     </div>
                                                 ) : (
                                                     <div className="status-badge empty" style={{ fontSize: '0.7rem' }}>CONNECTING...</div>
@@ -820,38 +901,224 @@ export default function Screen() {
                                 })}
                             </div>
                         </div>
-                    </div>
-                ) : (
-                    <div className="saas-landing-left" style={{ position: 'absolute', top: 0, left: 0, height: '100%' }}>
-                        <div className="saas-title">
-                            Play Together<br />
-                            <span className="saas-title-highlight">Instantly</span>
-                        </div>
 
-                        <div className="saas-brand-thumbnail">
-                            QUIZ<br />WALL
+                        <div className="saas-qr-glass-card" style={{
+                            flex: qrCardCollapsed ? 'none' : '0.5',
+                            marginLeft: '5vw',
+                            maxWidth: qrCardCollapsed ? '240px' : '280px',
+                            width: '100%',
+                            borderRadius: '32px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '2vw',
+                            padding: qrCardCollapsed ? '1rem 0.75rem' : '1.5vw 2vw',
+                            height: qrCardCollapsed ? '320px' : '100%',
+                            alignSelf: qrCardCollapsed ? 'center' : 'auto',
+                            overflow: 'visible',
+                            position: 'relative',
+                            transition: 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
+                        }}>
+                            <div className="saas-scan-prompt" style={{ fontSize: qrCardCollapsed ? '0.75rem' : '1.1rem', width: '100%', justifyContent: 'center', background: 'transparent', border: 'none', padding: '0', boxShadow: 'none', transition: 'font-size 0.6s' }}>
+                                <i>📱</i><span>Scan to Play</span>
+                            </div>
+
+                            <div className="saas-qr-wrapper" style={{ width: '75%', aspectRatio: '1/1', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <QRCodeSVG value={controllerUrl} style={{ width: '100%', height: '100%', transition: 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)' }} level="H" fgColor="#1c1b1f" />
+                            </div>
+
+                            {/* Avatar circles — fly to card positions when shuffle completes */}
+                            <div style={{
+                                display: 'flex',
+                                gap: '0.5rem',
+                                width: '100%',
+                                justifyContent: 'center',
+                                overflow: 'visible',
+                                // Collapse space after they leave
+                                maxHeight: qrCardCollapsed ? '0px' : '50px',
+                                opacity: qrCardCollapsed ? 0 : 1,
+                                margin: qrCardCollapsed ? '0' : '0.25rem 0',
+                                transition: 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
+                                pointerEvents: 'none'
+                            }}>
+                                {[0, 1, 2, 3].map(slotIndex => {
+                                    const player = lobby?.players.find(p => p.colorIndex === slotIndex);
+                                    const isJoined = !!player;
+                                    const avatar = preConfigAvatars[slotIndex];
+                                    const playerColor = CROSSHAIR_COLORS[slotIndex];
+                                    return (
+                                        <div
+                                            key={slotIndex}
+                                            style={{
+                                                width: qrCardCollapsed ? '32px' : '3.5vw',
+                                                height: qrCardCollapsed ? '32px' : '3.5vw',
+                                                borderRadius: '50%',
+                                                background: 'transparent',
+                                                border: isJoined
+                                                    ? `2px solid ${playerColor}`
+                                                    : '2px dashed rgba(255,255,255,0.15)',
+                                                boxShadow: isJoined ? `0 0 10px ${playerColor}80` : 'none',
+                                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                overflow: 'visible',
+                                                flexShrink: 0,
+                                                // Fly animation: translate toward respective card on the left
+                                                transform: cardShuffleComplete
+                                                    ? `translateX(${flyX[slotIndex]}) translateY(${flyY}) scale(2.8)`
+                                                    : 'translate(0, 0) scale(1)',
+                                                opacity: cardShuffleComplete ? 0 : 1,
+                                                transition: `transform 0.65s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.4s ease`,
+                                                transitionDelay: `${slotIndex * 0.07}s`,
+                                                zIndex: 100,
+                                                pointerEvents: 'none',
+                                            }}
+                                        >
+                                            <img
+                                                src={`/avatars/${avatar}.png`}
+                                                alt={preConfigNames[slotIndex]}
+                                                style={{ width: '90%', height: '90%', objectFit: 'contain', display: 'block', borderRadius: '50%' }}
+                                            />
+                                        </div>
+                                    );
+                                })}
+                            </div>
+
+
                         </div>
                     </div>
-                )}
+                </div>
+            );
+        }
 
-                {/* FIXED QR CONTAINER on the RIGHT side - ensure it doesn't cover cards */}
-                <div className="saas-fixed-right-container" style={{ right: '4%' }}>
-                    <div className="saas-qr-glass-card" style={{ scale: '0.9' }}>
-                        <div className="saas-qr-wrapper">
-                            <QRCodeSVG value={controllerUrl} size={180} level="H" fgColor="#1c1b1f" />
-                        </div>
-                        <div className="saas-scan-prompt" style={{ fontSize: '0.75rem' }}>
-                            <i>{isTeamLobby ? '📱' : '🎯'}</i>
-                            {isTeamLobby ? <span>Scan to Join</span> : <span>Scan to be <br />lobby leader</span>}
+        // ── QR Landing page ──
+        return (
+            <div className="wf-landing-screen" style={{
+                background: '#121215',
+                height: '100vh',
+                display: 'flex',
+                flexDirection: 'column',
+                fontFamily: 'Inter, sans-serif',
+                overflow: 'hidden',
+            }}>
+                {/* Header — Absolute top, matching Game Lobby */}
+                <div className="landing-header" style={{ 
+                    position: 'absolute', 
+                    top: '2.5rem', 
+                    left: '0', 
+                    right: '0', 
+                    padding: '0 3rem',
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'center', 
+                    zIndex: 100 
+                }}>
+                    <div className="saas-title" style={{ margin: 0, fontSize: '4.5rem', lineHeight: 1 }}>
+                        Play Together <span className="saas-title-highlight">Instantly</span>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                        <div style={{ color: limeGreen, fontSize: '0.8rem', fontWeight: 800, letterSpacing: '2px', marginBottom: '4px' }}>WONDER LOOP</div>
+                        <div style={{ display: 'flex', gap: '4px', alignItems: 'flex-end', height: '34px' }}>
+                            <div style={{ width: '8px', height: '100%', borderRadius: '10px', border: `3px solid ${limeGreen}` }}></div>
+                            <div style={{ width: '8px', height: '70%', borderRadius: '10px', border: `3px solid ${limeGreen}` }}></div>
+                            <div style={{ width: '8px', height: '100%', borderRadius: '10px', border: `3px solid ${limeGreen}` }}></div>
                         </div>
                     </div>
                 </div>
 
-                {!isTeamLobby && (
-                    <div className="saas-player-badge">
-                        <i>👥</i> 1 - 4 players
+                {/* Mobile-only Wonder Loop center */}
+                <div className="landing-mobile-wonderloop">
+                    <div style={{ fontSize: '2.5rem', fontWeight: 900, lineHeight: 1.1, background: 'linear-gradient(135deg, #ffffff 0%, rgba(255,255,255,0.6) 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
+                        Play Together<br /><span className="saas-title-highlight">Instantly</span>
                     </div>
-                )}
+                </div>
+
+                <div className="landing-mobile-logo">
+                    <div style={{ color: limeGreen, fontSize: '1.2rem', fontWeight: 800, letterSpacing: '3px', marginBottom: '8px' }}>WONDER LOOP</div>
+                    <div style={{ display: 'flex', gap: '6px', alignItems: 'flex-end', height: '50px' }}>
+                        <div style={{ width: '12px', height: '100%', borderRadius: '14px', border: `4px solid ${limeGreen}` }}></div>
+                        <div style={{ width: '12px', height: '70%', borderRadius: '14px', border: `4px solid ${limeGreen}` }}></div>
+                        <div style={{ width: '12px', height: '100%', borderRadius: '14px', border: `4px solid ${limeGreen}` }}></div>
+                    </div>
+                </div>
+
+                {/* Main Content */}
+                <div className="landing-main-content" style={{ flex: 1, display: 'flex', width: '100%', alignItems: 'stretch', justifyContent: 'center', marginTop: '11rem', marginBottom: '4rem', padding: '0 3rem', minHeight: 0 }}>
+                    {/* Left Column — Video + Game Pills */}
+                    <div style={{ flex: 1.35, display: 'flex', flexDirection: 'column', gap: '1.1vw', minHeight: 0 }}>
+                        {/* Video Container */}
+                        <div style={{ width: '100%', aspectRatio: '2/1', borderRadius: '3vw', overflow: 'hidden', position: 'relative', boxShadow: '0 4px 30px rgba(255, 255, 255, 0.08)', border: '1px solid rgba(255, 255, 255, 0.15)' }}>
+                            <video
+                                ref={videoRef}
+                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                autoPlay loop muted playsInline preload="auto"
+                            >
+                                <source src={backgroundVideo} type="video/webm" />
+                            </video>
+                        </div>
+                        {/* Games Row — ShootQuiz only */}
+                        <div style={{ display: 'flex', gap: '1vw', flexShrink: 0 }}>
+                            <div style={{ background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '1.2vw', padding: '1.5vw 2vw', display: 'flex', alignItems: 'center', gap: '1vw', boxShadow: '0 8px 32px rgba(0,0,0,0.2)' }}>
+                                <div style={{ width: '1.8vw', height: '1.8vw', borderRadius: '50%', background: limeGreen, boxShadow: `0 0 10px ${limeGreen}40`, flexShrink: 0 }}></div>
+                                <span style={{ color: 'white', fontSize: '1.2vw', fontWeight: 600 }}>ShootQuiz</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Right Column — QR Sidebar */}
+                    <div className="saas-qr-glass-card" style={{
+                        flex: 0.55,
+                        marginLeft: '6vw',
+                        borderRadius: '2.5vw',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '2vw',
+                        padding: '2vw 2vw',
+                        alignSelf: 'flex-start'
+                    }}>
+                        <div className="saas-scan-prompt" style={{ fontSize: '1.2vw', width: '100%', justifyContent: 'center', background: 'transparent', border: 'none', padding: '0', boxShadow: 'none' }}>
+                            <i>🎯</i><span>Scan to Play</span>
+                        </div>
+
+                        {/* Responsive QR Wrapper */}
+                        <div className="saas-qr-wrapper" style={{ width: '75%', aspectRatio: '1/1', padding: '1vw', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <QRCodeSVG value={controllerUrl} style={{ width: '100%', height: '100%' }} level="H" fgColor="#1c1b1f" />
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '1vw', width: '100%', justifyContent: 'center' }}>
+                            {[0, 1, 2, 3].map(slotIndex => {
+                                const player = lobby?.players.find(p => p.colorIndex === slotIndex);
+                                const isJoined = !!player;
+                                const avatar = preConfigAvatars[slotIndex];
+                                const playerColor = CROSSHAIR_COLORS[slotIndex];
+                                return (
+                                    <div key={slotIndex} style={{
+                                        width: '3.5vw', height: '3.5vw',
+                                        borderRadius: '50%',
+                                        background: 'transparent',
+                                        border: isJoined ? `2px solid ${playerColor}` : '2px dashed rgba(255,255,255,0.15)',
+                                        boxShadow: isJoined ? `0 0 10px ${playerColor}80` : 'none',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        overflow: 'hidden',
+                                        transition: 'all 0.4s ease',
+                                        flexShrink: 0,
+                                    }}>
+                                        <img
+                                            src={`/avatars/${avatar}.png`}
+                                            alt={preConfigNames[slotIndex]}
+                                            style={{ width: '90%', height: '90%', objectFit: 'contain', opacity: 1, transition: 'opacity 0.4s ease' }}
+                                        />
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        <div style={{ color: 'var(--text-secondary)', fontSize: '1.2vw', fontWeight: 600 }}>
+                            1 – 4 Players
+                        </div>
+                    </div>
+                </div>
             </div>
         );
     }
