@@ -7,7 +7,8 @@ import { readFileSync, existsSync, writeFileSync, unlinkSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { CONFIG } from '../infrastructure/config.ts';
-import type { ServerQuestion } from '../shared/types.ts';
+import type { ServerQuestion, QuizTopicId } from '../shared/types.ts';
+import { DEFAULT_TOPIC } from '../shared/types.ts';
 import { getGroqService, isGroqEnabled } from '../services/GroqService.ts';
 ///
 // Get current directory for file paths
@@ -23,8 +24,13 @@ interface AiQuestionsFile {
 // Static JSON questions cache (fallback)
 let staticQuestionsCache: ServerQuestion[] | null = null;
 
+interface SessionCacheEntry {
+    questions: ServerQuestion[];
+    topic: QuizTopicId;
+}
+
 // Session-specific generated questions (per room/game)
-const sessionQuestionsCache = new Map<string, ServerQuestion[]>();
+const sessionQuestionsCache = new Map<string, SessionCacheEntry>();
 
 // Global tracking of recently-used question texts across ALL active sessions
 // Prevents duplicate questions across concurrent rooms
@@ -142,60 +148,70 @@ function deleteAiQuestions(): void {
  * ALWAYS generates fresh AI questions via Groq to avoid repetition
  * Falls back to static JSON only if AI generation fails
  */
-export async function generateSessionQuestions(sessionId: string): Promise<ServerQuestion[]> {
-    // Check if we already have questions for this session
-    if (sessionQuestionsCache.has(sessionId)) {
+export async function generateSessionQuestions(sessionId: string, topic?: QuizTopicId): Promise<ServerQuestion[]> {
+    const currentTopic = topic || DEFAULT_TOPIC;
 
-        return sessionQuestionsCache.get(sessionId)!;
+    const cached = sessionQuestionsCache.get(sessionId);
+    if (cached && cached.topic === currentTopic) {
+        return cached.questions;
     }
 
-    const currentTopic = CONFIG.QUIZ_TOPIC || 'General Knowledge';
+    if (cached && cached.topic !== currentTopic) {
+        console.log(`[QuestionRepo] Session ${sessionId} topic changed from ${cached.topic} to ${currentTopic}, regenerating...`);
+    }
+
     let questions: ServerQuestion[] = [];
 
     // Step 1: ALWAYS try to generate fresh questions via Groq first (to avoid repetition)
     if (isGroqEnabled()) {
-        try {
-            const groqService = getGroqService()!;
+        const maxRetries = 2;
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                const groqService = getGroqService()!;
 
+                questions = await groqService.generateQuestionsForTopic(currentTopic, getGlobalExclusionList());
 
-            questions = await groqService.generateQuestionsForSession(getGlobalExclusionList());
-
-            if (!questions || questions.length === 0) {
-                throw new Error('Groq returned empty questions array');
-            }
-
-            // Remove any duplicates based on question text
-            const seenTexts = new Set<string>();
-            questions = questions.filter(q => {
-                const normalizedText = q.text.trim().toLowerCase();
-                if (seenTexts.has(normalizedText)) {
-
-                    return false;
+                if (!questions || questions.length === 0) {
+                    throw new Error('Groq returned empty questions array');
                 }
-                seenTexts.add(normalizedText);
-                return true;
-            });
 
+                // Remove any duplicates based on question text
+                const seenTexts = new Set<string>();
+                questions = questions.filter(q => {
+                    const normalizedText = q.text.trim().toLowerCase();
+                    if (seenTexts.has(normalizedText)) {
+                        return false;
+                    }
+                    seenTexts.add(normalizedText);
+                    return true;
+                });
 
+                if (questions.length < 5) {
+                    console.warn(`[QuestionRepo] Only ${questions.length} unique questions generated (attempt ${attempt}/${maxRetries})`);
+                    if (attempt < maxRetries) continue;
+                }
 
-            // Save to Ai-questions.json for backup only (not for reuse)
-            saveAiQuestions(questions, currentTopic);
+                // Save to Ai-questions.json for backup only (not for reuse)
+                saveAiQuestions(questions, currentTopic);
 
-            // Track these questions globally so other rooms avoid them
-            for (const q of questions) {
-                addToGlobalRecent(q.text);
-            }
+                // Track these questions globally so other rooms avoid them
+                for (const q of questions) {
+                    addToGlobalRecent(q.text);
+                }
 
-        } catch (error) {
-            console.error('[QuestionRepo] Groq generation failed, falling back to cached/static:', error);
-            // Try cached AI questions as fallback
-            const cachedAiQuestions = loadAiQuestions(currentTopic);
-            if (cachedAiQuestions && cachedAiQuestions.length > 0) {
+                break;
 
-                questions = cachedAiQuestions;
-            } else {
-
-                questions = getRandomStaticQuestions(CONFIG.QUESTIONS_PER_SESSION || 10);
+            } catch (error) {
+                console.error(`[QuestionRepo] Groq generation attempt ${attempt}/${maxRetries} failed:`, error);
+                if (attempt === maxRetries) {
+                    console.error('[QuestionRepo] All Groq retries exhausted, falling back to cached/static');
+                    const cachedAiQuestions = loadAiQuestions(currentTopic);
+                    if (cachedAiQuestions && cachedAiQuestions.length > 0) {
+                        questions = cachedAiQuestions;
+                    } else {
+                        questions = getRandomStaticQuestions(CONFIG.QUESTIONS_PER_SESSION || 10);
+                    }
+                }
             }
         }
     }
@@ -203,10 +219,8 @@ export async function generateSessionQuestions(sessionId: string): Promise<Serve
     else {
         const cachedAiQuestions = loadAiQuestions(currentTopic);
         if (cachedAiQuestions && cachedAiQuestions.length > 0) {
-
             questions = cachedAiQuestions;
         } else {
-
             questions = getRandomStaticQuestions(CONFIG.QUESTIONS_PER_SESSION || 10);
         }
     }
@@ -215,8 +229,7 @@ export async function generateSessionQuestions(sessionId: string): Promise<Serve
     questions = questions.map(q => normalizeQuestionFormat(q));
 
     // Cache for this session
-    sessionQuestionsCache.set(sessionId, questions);
-
+    sessionQuestionsCache.set(sessionId, { questions, topic: currentTopic });
 
     return questions;
 }
@@ -225,14 +238,15 @@ export async function generateSessionQuestions(sessionId: string): Promise<Serve
  * Pre-generate questions for a session (call when room is created)
  * This ensures questions are ready when game starts
  */
-export async function preGenerateForSession(sessionId: string): Promise<void> {
-    if (sessionQuestionsCache.has(sessionId)) {
-
+export async function preGenerateForSession(sessionId: string, topic?: QuizTopicId): Promise<void> {
+    const currentTopic = topic || DEFAULT_TOPIC;
+    const cached = sessionQuestionsCache.get(sessionId);
+    if (cached && cached.topic === currentTopic) {
         return;
     }
 
     try {
-        await generateSessionQuestions(sessionId);
+        await generateSessionQuestions(sessionId, topic);
     } catch (error) {
         console.warn(`[QuestionRepo] Pre-generation failed for session ${sessionId}:`, error);
     }
@@ -246,43 +260,40 @@ export async function preGenerateForSession(sessionId: string): Promise<void> {
  * @param sessionId - The session ID
  * @param additionalCount - Optional number of additional questions to generate (for dynamic limit increases)
  */
-export async function getSessionQuestions(sessionId: string, additionalCount?: number): Promise<ServerQuestion[]> {
+export async function getSessionQuestions(sessionId: string, additionalCount?: number, topic?: QuizTopicId): Promise<ServerQuestion[]> {
+    const currentTopic = topic || DEFAULT_TOPIC;
+    const cached = sessionQuestionsCache.get(sessionId);
+
     // If additionalCount is specified, generate more questions for existing session
-    if (additionalCount && additionalCount > 0 && sessionQuestionsCache.has(sessionId)) {
-
-
+    if (additionalCount && additionalCount > 0 && cached && cached.topic === currentTopic) {
         if (isGroqEnabled() && !isGenerating.has(sessionId)) {
             isGenerating.add(sessionId);
             try {
-                await generateMoreQuestionsForSession(sessionId, additionalCount);
+                await generateMoreQuestionsForSession(sessionId, additionalCount, currentTopic);
             } finally {
                 isGenerating.delete(sessionId);
             }
         }
 
-        return sessionQuestionsCache.get(sessionId)!;
+        return sessionQuestionsCache.get(sessionId)!.questions;
     }
 
-    if (sessionQuestionsCache.has(sessionId)) {
-        const questions = sessionQuestionsCache.get(sessionId)!;
+    if (cached && cached.topic === currentTopic) {
+        const questions = cached.questions;
 
         // Check if we need more questions (less than 5 remaining)
         if (questions.length < 5) {
-
-
             // Step 1: Immediately add static questions as temporary buffer
             const staticBuffer = getRandomStaticQuestions(10);
             const withBuffer = [...questions, ...staticBuffer];
-            sessionQuestionsCache.set(sessionId, withBuffer);
-
+            sessionQuestionsCache.set(sessionId, { questions: withBuffer, topic: currentTopic });
 
             // Step 2: Trigger background AI generation if Groq is enabled
             if (isGroqEnabled() && !isGenerating.has(sessionId)) {
                 isGenerating.add(sessionId);
 
-
                 // Run generation in background (don't await)
-                generateMoreQuestionsForSession(sessionId).finally(() => {
+                generateMoreQuestionsForSession(sessionId, undefined, currentTopic).finally(() => {
                     isGenerating.delete(sessionId);
                 });
             }
@@ -292,7 +303,14 @@ export async function getSessionQuestions(sessionId: string, additionalCount?: n
 
         return questions;
     }
-    return generateSessionQuestions(sessionId);
+
+    // If cached but topic changed, regenerate
+    if (cached && cached.topic !== currentTopic) {
+        console.log(`[QuestionRepo] Session ${sessionId} topic changed from ${cached.topic} to ${currentTopic}, regenerating...`);
+        sessionQuestionsCache.delete(sessionId);
+    }
+
+    return generateSessionQuestions(sessionId, currentTopic);
 }
 
 // Track which sessions are currently generating to prevent duplicates
@@ -305,18 +323,18 @@ const isGenerating = new Set<string>();
  * @param sessionId - The session ID
  * @param count - Optional number of questions to generate (defaults to QUESTIONS_PER_SESSION)
  */
-async function generateMoreQuestionsForSession(sessionId: string, count?: number): Promise<void> {
+async function generateMoreQuestionsForSession(sessionId: string, count?: number, topic?: QuizTopicId): Promise<void> {
     try {
         const groqService = getGroqService()!;
         const questionCount = count || (CONFIG.QUESTIONS_PER_SESSION || 10);
-
+        const currentTopic = topic || sessionQuestionsCache.get(sessionId)?.topic || DEFAULT_TOPIC;
 
         // Temporarily override question count for this generation
         const originalCount = groqService.getQuestionCount();
         groqService.setQuestionCount(questionCount);
 
         // Generate fresh questions (not from cache)
-        const newQuestions = await groqService.generateQuestionsForSession();
+        const newQuestions = await groqService.generateQuestionsForTopic(currentTopic);
 
         // Restore original count
         groqService.setQuestionCount(originalCount);
@@ -326,33 +344,32 @@ async function generateMoreQuestionsForSession(sessionId: string, count?: number
             const normalizedNew = newQuestions.map(q => normalizeQuestionFormat(q));
 
             // Get current cache
-            const currentQuestions = sessionQuestionsCache.get(sessionId) || [];
+            const currentQuestions = sessionQuestionsCache.get(sessionId)?.questions || [];
 
             // Filter out any questions that have the same text as existing ones (avoid duplicates)
             const existingTexts = new Set(currentQuestions.map(q => q.text.trim().toLowerCase()));
             const uniqueNewQuestions = normalizedNew.filter(q => !existingTexts.has(q.text.trim().toLowerCase()));
 
             if (uniqueNewQuestions.length === 0) {
-
                 return;
             }
 
             // Combine existing with new fresh questions
             const allQuestions = [...currentQuestions, ...uniqueNewQuestions];
-            sessionQuestionsCache.set(sessionId, allQuestions);
+            sessionQuestionsCache.set(sessionId, { questions: allQuestions, topic: currentTopic });
 
             // Also save to file for persistence (append mode)
-            const currentTopic = CONFIG.QUIZ_TOPIC || 'General Knowledge';
-            const existingCache = loadAiQuestions(currentTopic);
+            const currentTopicLabel = currentTopic;
+            const existingCache = loadAiQuestions(currentTopicLabel);
             if (existingCache) {
                 // Also filter duplicates from file cache
                 const fileTexts = new Set(existingCache.map(q => q.text.trim().toLowerCase()));
                 const uniqueForFile = uniqueNewQuestions.filter(q => !fileTexts.has(q.text.trim().toLowerCase()));
                 if (uniqueForFile.length > 0) {
-                    saveAiQuestions([...existingCache, ...uniqueForFile], currentTopic);
+                    saveAiQuestions([...existingCache, ...uniqueForFile], currentTopicLabel);
                 }
             } else {
-                saveAiQuestions(uniqueNewQuestions, currentTopic);
+                saveAiQuestions(uniqueNewQuestions, currentTopicLabel);
             }
 
 
@@ -367,9 +384,9 @@ async function generateMoreQuestionsForSession(sessionId: string, count?: number
  */
 export function clearSessionQuestions(sessionId: string): void {
     // Remove this session's questions from global tracking
-    const sessionQuestions = sessionQuestionsCache.get(sessionId);
-    if (sessionQuestions) {
-        for (const q of sessionQuestions) {
+    const cached = sessionQuestionsCache.get(sessionId);
+    if (cached) {
+        for (const q of cached.questions) {
             globalRecentQuestions.delete(q.text.trim().toLowerCase());
         }
     }
@@ -435,8 +452,8 @@ function normalizeQuestionFormat(q: ServerQuestion): ServerQuestion {
 /**
  * Get current topic from config
  */
-export function getCurrentTopic(): string {
-    return CONFIG.QUIZ_TOPIC || 'General Knowledge';
+export function getCurrentTopic(): QuizTopicId {
+    return DEFAULT_TOPIC;
 }
 
 /**

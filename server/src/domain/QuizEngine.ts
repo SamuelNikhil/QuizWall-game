@@ -7,7 +7,7 @@
 
 import { getSessionQuestions, clearSessionQuestions, generateSessionQuestions, getAllQuestions } from '../data/questionRepository.ts';
 import { CONFIG } from '../infrastructure/config.ts';
-import type { ServerQuestion, ClientQuestion, QuestionPhase, PlayerSelectionPayload, RevealResultPayload } from '../shared/types.ts';
+import type { ServerQuestion, ClientQuestion, QuestionPhase, PlayerSelectionPayload, RevealResultPayload, QuizTopicId } from '../shared/types.ts';
 
 // Phase durations in seconds
 const PHASE_DURATIONS: Record<QuestionPhase, number> = {
@@ -22,17 +22,18 @@ export class QuizEngine {
     private currentIndex: number = 0;
     private timeLeft: number = CONFIG.TIMER_DURATION;
     private timerInterval: ReturnType<typeof setInterval> | null = null;
-    private questionsAnswered: number = 0; // Questions answered in current round
-    private sessionQuestionsAnswered: number = 0; // Accumulated across restarts
+    private questionsAnswered: number = 0;
+    private sessionQuestionsAnswered: number = 0;
     private initialized: boolean = false;
-    private playerCount: number = 1; // Track number of players for timer logic
-    private usedQuestionTexts: Set<string> = new Set(); // Track used question TEXTS to avoid repetition
-    private sessionQuestionLimit: number; // Fixed limit of 10 questions per session
-    private readonly MAX_QUESTIONS = 10; // Maximum questions per session
-    private allQuestionsCompleted: boolean = false; // Track if all questions have been answered
-    private lastGameOverReason: 'time' | 'completed' | 'all_wrong' = 'time'; // Reason for game over
-    private totalQuestionsAttempted: number = 0; // Track ALL questions attempted (correct + wrong)
-    private destroyed: boolean = false; // Guard against post-destroy callbacks
+    private playerCount: number = 1;
+    private usedQuestionTexts: Set<string> = new Set();
+    private sessionQuestionLimit: number;
+    private readonly MAX_QUESTIONS = 10;
+    private allQuestionsCompleted: boolean = false;
+    private lastGameOverReason: 'time' | 'completed' | 'all_wrong' = 'time';
+    private totalQuestionsAttempted: number = 0;
+    private destroyed: boolean = false;
+    private selectedTopic: QuizTopicId | null = null;
 
     // Phase-based multiplayer fields
     private currentPhase: QuestionPhase = 'analysis';
@@ -65,20 +66,26 @@ export class QuizEngine {
      * Must be called before the game starts
      * Uses Gemini if available, falls back to static JSON
      */
-    async initialize(): Promise<void> {
+    async initialize(topic?: QuizTopicId): Promise<void> {
+        if (topic) {
+            this.selectedTopic = topic;
+        }
+
         if (this.initialized) {
-            console.log(`[QuizEngine] Already initialized for session: ${this.sessionId}`);
+            console.log(`[QuizEngine] Already initialized for session: ${this.sessionId} with topic: ${this.selectedTopic}, skipping re-init`);
             return;
         }
 
+        this.isReset = false;
+
         try {
-            this.questions = await getSessionQuestions(this.sessionId);
+            console.log(`[QuizEngine] Initializing session: ${this.sessionId}, topic: ${this.selectedTopic}`);
+            this.questions = await getSessionQuestions(this.sessionId, undefined, this.selectedTopic ?? undefined);
             this.shuffleQuestions();
             this.initialized = true;
-            console.log(`[QuizEngine] Initialized with ${this.questions.length} questions for session: ${this.sessionId}`);
+            console.log(`[QuizEngine] Initialized with ${this.questions.length} questions for session: ${this.sessionId}, topic: ${this.selectedTopic}`);
         } catch (error) {
             console.error(`[QuizEngine] Failed to load questions, using fallback:`, error);
-            // Emergency fallback to static questions
             this.questions = getAllQuestions();
             this.shuffleQuestions();
             this.initialized = true;
@@ -90,6 +97,14 @@ export class QuizEngine {
      */
     getSessionId(): string {
         return this.sessionId;
+    }
+
+    setTopic(topic: QuizTopicId): void {
+        this.selectedTopic = topic;
+    }
+
+    getTopic(): QuizTopicId | null {
+        return this.selectedTopic;
     }
 
     /**
@@ -168,6 +183,7 @@ export class QuizEngine {
 
     /** Start the game timer (singleplayer) */
     startTimer(): void {
+        this.isReset = false; // Clear reset flag when starting a new game
         if (!this.initialized) {
             console.error('[QuizEngine] Cannot start timer - not initialized');
             return;
@@ -468,6 +484,8 @@ export class QuizEngine {
         this.playerSelections.clear();
         this.questionNumberForUI = 0;
         this.currentPhase = 'analysis';
+        this.initialized = false;
+        this.selectedTopic = null;
         this.shuffleQuestions();
     }
 
@@ -497,16 +515,16 @@ export class QuizEngine {
         this.questionNumberForUI = 0;
         this.currentPhase = 'analysis';
         this.destroyed = false; // Allow reuse after reset
+        this.isReset = false; // Clear reset guard for next game
 
         // Generate fresh questions from AI
         try {
-            this.questions = await generateSessionQuestions(this.sessionId);
-            this.shuffleQuestions();
-            console.log(`[QuizEngine] Fresh questions loaded: ${this.questions.length}`);
+        this.questions = await generateSessionQuestions(this.sessionId, this.selectedTopic ?? undefined);
+        this.shuffleQuestions();
+        console.log(`[QuizEngine] Fresh questions loaded: ${this.questions.length}`);
         } catch (err) {
             console.error('[QuizEngine] Failed to regenerate questions, falling back to existing:', err);
-            // Fall back to cached/static questions
-            this.questions = await getSessionQuestions(this.sessionId);
+            this.questions = await getSessionQuestions(this.sessionId, undefined, this.selectedTopic ?? undefined);
             this.shuffleQuestions();
         }
     }
@@ -630,7 +648,7 @@ export class QuizEngine {
 
             // Refresh questions from session cache to get any newly generated ones
             try {
-                const updatedQuestions = await getSessionQuestions(this.sessionId);
+                const updatedQuestions = await getSessionQuestions(this.sessionId, undefined, this.selectedTopic ?? undefined);
                 if (updatedQuestions.length > this.questions.length) {
                     console.log(`[QuizEngine] Refreshed questions: ${this.questions.length} -> ${updatedQuestions.length}`);
                     this.questions = updatedQuestions;

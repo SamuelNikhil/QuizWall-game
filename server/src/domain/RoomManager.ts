@@ -7,19 +7,21 @@ import { QuizEngine } from './QuizEngine.ts';
 import { EVENTS } from '../shared/protocol.ts';
 import { PlayerManager } from './PlayerManager.ts';
 import { CONFIG } from '../infrastructure/config.ts';
-import type { PlayerRole, PlayerInfo, PlayerScoreEntry, LobbyState } from '../shared/types.ts';
+import type { PlayerRole, PlayerInfo, PlayerScoreEntry, LobbyState, QuizTopicId, TopicVoteUpdatePayload, TopicSelectedPayload } from '../shared/types.ts';
+import { QUIZ_TOPICS, DEFAULT_TOPIC, TOPIC_SELECTION_TIMEOUT_MS } from '../shared/types.ts';
 
 export interface RoomController {
     id: string;
     clientId: string; // Persistent device ID
     role: PlayerRole;
     isReady: boolean;
-    colorIndex: number; // For crosshair color assignment (0, 1, 2)
-    name: string; // Individual player name
-    score: number; // Individual player score for this game session
-    isSpectating: boolean; // Whether player is currently in the lobby during an active game
+    colorIndex: number;
+    name: string;
+    score: number;
+    isSpectating: boolean;
+    disconnected?: boolean;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    channel: any; // Geckos.io ServerChannel
+    channel: any;
 }
 
 export interface DisconnectedPlayerScore {
@@ -38,8 +40,15 @@ export interface Room {
     quizEngine: QuizEngine;
     gameStarted: boolean;
     lastActivity: number; // Timestamp of last activity for idle reaping
-    disconnectedPlayerScores: Map<string, DisconnectedPlayerScore>; // Scores of players who left during gameplay
+    disconnectedPlayerScores: Map<string, DisconnectedPlayerScore>;
+    disconnectGraceTimers: Map<string, NodeJS.Timeout>;
+    topicVotes: Map<string, QuizTopicId>;
+    topicSelectionTimer: ReturnType<typeof setTimeout> | null;
+    topicSelectionStarted: boolean;
+    topicSelectionStartedAt: number | null;
 }
+
+export const PRE_CONFIG_NAMES = ['Wulf', 'Talon', 'Ryker', 'Zark'];
 
 export class RoomManager {
     private rooms: Map<string, Room> = new Map();
@@ -80,6 +89,11 @@ export class RoomManager {
             gameStarted: false,
             lastActivity: Date.now(),
             disconnectedPlayerScores: new Map(),
+            disconnectGraceTimers: new Map(),
+            topicVotes: new Map(),
+            topicSelectionTimer: null,
+            topicSelectionStarted: false,
+            topicSelectionStartedAt: null,
         };
 
         this.rooms.set(roomId, room);
@@ -109,9 +123,10 @@ export class RoomManager {
         const existingIdx = room.controllers.findIndex(c => c.clientId === clientId);
         if (existingIdx !== -1) {
             const existing = room.controllers[existingIdx];
-            // Re-bind to the new connection but keep role, state, AND colorIndex
             existing.id = channel.id;
             existing.channel = channel;
+            existing.disconnected = false;
+            this.ensureSingleLeader(room);
             return {
                 success: true,
                 role: existing.role,
@@ -130,7 +145,9 @@ export class RoomManager {
         }
 
         // 2. Also check if this CHANNEL (connection) is in ANY other room and clean up
-        this.removeController(channel.id);
+        const removed = this.removeController(channel.id);
+        // If we accidentally removed this same room's controller (shouldn't happen), re-check
+        // removeController may have promoted a new leader in another room; that's fine.
 
         if (room.controllers.length >= CONFIG.MAX_PLAYERS_PER_ROOM) {
             return { success: false, error: 'Room is full (max 4 players)' };
@@ -140,8 +157,9 @@ export class RoomManager {
             return { success: false, error: 'Game already in progress' };
         }
 
-        // First controller = leader, rest = members
-        const role: PlayerRole = room.controllers.length === 0 ? 'leader' : 'member';
+        // Determine role: leader only if no other leader exists in the room
+        const currentLeaders = room.controllers.filter(c => c.role === 'leader');
+        const role: PlayerRole = currentLeaders.length === 0 ? 'leader' : 'member';
 
         // Find the first available color index (for when players leave and rejoin)
         // But prefer to restore the previous colorIndex if available
@@ -160,7 +178,7 @@ export class RoomManager {
 
         // Assign default name based on position
         const playerNumber = room.controllers.length + 1;
-        const defaultName = playerNumber === 1 ? 'Leader' : `Player ${playerNumber}`;
+        const defaultName = PRE_CONFIG_NAMES[colorIndex] || `Player ${playerNumber}`;
 
         const controller: RoomController = {
             id: channel.id,
@@ -199,26 +217,14 @@ export class RoomManager {
         return true;
     }
 
-    /** Check if all players are ready (or solo leader) */
+    /** Check if game can be started (at least 1 player present) */
     canStartGame(roomId: string): boolean {
         const room = this.rooms.get(roomId);
         if (!room) return false;
         if (room.controllers.length === 0) return false;
 
-        // Solo leader can always start
-        if (room.controllers.length === 1) {
-
-            return true;
-        }
-
-        // Otherwise all members must be ready
-        const allReady = room.controllers.every((c) => {
-
-            return c.isReady;
-        });
-
-
-        return allReady;
+        // Leader can start as long as there are connected players
+        return true;
     }
 
     /** Start the game. Uses clientId for leader verification. */
@@ -229,6 +235,9 @@ export class RoomManager {
             return false;
         }
 
+        // Safety: ensure exactly one leader before starting
+        this.ensureSingleLeader(room);
+
         // Only leader can start — look up by clientId, NOT channel.id
         const controller = room.controllers.find((c) => c.clientId === clientId);
         if (!controller || controller.role !== 'leader') {
@@ -238,9 +247,7 @@ export class RoomManager {
 
         const canStart = this.canStartGame(roomId);
         if (!canStart) {
-            const room = this.rooms.get(roomId)!;
-            const readyStatus = room.controllers.map(c => `${c.clientId.substring(0, 8)}: ready=${c.isReady}, role=${c.role}`).join(', ');
-            console.warn(`[RoomManager] Cannot start game - not all players ready. Controllers: ${room.controllers.length}. Status: [${readyStatus}]`);
+            console.warn(`[RoomManager] Cannot start game - no players in room ${roomId}`);
             return false;
         }
 
@@ -278,58 +285,150 @@ export class RoomManager {
         };
     }
 
-    /** Remove a controller from its room */
     removeController(channelId: string): { room: Room | null; wasLeader: boolean; promotedControllerId?: string } {
         for (const [, room] of this.rooms) {
             const idx = room.controllers.findIndex((c) => c.id === channelId);
-            if (idx !== -1) {
-                const wasLeader = room.controllers[idx].role === 'leader';
-                const leftController = room.controllers[idx];
-                const leftColorIndex = leftController.colorIndex;
+            if (idx === -1) continue;
 
-                // If game is in progress, save the player's score so it's preserved on the scoreboard
-                if (room.gameStarted && leftController.score > 0) {
+            const wasLeader = room.controllers[idx].role === 'leader';
+            const leftController = room.controllers[idx];
+            const leftColorIndex = leftController.colorIndex;
+
+            if (room.gameStarted) {
+                if (room.controllers.length === 1) {
+                    room.controllers.splice(idx, 1);
+                    room.lastActivity = Date.now();
+                    room.gameStarted = false;
+                    room.quizEngine.reset();
+                    this.clearDisconnectedScores(room.roomId);
+                    console.log(`[Room] Last player ${leftController.name} disconnected - ending session immediately`);
+                    return { room, wasLeader, promotedControllerId: undefined };
+                }
+
+                leftController.disconnected = true;
+                leftController.channel = null;
+
+                if (leftController.score > 0) {
                     room.disconnectedPlayerScores.set(leftController.clientId, {
                         clientId: leftController.clientId,
                         name: leftController.name,
                         colorIndex: leftController.colorIndex,
                         score: leftController.score,
                     });
-                    console.log(`[Room] Saved score ${leftController.score} for disconnected player ${leftController.name} (${leftController.clientId})`);
                 }
 
-                room.controllers.splice(idx, 1);
-                room.lastActivity = Date.now();
+                const clientId = leftController.clientId;
+                const timer = setTimeout(() => {
+                    this.fullyRemoveController(room.roomId, clientId);
+                }, 60_000);
+                room.disconnectGraceTimers.set(clientId, timer);
 
-                // Preserve color indices in lobby to maintain character consistency
-                // Only reassign during gameplay to avoid duplicate colors on scoreboard
-                // Note: Color indices may have gaps now, which is fine for lobby consistency
+                console.log(`[Room] Controller ${leftController.name} (${clientId}) disconnected during gameplay — 60s grace period started`);
 
-                let promotedControllerId: string | undefined;
-
-                // If leader left and there are still members, promote the controller with the lowest colorIndex
-                // This ensures consistent leadership hierarchy (Wulf -> Talon -> Ryker -> Zark)
-                if (wasLeader && room.controllers.length > 0) {
-                    // Find the controller with the smallest colorIndex (maintains character hierarchy)
-                    let nextLeader = room.controllers[0];
-                    for (const controller of room.controllers) {
-                        if (controller.colorIndex < nextLeader.colorIndex) {
-                            nextLeader = controller;
-                        }
-                    }
-
-                    nextLeader.role = 'leader';
-                    nextLeader.isReady = true; // New leader is always ready
-                    promotedControllerId = nextLeader.clientId;
-                    console.log(`[Room] Leader left - promoted controller ${nextLeader.clientId} (${nextLeader.name}, colorIndex: ${nextLeader.colorIndex}) as new leader`);
-                }
-
-                console.log(`[Room] Controller left (colorIndex: ${leftColorIndex}), remaining: ${room.controllers.length}`);
-
+                const promotedControllerId = this.ensureSingleLeader(room);
                 return { room, wasLeader, promotedControllerId };
             }
+
+            room.controllers.splice(idx, 1);
+            room.lastActivity = Date.now();
+
+            const promotedControllerId = this.ensureSingleLeader(room);
+            console.log(`[Room] Controller left (colorIndex: ${leftColorIndex}), remaining: ${room.controllers.length}`);
+            return { room, wasLeader, promotedControllerId };
         }
         return { room: null, wasLeader: false };
+    }
+
+    /**
+     * Ensures exactly one connected (non-disconnected) controller has role='leader'.
+     * If no leader exists among connected controllers, promotes the one with the
+     * lowest colorIndex. Returns the clientId of the promoted controller, or
+     * undefined if no promotion was needed.
+     */
+    private ensureSingleLeader(room: Room): string | undefined {
+        const connected = room.controllers.filter(c => !c.disconnected);
+        if (connected.length === 0) return undefined;
+
+        let currentLeaders = connected.filter(c => c.role === 'leader');
+
+        if (currentLeaders.length > 1) {
+            // Multiple leaders: keep the one with the lowest colorIndex, demote the rest
+            let keepLeader = currentLeaders[0];
+            for (const c of currentLeaders) {
+                if (c.colorIndex < keepLeader.colorIndex) keepLeader = c;
+            }
+            for (const c of currentLeaders) {
+                if (c !== keepLeader) {
+                    c.role = 'member';
+                    console.log(`[Room] Demoted ${c.name} (${c.clientId.substring(0, 8)}) from leader to member — duplicate leader`);
+                }
+            }
+            return undefined;
+        }
+
+        if (currentLeaders.length === 0) {
+            // No leader among connected controllers — promote the one with lowest colorIndex
+            let nextLeader = connected[0];
+            for (const c of connected) {
+                if (c.colorIndex < nextLeader.colorIndex) nextLeader = c;
+            }
+            nextLeader.role = 'leader';
+            nextLeader.isReady = true;
+            console.log(`[Room] No leader found — promoted ${nextLeader.name} (${nextLeader.clientId.substring(0, 8)}) as new leader`);
+            return nextLeader.clientId;
+        }
+
+        return undefined;
+    }
+
+    private fullyRemoveController(roomId: string, clientId: string): string | undefined {
+        const room = this.rooms.get(roomId);
+        if (!room) return undefined;
+
+        const idx = room.controllers.findIndex(c => c.clientId === clientId);
+        if (idx === -1) return undefined;
+
+        const controller = room.controllers[idx];
+        room.controllers.splice(idx, 1);
+        room.disconnectGraceTimers.delete(clientId);
+        room.lastActivity = Date.now();
+
+        console.log(`[Room] Grace period expired — fully removed controller ${controller.name} (${clientId})`);
+
+        return this.ensureSingleLeader(room);
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    reconnectController(roomId: string, clientId: string, newChannel: any): { success: boolean; phase?: string; playerScores?: PlayerScoreEntry[]; error?: string } {
+        const room = this.rooms.get(roomId);
+        if (!room) return { success: false, error: 'Room not found' };
+
+        const controller = room.controllers.find(c => c.clientId === clientId && c.disconnected);
+        if (!controller) return { success: false, error: 'No disconnected controller found with that ID' };
+
+        const timer = room.disconnectGraceTimers.get(clientId);
+        if (timer) {
+            clearTimeout(timer);
+            room.disconnectGraceTimers.delete(clientId);
+        }
+
+        controller.disconnected = false;
+        controller.channel = newChannel;
+        room.lastActivity = Date.now();
+
+        room.disconnectedPlayerScores.delete(clientId);
+
+        this.ensureSingleLeader(room);
+
+        const phase = room.gameStarted ? 'playing' : 'lobby';
+
+        console.log(`[Room] Controller ${controller.name} (${clientId}) reconnected — phase: ${phase}`);
+
+        return {
+            success: true,
+            phase,
+            playerScores: this.getPlayerScores(roomId),
+        };
     }
 
     /** Delete a room (when screen disconnects) */
@@ -384,15 +483,13 @@ export class RoomManager {
         if (!room) return;
 
         room.gameStarted = false;
-        room.quizEngine.reset(); // Silent reset
+        room.quizEngine.reset();
 
-        // Reset ready states and spectating status
         this.resetSpectatingStatus(roomId);
         for (const c of room.controllers) {
-            if (c.role === 'member') {
-                c.isReady = false;
-            }
+            c.isReady = true;
         }
+        this.clearDisconnectedScores(roomId);
     }
 
     /** Reset spectating status for all players in a room */
@@ -413,11 +510,7 @@ export class RoomManager {
         if (!controller) return false;
 
         controller.isSpectating = true;
-        // Also reset their ready state so they don't auto-ready for the next game
-        if (controller.role === 'member') {
-            controller.isReady = false;
-        }
-        console.log(`[Room] Player ${controller.name} (${clientId.substring(0, 8)}) is now spectating and unreadied`);
+        console.log(`[Room] Player ${controller.name} (${clientId.substring(0, 8)}) is now spectating`);
         return true;
     }
 
@@ -492,6 +585,131 @@ export class RoomManager {
         console.log(`[Room] Cleared disconnected scores in ${roomId}`);
     }
 
+    startTopicSelection(roomId: string): TopicVoteUpdatePayload | null {
+        const room = this.rooms.get(roomId);
+        if (!room || room.topicSelectionStarted) return null;
+
+        room.topicVotes.clear();
+        room.topicSelectionStarted = true;
+        room.topicSelectionStartedAt = Date.now();
+
+        room.topicSelectionTimer = setTimeout(() => {
+            console.log(`[Room] Topic selection timeout in ${roomId}`);
+            // Timer expired, resolution will be handled elsewhere
+        }, TOPIC_SELECTION_TIMEOUT_MS);
+
+        console.log(`[Room] Topic selection started in ${roomId}`);
+
+        return this.getTopicVoteUpdate(roomId);
+    }
+
+    castTopicVote(roomId: string, clientId: string, topicId: QuizTopicId): { accepted: boolean; update: TopicVoteUpdatePayload | null; resolved: TopicSelectedPayload | null } {
+        const room = this.rooms.get(roomId);
+        if (!room || !room.topicSelectionStarted) return { accepted: false, update: null, resolved: null };
+
+        const validTopic = QUIZ_TOPICS.find(t => t.id === topicId);
+        if (!validTopic) return { accepted: false, update: null, resolved: null };
+
+        room.topicVotes.set(clientId, topicId);
+
+        const update = this.getTopicVoteUpdate(roomId)!;
+
+        const activePlayers = room.controllers.filter(c => !c.disconnected);
+        const allVoted = room.topicVotes.size >= activePlayers.length;
+
+        if (allVoted) {
+            if (room.topicSelectionTimer) {
+                clearTimeout(room.topicSelectionTimer);
+                room.topicSelectionTimer = null;
+            }
+            const resolved = this.resolveTopicVote(roomId);
+            return { accepted: true, update, resolved };
+        }
+
+        if (room.controllers.length === 1) {
+            if (room.topicSelectionTimer) {
+                clearTimeout(room.topicSelectionTimer);
+                room.topicSelectionTimer = null;
+            }
+            const resolved = this.resolveTopicVote(roomId);
+            return { accepted: true, update, resolved };
+        }
+
+        return { accepted: true, update, resolved: null };
+    }
+
+    resolveTopicVote(roomId: string): TopicSelectedPayload {
+        const room = this.rooms.get(roomId);
+        if (!room) return { topicId: DEFAULT_TOPIC, topicLabel: QUIZ_TOPICS.find(t => t.id === DEFAULT_TOPIC)!.label };
+
+        const voteCounts = new Map<QuizTopicId, number>();
+        for (const [, topicId] of room.topicVotes) {
+            voteCounts.set(topicId, (voteCounts.get(topicId) || 0) + 1);
+        }
+
+        let selectedTopic: QuizTopicId;
+        let maxVotes = 0;
+        let tiedTopics: QuizTopicId[] = [];
+
+        for (const [topicId, count] of voteCounts) {
+            if (count > maxVotes) {
+                maxVotes = count;
+                tiedTopics = [topicId];
+            } else if (count === maxVotes) {
+                tiedTopics.push(topicId);
+            }
+        }
+
+        if (tiedTopics.length === 0 || room.topicVotes.size === 0) {
+            selectedTopic = DEFAULT_TOPIC;
+            console.log(`[Room] No votes cast in ${roomId}, defaulting to ${DEFAULT_TOPIC}`);
+        } else if (tiedTopics.length === 1) {
+            selectedTopic = tiedTopics[0];
+        } else {
+            const leader = room.controllers.find(c => c.role === 'leader' && !c.disconnected);
+            const leaderVote = leader ? room.topicVotes.get(leader.clientId) : null;
+            selectedTopic = leaderVote && tiedTopics.includes(leaderVote) ? leaderVote : tiedTopics[0];
+            console.log(`[Room] Tie in ${roomId}, leader's vote: ${leaderVote || 'none'}, selected: ${selectedTopic}`);
+        }
+
+        const topicLabel = QUIZ_TOPICS.find(t => t.id === selectedTopic)?.label || selectedTopic;
+        room.topicSelectionStarted = false;
+        room.topicSelectionTimer = null;
+
+        room.quizEngine.setTopic(selectedTopic);
+
+        console.log(`[Room] Topic selected in ${roomId}: ${selectedTopic} (${topicLabel})`);
+        return { topicId: selectedTopic, topicLabel };
+    }
+
+    getTopicVoteUpdate(roomId: string): TopicVoteUpdatePayload | null {
+        const room = this.rooms.get(roomId);
+        if (!room) return null;
+
+        const votes: Record<string, number> = {};
+        const playerVotes: Record<string, string> = {};
+        for (const [clientId, topicId] of room.topicVotes) {
+            votes[clientId] = 1;
+            playerVotes[clientId] = topicId;
+        }
+
+        const votedControllerIds = Array.from(room.topicVotes.keys());
+        const activePlayers = room.controllers.filter(c => !c.disconnected);
+        const totalVoters = activePlayers.length;
+
+        const elapsedMs = room.topicSelectionStartedAt ? Date.now() - room.topicSelectionStartedAt : 0;
+        const timeLeft = room.topicSelectionTimer == null
+            ? 0
+            : Math.max(0, Math.ceil((TOPIC_SELECTION_TIMEOUT_MS - elapsedMs) / 1000));
+
+        return { votes, votedControllerIds, playerVotes, totalVoters, timeLeft };
+    }
+
+    isTopicSelectionStarted(roomId: string): boolean {
+        const room = this.rooms.get(roomId);
+        return room?.topicSelectionStarted ?? false;
+    }
+
     /** Reap idle rooms — Landing Page (0 players, game not started) is exempt.
      *  Only reaps rooms that have progressed to Lobby or Game Over and gone idle. */
     private reapIdleRooms(): void {
@@ -509,7 +727,7 @@ export class RoomManager {
                     console.log(`[RoomManager] Reaping orphaned landing-page room ${roomId} (idle for ${Math.round(idleTime / 60000)}min)`);
                     room.quizEngine.destroy();
                     this.rooms.delete(roomId);
-                    try { room.screenChannel.emit('room:expired', { reason: 'idle_timeout' }); } catch { /* closed */ }
+                    try { room.screenChannel.emit(EVENTS.ROOM_EXPIRED, { reason: 'idle_timeout' }); } catch { /* closed */ }
                 }
                 continue; // Skip the 2-min check for Landing Page
             }

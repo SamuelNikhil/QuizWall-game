@@ -39,7 +39,7 @@ export interface PlayerInfo {
 export interface LobbyState {
     roomId: string;
     players: PlayerInfo[];
-    canStart: boolean;  // true when all members are ready (or solo leader)
+    canStart: boolean;
     isSpectating?: boolean; // Whether THIS player is spectating
 }
 
@@ -196,6 +196,39 @@ export interface TutorialPlayerStatus {
     completedTiltDown: boolean;
     tiltX: number;
     tiltY: number;
+}
+
+// ---------- Topic Selection ----------
+
+export const QUIZ_TOPICS = [
+    { id: 'animal-kingdom', label: 'Animal Kingdom', emoji: '🦁' },
+    { id: 'science-space', label: 'Science & Space', emoji: '🔬' },
+    { id: 'world-history', label: 'World History', emoji: '🏛️' },
+    { id: 'literature-arts', label: 'Literature & Arts', emoji: '🎨' },
+    { id: 'geography-culture', label: 'Geography & Culture', emoji: '🌍' },
+] as const;
+
+export type QuizTopicId = (typeof QUIZ_TOPICS)[number]['id'];
+
+export const DEFAULT_TOPIC: QuizTopicId = 'animal-kingdom';
+
+export const TOPIC_SELECTION_TIMEOUT_MS = 10_000;
+
+export interface TopicVotePayload {
+    topicId: QuizTopicId;
+}
+
+export interface TopicVoteUpdatePayload {
+    votes: Record<string, number>;
+    votedControllerIds: string[];
+    playerVotes: Record<string, string>; // controllerId -> topicId
+    totalVoters: number;
+    timeLeft: number;
+}
+
+export interface TopicSelectedPayload {
+    topicId: QuizTopicId;
+    topicLabel: string;
 }
 
 // ---------- Orb positions (shared constant) ----------

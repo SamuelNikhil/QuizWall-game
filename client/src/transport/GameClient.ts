@@ -23,6 +23,9 @@ import type {
     TutorialProgressPayload,
     TutorialStatusUpdatePayload,
     JoinedRoomPayload,
+    TopicVoteUpdatePayload,
+    TopicSelectedPayload,
+    QuizTopicId,
 } from '../shared/types';
 
 // --------------- Config ---------------
@@ -92,6 +95,7 @@ type Channel = any;
 export class GameClient {
     private channel: Channel = null;
     private connected = false;
+    private aborted = false;
 
     // ---- Connection ----
 
@@ -126,6 +130,10 @@ export class GameClient {
                     reject(error);
                     return;
                 }
+                if (this.aborted) {
+                    try { io.close(); } catch { /* ignore */ }
+                    return;
+                }
                 this.channel = io;
                 this.connected = true;
                 resolve(io);
@@ -158,6 +166,7 @@ export class GameClient {
     }
 
     close(): void {
+        this.aborted = true;
         if (this.connected && this.channel) {
             this.removeAllListeners();
             try { this.channel.close(); } catch { /* ignore */ }
@@ -184,10 +193,6 @@ export class GameClient {
 
     joinRoom(roomId: string, token: string, clientId?: string): void {
         this.channel?.emit(EVENTS.JOIN_ROOM, { roomId, token, clientId });
-    }
-
-    setReady(): void {
-        this.channel?.emit(EVENTS.PLAYER_READY);
     }
 
     sendLeaveGame(): void {
@@ -234,6 +239,10 @@ export class GameClient {
 
     onJoinedRoom(cb: (data: JoinedRoomPayload) => void): void {
         this.channel?.on(EVENTS.JOINED_ROOM, cb);
+    }
+
+    onReconnected(cb: (data: { success: boolean; phase: string; playerScores?: any[]; colorIndex?: number; role?: PlayerRole }) => void): void {
+        this.channel?.on(EVENTS.RECONNECTED, cb);
     }
 
     onControllerJoined(cb: (data: { controllerId: string; role: PlayerRole; colorIndex?: number }) => void): void {
@@ -298,14 +307,6 @@ export class GameClient {
     onGameRestarted(cb: () => void): void {
         this.channel?.on(EVENTS.GAME_RESTARTED, cb);
     }
-    
-    onGamePaused(cb: () => void): void {
-        this.channel?.on('game:paused', cb);
-    }
-
-    onGameResumed(cb: () => void): void {
-        this.channel?.on('game:resumed', cb);
-    }
 
     onCrosshair(cb: (data: CrosshairPayload) => void): void {
         this.channel?.on(EVENTS.CROSSHAIR, cb);
@@ -357,5 +358,19 @@ export class GameClient {
 
     onRoomExpired(cb: (data: { reason: string }) => void): void {
         this.channel?.on(EVENTS.ROOM_EXPIRED, cb);
+    }
+
+    // ---- Topic Selection ----
+
+    sendTopicVote(topicId: QuizTopicId): void {
+        this.channel?.emit(EVENTS.TOPIC_VOTE, { topicId });
+    }
+
+    onTopicVoteUpdate(cb: (data: TopicVoteUpdatePayload & { topics?: Array<{ id: string; label: string; emoji: string; x: number; y: number }> }) => void): void {
+        this.channel?.on(EVENTS.TOPIC_VOTE_UPDATE, cb);
+    }
+
+    onTopicSelected(cb: (data: TopicSelectedPayload) => void): void {
+        this.channel?.on(EVENTS.TOPIC_SELECTED, cb);
     }
 }

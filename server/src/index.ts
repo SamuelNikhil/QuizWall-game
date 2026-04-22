@@ -20,10 +20,9 @@ async function main() {
         initializeGroqService({
             apiKey: CONFIG.GROQ_API_KEY,
             model: CONFIG.GROQ_MODEL,
-            topic: CONFIG.QUIZ_TOPIC,
             questionCount: CONFIG.QUESTIONS_PER_SESSION,
         });
-        console.log(`[Boot] Groq AI enabled with topic: "${CONFIG.QUIZ_TOPIC}"`);
+        console.log(`[Boot] Groq AI enabled (topics selected per room)`);
     } else {
         console.log('[Boot] Groq AI not enabled - using static JSON questions');
     }

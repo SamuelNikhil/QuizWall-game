@@ -1,21 +1,15 @@
-// ==========================================
-// Lobby Page — Presentation Layer
-// Redesigned with character cards and lobby list
-// ==========================================
-
 import { useState } from 'react';
-import type { LobbyState, PlayerRole } from '../shared/types';
-import { CROSSHAIR_COLORS } from '../shared/types';
-import '../index.css';
-import './controller-ui.css';
+import type { LobbyState, PlayerRole } from '../../shared/types';
+import { CROSSHAIR_COLORS } from '../../shared/types';
+import '../../index.css';
+import '../../pages/controller-ui.css';
 
-interface LobbyProps {
+interface GameLobbyControllerProps {
     role: PlayerRole;
     colorIndex: number;
     lobby: LobbyState | null;
     persistentName?: string;
     onSetPlayerName: (name: string) => void;
-    onReady: () => void;
     onStartGame: () => void;
     onLeave: () => void;
     isSpectating?: boolean;
@@ -134,7 +128,7 @@ function ConfirmationPopup({ playerCount, readyPlayers, onConfirm, onWait }: Con
                             e.currentTarget.style.boxShadow = '0 8px 20px rgba(59, 130, 246, 0.4)';
                         }}
                     >
-                        Yes · start with {playerCount}
+                        {playerCount === 1 ? 'Yes · start singleplayer' : `Yes · start with ${playerCount}`}
                     </button>
                     <button
                         onClick={onWait}
@@ -165,19 +159,17 @@ function ConfirmationPopup({ playerCount, readyPlayers, onConfirm, onWait }: Con
     );
 }
 
-export default function Lobby({
+export default function GameLobby_Controller({
     role,
     colorIndex,
     lobby,
     onSetPlayerName,
-    onReady,
     onStartGame,
     onLeave,
     isSpectating,
-}: LobbyProps) {
+}: GameLobbyControllerProps) {
     const [showConfirmPopup, setShowConfirmPopup] = useState(false);
-    
-    // Character setup
+
     const characterName = preConfigNames[colorIndex] || `Player ${colorIndex + 1}`;
     const characterAvatar = preConfigAvatars[colorIndex] || 'wulf';
     const characterColor = CROSSHAIR_COLORS[colorIndex] || '#6750A4';
@@ -198,21 +190,20 @@ export default function Lobby({
         </button>
     );
 
-    // Build lobby list (all 4 slots)
     const lobbySlots = [0, 1, 2, 3].map(slotIndex => {
         const player = lobby?.players.find(p => p.colorIndex === slotIndex);
         const isCurrentPlayer = slotIndex === colorIndex && role === 'member';
-        
+
         if (player) {
             return {
-                name: preConfigNames[slotIndex] || `Player ${slotIndex + 1}`,
+                name: player.name || preConfigNames[slotIndex] || `Player ${slotIndex + 1}`,
                 colorIndex: slotIndex,
-                isReady: player.isReady,
+                isReady: true,
                 isCurrentPlayer,
             };
         }
         return {
-            name: 'Talon',
+            name: preConfigNames[slotIndex],
             colorIndex: slotIndex,
             isReady: false,
             isEmpty: true,
@@ -220,9 +211,7 @@ export default function Lobby({
         };
     });
 
-    // Get ready players for popup
     const readyPlayers = lobby?.players
-        .filter(p => p.isReady)
         .map(p => ({
             name: preConfigNames[p.colorIndex ?? 0] || `Player ${p.colorIndex! + 1}`,
             colorIndex: p.colorIndex ?? 0,
@@ -230,10 +219,9 @@ export default function Lobby({
 
     const playerCount = lobby?.players.length ?? 0;
 
-    // ---- Leader: Lobby ----
     if (role === 'leader') {
         const canStart = playerCount >= 1;
-        
+
         return (
             <div className="controller-container controller-lobby-shell" style={{
                 display: 'flex',
@@ -245,7 +233,6 @@ export default function Lobby({
             }}>
                 {closeButton}
 
-                {/* Header - Connected Status */}
                 <div style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -271,7 +258,6 @@ export default function Lobby({
                     </span>
                 </div>
 
-                {/* Character Card */}
                 <div style={{
                     background: `linear-gradient(180deg, ${characterColor}15 0%, rgba(255, 255, 255, 0.02) 100%)`,
                     border: `2px solid ${characterColor}`,
@@ -331,7 +317,6 @@ export default function Lobby({
                     </div>
                 </div>
 
-                {/* Lobby Section */}
                 <div style={{ flex: 1, marginBottom: '1.5rem' }}>
                     <span style={{
                         fontSize: '0.85rem',
@@ -403,7 +388,6 @@ export default function Lobby({
                 </div>
 
                 <div className="controller-lobby-shell__footer">
-                    {/* Helper Text */}
                     <p style={{
                         fontSize: '0.8rem',
                         color: 'rgba(255, 255, 255, 0.4)',
@@ -413,14 +397,11 @@ export default function Lobby({
                         You can start with any number of players
                     </p>
 
-                    {/* Start Game Button */}
                     <button
                         onClick={() => {
-                            console.log('[Lobby] Start Game clicked, playerCount:', playerCount, 'canStart:', canStart);
                             if (playerCount < 4) {
                                 setShowConfirmPopup(true);
                             } else {
-                                console.log('[Lobby] Starting game immediately (4 players)');
                                 onStartGame();
                             }
                         }}
@@ -458,13 +439,11 @@ export default function Lobby({
                     </button>
                 </div>
 
-                {/* Confirmation Popup */}
                 {showConfirmPopup && (
                     <ConfirmationPopup
                         playerCount={playerCount}
                         readyPlayers={readyPlayers}
                         onConfirm={() => {
-                            console.log('[Lobby] Confirmation confirmed, starting game');
                             setShowConfirmPopup(false);
                             onStartGame();
                         }}
@@ -475,7 +454,6 @@ export default function Lobby({
         );
     }
 
-    // ---- Member: Ready Up ----
     return (
         <div className="controller-container" style={{
             display: 'flex',
@@ -487,7 +465,6 @@ export default function Lobby({
         }}>
             {closeButton}
 
-            {/* Header - Connected Status */}
             <div style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -513,7 +490,6 @@ export default function Lobby({
                 </span>
             </div>
 
-            {/* Character Card */}
             <div style={{
                 background: `linear-gradient(180deg, ${characterColor}15 0%, rgba(255, 255, 255, 0.02) 100%)`,
                 border: `2px solid ${characterColor}`,
@@ -573,7 +549,6 @@ export default function Lobby({
                 </div>
             </div>
 
-            {/* Ready Status */}
             <div style={{
                 background: `linear-gradient(135deg, ${characterColor}20, ${characterColor}10)`,
                 border: `1px solid ${characterColor}40`,
@@ -604,7 +579,6 @@ export default function Lobby({
                 Waiting for Host to start...
             </p>
 
-            {/* Lobby Section */}
             <div style={{ flex: 1, marginBottom: '1.5rem' }}>
                 <span style={{
                     fontSize: '0.85rem',

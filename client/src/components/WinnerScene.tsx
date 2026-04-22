@@ -48,15 +48,10 @@ export default function WinnerScene({
     }, []);
 
     const sortedScores = [...scores].sort((a, b) => b.score - a.score);
-    const winner = sortedScores[0] ?? {
-        controllerId: 'winner',
-        name: 'Winner',
-        colorIndex: 1,
-        score: 0,
-    };
+    const winner = sortedScores[0] ?? null;
 
-    const winnerName = getCharacterName(winner);
-    const winnerAvatar = getCharacterAvatar(winner.colorIndex);
+    const winnerName = winner ? getCharacterName(winner) : 'No Winner';
+    const winnerAvatar = winner ? getCharacterAvatar(winner.colorIndex) : getCharacterAvatar(0);
     const rootClassName = [
         variant === 'screen' ? 'screen-container' : 'controller-container',
         'winner-scene',
@@ -100,8 +95,8 @@ export default function WinnerScene({
             )}
 
             <section className="winner-summary">
-                <div className="winner-summary__title">WINNER</div>
-                <div className="winner-summary__score">{winner.score.toLocaleString()} pts</div>
+                <div className="winner-summary__title">{winner ? 'WINNER' : 'GAME OVER'}</div>
+                <div className="winner-summary__score">{winner ? winner.score.toLocaleString() + ' pts' : '—'}</div>
 
                 <div className="winner-avatar-card">
                     <div className="winner-avatar-card__ring">

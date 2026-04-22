@@ -9,6 +9,8 @@ export const EVENTS = {
     ROOM_CREATED: 'roomCreated',
     JOIN_ROOM: 'joinRoom',
     JOINED_ROOM: 'joinedRoom',
+    RECONNECT: 'reconnect',
+    RECONNECTED: 'reconnected',
     CONTROLLER_JOINED: 'controllerJoined',
     CONTROLLER_LEFT: 'controllerLeft',
     ROLE_PROMOTED: 'rolePromoted',
@@ -54,10 +56,13 @@ export const EVENTS = {
     PLAYER_SELECTION: 'playerSelection',
     REVEAL_RESULT: 'revealResult',
 
+    // --- Topic Selection ---
+    TOPIC_VOTE: 'topicVote',
+    TOPIC_VOTE_UPDATE: 'topicVoteUpdate',
+    TOPIC_SELECTED: 'topicSelected',
+
     // --- Leaderboard ---
     LEADERBOARD: 'leaderboard',
-
-    
 } as const;
 
 export type EventName = (typeof EVENTS)[keyof typeof EVENTS];

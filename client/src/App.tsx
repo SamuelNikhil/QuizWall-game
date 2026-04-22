@@ -4,12 +4,12 @@
 // ==========================================
 
 import { Suspense, lazy } from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ErrorBoundary } from './shared/ErrorBoundary';
 
 // Lazy-load page components for smaller initial bundles
-const Screen = lazy(() => import('./pages/Screen'));
-const Controller = lazy(() => import('./pages/Controller'));
+const ShootQuiz_Screen = lazy(() => import('./pages/ShootQuiz_Screen'));
+const ShootQuiz_Controller = lazy(() => import('./pages/ShootQuiz_Controller'));
 
 // Minimal loading fallback (matches app theme)
 const LoadingFallback = () => (
@@ -37,9 +37,10 @@ export default function App() {
             <ErrorBoundary>
                 <Suspense fallback={<LoadingFallback />}>
                     <Routes>
-                        <Route path="/" element={<Screen />} />
-                        <Route path="/screen" element={<Screen />} />
-                        <Route path="/controller/:roomId/:token" element={<Controller />} />
+                        <Route path="/" element={<ShootQuiz_Screen />} />
+                        <Route path="/screen" element={<ShootQuiz_Screen />} />
+                        <Route path="/controller/:roomId/:token" element={<ShootQuiz_Controller />} />
+                        <Route path="*" element={<Navigate to="/" replace />} />
                     </Routes>
                 </Suspense>
             </ErrorBoundary>

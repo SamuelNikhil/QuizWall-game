@@ -1,246 +1,246 @@
 {
-    "topic": "animals-easy-and-simple",
-    "generatedAt": "2026-04-05T07:51:37.392Z",
+    "topic": "literature-arts",
+    "generatedAt": "2026-04-22T07:12:41.927Z",
     "questions": [
         {
-            "id": 1,
-            "text": "What is the average lifespan of a butterfly in the wild?",
+            "id": 31,
+            "text": "Who is the author of the novel 'The Master and Margarita', published in 1966?",
             "options": [
                 {
                     "id": "A",
-                    "text": "6-8 months"
+                    "text": "Fyodor Dostoevsky"
                 },
                 {
                     "id": "B",
-                    "text": "1-4 months"
+                    "text": "Vladimir Nabokov"
                 },
                 {
                     "id": "C",
-                    "text": "1-2 years"
+                    "text": "Mikhail Bulgakov"
                 },
                 {
                     "id": "D",
-                    "text": "1-2 weeks"
-                }
-            ],
-            "correct": "B",
-            "category": "animals-easy-and-simple"
-        },
-        {
-            "id": 2,
-            "text": "Which of the following animals has the longest migration pattern?",
-            "options": [
-                {
-                    "id": "A",
-                    "text": "Monarch Butterfly"
-                },
-                {
-                    "id": "B",
-                    "text": "Caribou"
-                },
-                {
-                    "id": "C",
-                    "text": "Arctic Tern"
-                },
-                {
-                    "id": "D",
-                    "text": "Gray Whale"
+                    "text": "Leo Tolstoy"
                 }
             ],
             "correct": "C",
-            "category": "animals-easy-and-simple"
+            "category": "Literature & Arts"
         },
         {
-            "id": 3,
-            "text": "What is the fastest land animal?",
+            "id": 32,
+            "text": "What is the name of the art movement that emerged in the 1950s, characterized by its use of everyday objects and images from popular culture?",
             "options": [
                 {
                     "id": "A",
-                    "text": "Jaguar"
+                    "text": "Abstract Expressionism"
                 },
                 {
                     "id": "B",
-                    "text": "Cheetah"
+                    "text": "Cubism"
                 },
                 {
                     "id": "C",
-                    "text": "Leopard"
+                    "text": "Pop Art"
                 },
                 {
                     "id": "D",
-                    "text": "Lion"
+                    "text": "Surrealism"
                 }
             ],
-            "correct": "B",
-            "category": "animals-easy-and-simple"
+            "correct": "C",
+            "category": "Literature & Arts"
         },
         {
-            "id": 4,
-            "text": "Which animal has the strongest bite force?",
+            "id": 33,
+            "text": "Which composer wrote the opera 'Einstein on the Beach', first performed in 1976?",
             "options": [
                 {
                     "id": "A",
-                    "text": "Saltwater Crocodile"
+                    "text": "Philip Glass"
                 },
                 {
                     "id": "B",
-                    "text": "Great White Shark"
+                    "text": "Steve Reich"
                 },
                 {
                     "id": "C",
-                    "text": "Tiger"
+                    "text": "John Adams"
                 },
                 {
                     "id": "D",
-                    "text": "Lion"
-                }
-            ],
-            "correct": "A",
-            "category": "animals-easy-and-simple"
-        },
-        {
-            "id": 5,
-            "text": "What is the largest species of shark?",
-            "options": [
-                {
-                    "id": "A",
-                    "text": "Whale Shark"
-                },
-                {
-                    "id": "B",
-                    "text": "Hammerhead Shark"
-                },
-                {
-                    "id": "C",
-                    "text": "Tiger Shark"
-                },
-                {
-                    "id": "D",
-                    "text": "Great White Shark"
+                    "text": "Karlheinz Stockhausen"
                 }
             ],
             "correct": "A",
-            "category": "animals-easy-and-simple"
+            "category": "Literature & Arts"
         },
         {
-            "id": 6,
-            "text": "Which animal is known for its unique ability to change its body color?",
+            "id": 34,
+            "text": "Who is the author of the collection of short stories 'Dubliners', published in 1914?",
             "options": [
                 {
                     "id": "A",
-                    "text": "Octopus"
+                    "text": "D.H. Lawrence"
                 },
                 {
                     "id": "B",
-                    "text": "Chameleon"
+                    "text": "E.M. Forster"
                 },
                 {
                     "id": "C",
-                    "text": "Cuttlefish"
+                    "text": "Virginia Woolf"
                 },
                 {
                     "id": "D",
-                    "text": "Squid"
-                }
-            ],
-            "correct": "B",
-            "category": "animals-easy-and-simple"
-        },
-        {
-            "id": 7,
-            "text": "What is the smallest species of bird?",
-            "options": [
-                {
-                    "id": "A",
-                    "text": "Hummingbird"
-                },
-                {
-                    "id": "B",
-                    "text": "Sparrow"
-                },
-                {
-                    "id": "C",
-                    "text": "Finch"
-                },
-                {
-                    "id": "D",
-                    "text": "Bee Hummingbird"
+                    "text": "James Joyce"
                 }
             ],
             "correct": "D",
-            "category": "animals-easy-and-simple"
+            "category": "Literature & Arts"
         },
         {
-            "id": 8,
-            "text": "Which of the following animals is a herbivore?",
+            "id": 35,
+            "text": "What is the name of the famous painting by Salvador Dali, created in 1931, featuring melting clocks?",
             "options": [
                 {
                     "id": "A",
-                    "text": "Kangaroo"
+                    "text": "The Persistence of Memory"
                 },
                 {
                     "id": "B",
-                    "text": "Giraffe"
+                    "text": "The Elephants"
                 },
                 {
                     "id": "C",
-                    "text": "Tiger"
+                    "text": "Gala Contemplating the Mediterranean Sea"
                 },
                 {
                     "id": "D",
-                    "text": "Lion"
-                }
-            ],
-            "correct": "B",
-            "category": "animals-easy-and-simple"
-        },
-        {
-            "id": 9,
-            "text": "What is the longest-lived species of turtle?",
-            "options": [
-                {
-                    "id": "A",
-                    "text": "Leatherback Sea Turtle"
-                },
-                {
-                    "id": "B",
-                    "text": "Green Sea Turtle"
-                },
-                {
-                    "id": "C",
-                    "text": "Aldabra Tortoise"
-                },
-                {
-                    "id": "D",
-                    "text": "Galapagos Giant Tortoise"
-                }
-            ],
-            "correct": "D",
-            "category": "animals-easy-and-simple"
-        },
-        {
-            "id": 10,
-            "text": "Which animal has the most complex social structure?",
-            "options": [
-                {
-                    "id": "A",
-                    "text": "Elephant"
-                },
-                {
-                    "id": "B",
-                    "text": "Orangutan"
-                },
-                {
-                    "id": "C",
-                    "text": "Gorilla"
-                },
-                {
-                    "id": "D",
-                    "text": "Chimpanzee"
+                    "text": "The Disintegration of the Persistence of Memory"
                 }
             ],
             "correct": "A",
-            "category": "animals-easy-and-simple"
+            "category": "Literature & Arts"
+        },
+        {
+            "id": 36,
+            "text": "Which American poet wrote the collection 'Leaves of Grass', first published in 1855?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Walt Whitman"
+                },
+                {
+                    "id": "B",
+                    "text": "Robert Frost"
+                },
+                {
+                    "id": "C",
+                    "text": "Emily Dickinson"
+                },
+                {
+                    "id": "D",
+                    "text": "Edgar Allan Poe"
+                }
+            ],
+            "correct": "A",
+            "category": "Literature & Arts"
+        },
+        {
+            "id": 37,
+            "text": "Who is the author of the novel 'The Wind-Up Bird Chronicle', published in 1994?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Haruki Murakami"
+                },
+                {
+                    "id": "B",
+                    "text": "Yasunari Kawabata"
+                },
+                {
+                    "id": "C",
+                    "text": "Kenzo Kitakata"
+                },
+                {
+                    "id": "D",
+                    "text": "Junichiro Tanizaki"
+                }
+            ],
+            "correct": "A",
+            "category": "Literature & Arts"
+        },
+        {
+            "id": 38,
+            "text": "What is the name of the ballet score composed by Sergei Prokofiev, premiered in 1945?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Swan Lake"
+                },
+                {
+                    "id": "B",
+                    "text": "The Firebird"
+                },
+                {
+                    "id": "C",
+                    "text": "Cinderella"
+                },
+                {
+                    "id": "D",
+                    "text": "Romeo and Juliet"
+                }
+            ],
+            "correct": "D",
+            "category": "Literature & Arts"
+        },
+        {
+            "id": 39,
+            "text": "Which artist created the sculpture 'Bird in Space', made in 1923?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Constantin Brancusi"
+                },
+                {
+                    "id": "B",
+                    "text": "Henry Moore"
+                },
+                {
+                    "id": "C",
+                    "text": "Barbara Hepworth"
+                },
+                {
+                    "id": "D",
+                    "text": "Alberto Giacometti"
+                }
+            ],
+            "correct": "A",
+            "category": "Literature & Arts"
+        },
+        {
+            "id": 40,
+            "text": "Who is the author of the novel 'The Name of the Rose', published in 1980?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Primo Levi"
+                },
+                {
+                    "id": "B",
+                    "text": "Italo Calvino"
+                },
+                {
+                    "id": "C",
+                    "text": "Umberto Eco"
+                },
+                {
+                    "id": "D",
+                    "text": "Eco's contemporary, Carlo Emilio Gadda"
+                }
+            ],
+            "correct": "C",
+            "category": "Literature & Arts"
         }
     ]
 }

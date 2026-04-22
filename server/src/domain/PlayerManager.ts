@@ -45,8 +45,10 @@ export class PlayerManager {
      */
     static getExistingPlayerName(clientId: string): string | null {
         const player = playerRepo.getPlayerByClientId(clientId);
-        // Don't treat default names as "existing user names"
         if (player?.name === 'Leader' || player?.name?.startsWith('Player ')) {
+            return null;
+        }
+        if (player?.name && ['Wulf', 'Talon', 'Ryker', 'Zark'].includes(player.name)) {
             return null;
         }
         return player?.name ?? null;
@@ -56,7 +58,7 @@ export class PlayerManager {
      * Persist a name association immediately.
      */
     static persistPlayerName(clientId: string, name: string): void {
-        if (!name || name === 'Leader' || name.startsWith('Player ')) return;
+        if (!name || name === 'Leader' || name.startsWith('Player ') || ['Wulf', 'Talon', 'Ryker', 'Zark'].includes(name)) return;
         playerRepo.savePlayerName(clientId, name);
     }
 }

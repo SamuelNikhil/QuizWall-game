@@ -3,6 +3,7 @@
 // Serves both API + Static files (for single Render deployment)
 // ==========================================
 
+import 'dotenv/config';
 import geckos from '@geckos.io/server';
 import http from 'http';
 import express from 'express';
@@ -14,12 +15,26 @@ import { CONFIG } from './infrastructure/config.ts';
 import { initDatabase } from './data/database.ts';
 import { RoomManager } from './domain/RoomManager.ts';
 import { registerEventHandlers } from './transport/eventHandlers.ts';
+import { initializeGroqService } from './services/GroqService.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 async function main() {
-    // 1. Initialize database
+    // 1. Initialize Groq AI service (if API key is configured)
+    if (CONFIG.AI_ENABLED) {
+        console.log('[Boot] Initializing Groq AI service...');
+        initializeGroqService({
+            apiKey: CONFIG.GROQ_API_KEY,
+            model: CONFIG.GROQ_MODEL,
+            questionCount: CONFIG.QUESTIONS_PER_SESSION,
+        });
+        console.log(`[Boot] Groq AI enabled (topics selected per room)`);
+    } else {
+        console.log('[Boot] Groq AI not enabled - using static JSON questions');
+    }
+
+    // 2. Initialize database
     console.log('[Boot] Initializing database...');
     await initDatabase();
 
