@@ -161,41 +161,10 @@ export default function GameLobby_Screen({
                                 marginBottom: '4px',
                             }}
                         >
-                            WONDER LOOP
+                           
                         </div>
-                        <div
-                            style={{
-                                display: 'flex',
-                                gap: '4px',
-                                alignItems: 'flex-end',
-                                height: '34px',
-                            }}
-                        >
-                            <div
-                                style={{
-                                    width: '8px',
-                                    height: '100%',
-                                    borderRadius: '10px',
-                                    border: `3px solid ${LIME_GREEN}`,
-                                }}
-                            />
-                            <div
-                                style={{
-                                    width: '8px',
-                                    height: '70%',
-                                    borderRadius: '10px',
-                                    border: `3px solid ${LIME_GREEN}`,
-                                }}
-                            />
-                            <div
-                                style={{
-                                    width: '8px',
-                                    height: '100%',
-                                    borderRadius: '10px',
-                                    border: `3px solid ${LIME_GREEN}`,
-                                }}
-                            />
-                        </div>
+                        
+                        
                     </div>
                 </div>
 
@@ -508,47 +477,15 @@ export default function GameLobby_Screen({
                     <div
                         style={{
                             color: LIME_GREEN,
-                            fontSize: '0.8rem',
+                            fontSize: '1.3rem',
                             fontWeight: 800,
                             letterSpacing: '2px',
                             marginBottom: '4px',
                         }}
                     >
-                        WONDER LOOP
+                        Wonder Loop
                     </div>
-                    <div
-                        style={{
-                            display: 'flex',
-                            gap: '4px',
-                            alignItems: 'flex-end',
-                            height: '34px',
-                        }}
-                    >
-                        <div
-                            style={{
-                                width: '8px',
-                                height: '100%',
-                                borderRadius: '10px',
-                                border: `3px solid ${LIME_GREEN}`,
-                            }}
-                        />
-                        <div
-                            style={{
-                                width: '8px',
-                                height: '70%',
-                                borderRadius: '10px',
-                                border: `3px solid ${LIME_GREEN}`,
-                            }}
-                        />
-                        <div
-                            style={{
-                                width: '8px',
-                                height: '100%',
-                                borderRadius: '10px',
-                                border: `3px solid ${LIME_GREEN}`,
-                            }}
-                        />
-                    </div>
+                   
                 </div>
             </div>
 
@@ -583,39 +520,7 @@ export default function GameLobby_Screen({
                 >
                     WONDER LOOP
                 </div>
-                <div
-                    style={{
-                        display: 'flex',
-                        gap: '6px',
-                        alignItems: 'flex-end',
-                        height: '50px',
-                    }}
-                >
-                    <div
-                        style={{
-                            width: '12px',
-                            height: '100%',
-                            borderRadius: '14px',
-                            border: `4px solid ${LIME_GREEN}`,
-                        }}
-                    />
-                    <div
-                        style={{
-                            width: '12px',
-                            height: '70%',
-                            borderRadius: '14px',
-                            border: `4px solid ${LIME_GREEN}`,
-                        }}
-                    />
-                    <div
-                        style={{
-                            width: '12px',
-                            height: '100%',
-                            borderRadius: '14px',
-                            border: `4px solid ${LIME_GREEN}`,
-                        }}
-                    />
-                </div>
+               
             </div>
 
             <div
