@@ -212,7 +212,7 @@ export type QuizTopicId = (typeof QUIZ_TOPICS)[number]['id'];
 
 export const DEFAULT_TOPIC: QuizTopicId = 'animal-kingdom';
 
-export const TOPIC_SELECTION_TIMEOUT_MS = 10_000;
+export const TOPIC_SELECTION_TIMEOUT_MS = 30_000;
 
 export interface TopicVotePayload {
     topicId: QuizTopicId;

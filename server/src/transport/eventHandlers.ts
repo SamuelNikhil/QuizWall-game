@@ -8,6 +8,7 @@ import { ORB_POSITIONS, QUIZ_TOPICS, TOPIC_SELECTION_TIMEOUT_MS } from '../share
 import type { PlayerSelectionPayload, RevealResultPayload, TutorialProgressPayload, TutorialPlayerStatus, TutorialStatusUpdatePayload, TutorialStep, QuizTopicId } from '../shared/types.ts';
 import { RoomManager } from '../domain/RoomManager.ts';
 import { PlayerManager } from '../domain/PlayerManager.ts';
+import { preGenerateForSession } from '../data/questionRepository.ts';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type GeckosServer = any;
@@ -47,8 +48,14 @@ async function finalizeTopicSelection(roomId: string, topicId: QuizTopicId, room
     const topicSelectedPayload = { topicId, topicLabel };
     room.screenChannel.emit(EVENTS.TOPIC_SELECTED, topicSelectedPayload);
     for (const c of room.controllers) {
-        c.channel.emit(EVENTS.TOPIC_SELECTED, topicSelectedPayload);
+        if (c.channel) c.channel.emit(EVENTS.TOPIC_SELECTED, topicSelectedPayload);
     }
+
+    // Fire-and-forget: start pre-generating questions immediately so they may be
+    // ready (or partially ready) by the time initialize() is called in startGameAfterTopicSelection.
+    preGenerateForSession(room.quizEngine.getSessionId(), topicId).catch(err => {
+        console.warn(`[Game] Pre-generation failed for room ${roomId}, topic ${topicId}:`, err);
+    });
 
     await startGameAfterTopicSelection(roomId, topicId, roomManager);
 }
@@ -61,10 +68,12 @@ async function startGameAfterTopicSelection(roomId: string, topicId: QuizTopicId
 
     room.screenChannel.emit(EVENTS.LOADING_START, { playerCount });
     for (const c of room.controllers) {
-        c.channel.emit(EVENTS.LOADING_START, { playerCount });
+        if (c.channel) c.channel.emit(EVENTS.LOADING_START, { playerCount });
     }
 
     try {
+        // Ensure initialized flag is cleared before loading questions for this round
+        room.quizEngine.reset(true);
         await room.quizEngine.initialize(topicId);
         console.log(`[Game] Quiz engine initialized with ${room.quizEngine.getTotalQuestions()} questions for room ${roomId} (topic: ${topicId})`);
     } catch (error) {
@@ -73,7 +82,7 @@ async function startGameAfterTopicSelection(roomId: string, topicId: QuizTopicId
 
     room.screenChannel.emit(EVENTS.LOADING_COUNTDOWN, { duration: 3 });
     for (const c of room.controllers) {
-        c.channel.emit(EVENTS.LOADING_COUNTDOWN, { duration: 3 });
+        if (c.channel) c.channel.emit(EVENTS.LOADING_COUNTDOWN, { duration: 3 });
     }
 
     await new Promise(resolve => setTimeout(resolve, 3000));
@@ -92,14 +101,14 @@ async function startGameAfterTopicSelection(roomId: string, topicId: QuizTopicId
                 const phasePayload = { phase, timeLeft, questionNumber };
                 room.screenChannel.emit(EVENTS.PHASE_CHANGE, phasePayload);
                 for (const c of room.controllers) {
-                    c.channel.emit(EVENTS.PHASE_CHANGE, phasePayload);
+                    if (c.channel) c.channel.emit(EVENTS.PHASE_CHANGE, phasePayload);
                 }
                 if (phase === 'analysis' && timeLeft === 1 && questionNumber > 1) {
                     const nextQ = room.quizEngine.getLastSelectedQuestion();
                     if (nextQ) {
                         room.screenChannel.emit(EVENTS.QUESTION, nextQ);
                         for (const c of room.controllers) {
-                            c.channel.emit(EVENTS.QUESTION, nextQ);
+                            if (c.channel) c.channel.emit(EVENTS.QUESTION, nextQ);
                         }
                     }
                 }
@@ -114,12 +123,12 @@ async function startGameAfterTopicSelection(roomId: string, topicId: QuizTopicId
                 }
                 room.screenChannel.emit(EVENTS.REVEAL_RESULT, result);
                 for (const c of room.controllers) {
-                    c.channel.emit(EVENTS.REVEAL_RESULT, result);
+                    if (c.channel) c.channel.emit(EVENTS.REVEAL_RESULT, result);
                 }
                 const scorePayload = { playerScores: roomManager.getPlayerScores(roomId) };
                 room.screenChannel.emit(EVENTS.SCORE_UPDATE, scorePayload);
                 for (const c of room.controllers) {
-                    c.channel.emit(EVENTS.SCORE_UPDATE, scorePayload);
+                    if (c.channel) c.channel.emit(EVENTS.SCORE_UPDATE, scorePayload);
                 }
             },
             () => {
@@ -131,7 +140,7 @@ async function startGameAfterTopicSelection(roomId: string, topicId: QuizTopicId
                 const gameOverPayload = { leaderboard, reason, questionsAnswered, playerScores };
                 room.screenChannel.emit(EVENTS.GAME_OVER, gameOverPayload);
                 for (const c of room.controllers) {
-                    c.channel.emit(EVENTS.GAME_OVER, gameOverPayload);
+                    if (c.channel) c.channel.emit(EVENTS.GAME_OVER, gameOverPayload);
                 }
                 roomManager.clearDisconnectedScores(roomId);
             }
@@ -140,7 +149,7 @@ async function startGameAfterTopicSelection(roomId: string, topicId: QuizTopicId
         const gameStartPayload = { question, timeLeft: 20 };
         room.screenChannel.emit(EVENTS.GAME_STARTED, gameStartPayload);
         for (const c of room.controllers) {
-            c.channel.emit(EVENTS.GAME_STARTED, gameStartPayload);
+            if (c.channel) c.channel.emit(EVENTS.GAME_STARTED, gameStartPayload);
         }
         room.quizEngine.startPhaseTimer();
     } else {
@@ -148,7 +157,7 @@ async function startGameAfterTopicSelection(roomId: string, topicId: QuizTopicId
             (timeLeft: number) => {
                 room.screenChannel.emit(EVENTS.TIMER_SYNC, { timeLeft });
                 for (const c of room.controllers) {
-                    c.channel.emit(EVENTS.TIMER_SYNC, { timeLeft });
+                    if (c.channel) c.channel.emit(EVENTS.TIMER_SYNC, { timeLeft });
                 }
             },
             () => {
@@ -164,7 +173,7 @@ async function startGameAfterTopicSelection(roomId: string, topicId: QuizTopicId
                 };
                 room.screenChannel.emit(EVENTS.GAME_OVER, gameOverPayload);
                 for (const c of room.controllers) {
-                    c.channel.emit(EVENTS.GAME_OVER, gameOverPayload);
+                    if (c.channel) c.channel.emit(EVENTS.GAME_OVER, gameOverPayload);
                 }
                 roomManager.clearDisconnectedScores(roomId);
             }
@@ -174,7 +183,7 @@ async function startGameAfterTopicSelection(roomId: string, topicId: QuizTopicId
         const gameStartPayload = { question, timeLeft: room.quizEngine.getTimeLeft() };
         room.screenChannel.emit(EVENTS.GAME_STARTED, gameStartPayload);
         for (const c of room.controllers) {
-            c.channel.emit(EVENTS.GAME_STARTED, gameStartPayload);
+            if (c.channel) c.channel.emit(EVENTS.GAME_STARTED, gameStartPayload);
         }
     }
 }
@@ -310,7 +319,7 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
                     topics: topicOrbs,
                 });
                 for (const c of room.controllers) {
-                    c.channel.emit(EVENTS.TOPIC_VOTE_UPDATE, {
+                    if (c.channel) c.channel.emit(EVENTS.TOPIC_VOTE_UPDATE, {
                         votes: topicUpdate.votes,
                         votedControllerIds: topicUpdate.votedControllerIds,
                         totalVoters: topicUpdate.totalVoters,
@@ -357,7 +366,7 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
                 if (room) {
                     room.screenChannel.emit(EVENTS.TOPIC_VOTE_UPDATE, result.update);
                     for (const c of room.controllers) {
-                        c.channel.emit(EVENTS.TOPIC_VOTE_UPDATE, result.update);
+                        if (c.channel) c.channel.emit(EVENTS.TOPIC_VOTE_UPDATE, result.update);
                     }
                 }
             }
@@ -438,7 +447,7 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
                 };
                 room.screenChannel.emit(EVENTS.PLAYER_SELECTION, selectionPayload);
                 for (const c of room.controllers) {
-                    c.channel.emit(EVENTS.PLAYER_SELECTION, selectionPayload);
+                    if (c.channel) c.channel.emit(EVENTS.PLAYER_SELECTION, selectionPayload);
                 }
 
                 // No HIT_RESULT in multiplayer — correctness is only revealed during the Reveal phase
@@ -486,7 +495,7 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
                     };
                     room.screenChannel.emit(EVENTS.SCORE_UPDATE, scorePayload);
                     for (const c of room.controllers) {
-                        c.channel.emit(EVENTS.SCORE_UPDATE, scorePayload);
+                        if (c.channel) c.channel.emit(EVENTS.SCORE_UPDATE, scorePayload);
                     }
 
                     // Always advance to next question after showing animation (both correct and wrong)
@@ -498,7 +507,7 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
                         if (nextQ) {
                             room.screenChannel.emit(EVENTS.QUESTION, nextQ);
                             for (const c of room.controllers) {
-                                c.channel.emit(EVENTS.QUESTION, nextQ);
+                                if (c.channel) c.channel.emit(EVENTS.QUESTION, nextQ);
                             }
                         }
                     }, 1500); // Match the existing transition delay
@@ -527,7 +536,7 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
                 // Broadcast game restarted to return all controllers to lobby view
                 room.screenChannel.emit(EVENTS.GAME_RESTARTED, {});
                 for (const c of room.controllers) {
-                    c.channel.emit(EVENTS.GAME_RESTARTED, {});
+                    if (c.channel) c.channel.emit(EVENTS.GAME_RESTARTED, {});
                 }
             }
 

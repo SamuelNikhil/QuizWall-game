@@ -169,7 +169,7 @@ export async function generateSessionQuestions(sessionId: string, topic?: QuizTo
             try {
                 const groqService = getGroqService()!;
 
-                questions = await groqService.generateQuestionsForTopic(currentTopic, getGlobalExclusionList());
+                questions = await groqService.generateQuestionsForTopic(currentTopic, getGlobalExclusionList(), true);
 
                 if (!questions || questions.length === 0) {
                     throw new Error('Groq returned empty questions array');

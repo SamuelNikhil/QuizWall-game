@@ -93,9 +93,9 @@ export class GroqService {
         throw lastError || new Error('All retries exhausted');
     }
 
-    async generateQuestionsForTopic(topicId: QuizTopicId, excludeQuestions?: string[]): Promise<ServerQuestion[]> {
+    async generateQuestionsForTopic(topicId: QuizTopicId, excludeQuestions?: string[], forceRefresh: boolean = false): Promise<ServerQuestion[]> {
         const cached = topicCache.get(topicId);
-        if (cached && (Date.now() - cached.generatedAt < CACHE_TTL_MS)) {
+        if (!forceRefresh && cached && (Date.now() - cached.generatedAt < CACHE_TTL_MS)) {
             console.log(`[GroqService] Cache hit for topic "${topicId}" (${cached.questions.length} questions, age: ${Math.round((Date.now() - cached.generatedAt) / 60000)}min)`);
             // Assign fresh IDs from the global counter
             return cached.questions.map(q => ({

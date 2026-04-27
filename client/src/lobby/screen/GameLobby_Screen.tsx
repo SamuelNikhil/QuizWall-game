@@ -483,7 +483,7 @@ export default function GameLobby_Screen({
                             marginBottom: '4px',
                         }}
                     >
-                        Wonder Loop
+                        WonderLoop
                     </div>
                    
                 </div>
@@ -518,7 +518,7 @@ export default function GameLobby_Screen({
                         marginBottom: '8px',
                     }}
                 >
-                    WONDER LOOP
+                    WONDERLOOP
                 </div>
                
             </div>

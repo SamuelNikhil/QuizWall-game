@@ -1,246 +1,246 @@
 {
-    "topic": "literature-arts",
-    "generatedAt": "2026-04-22T07:12:41.927Z",
+    "topic": "geography-culture",
+    "generatedAt": "2026-04-27T13:56:46.892Z",
     "questions": [
         {
-            "id": 31,
-            "text": "Who is the author of the novel 'The Master and Margarita', published in 1966?",
+            "id": 71,
+            "text": "The traditional Polynesian practice of preserving and decorating the heads of ancestors is known as?",
             "options": [
                 {
                     "id": "A",
-                    "text": "Fyodor Dostoevsky"
+                    "text": "Tatouage"
                 },
                 {
                     "id": "B",
-                    "text": "Vladimir Nabokov"
+                    "text": "Kapa Cloth"
                 },
                 {
                     "id": "C",
-                    "text": "Mikhail Bulgakov"
+                    "text": "Tiki Carving"
                 },
                 {
                     "id": "D",
-                    "text": "Leo Tolstoy"
-                }
-            ],
-            "correct": "C",
-            "category": "Literature & Arts"
-        },
-        {
-            "id": 32,
-            "text": "What is the name of the art movement that emerged in the 1950s, characterized by its use of everyday objects and images from popular culture?",
-            "options": [
-                {
-                    "id": "A",
-                    "text": "Abstract Expressionism"
-                },
-                {
-                    "id": "B",
-                    "text": "Cubism"
-                },
-                {
-                    "id": "C",
-                    "text": "Pop Art"
-                },
-                {
-                    "id": "D",
-                    "text": "Surrealism"
-                }
-            ],
-            "correct": "C",
-            "category": "Literature & Arts"
-        },
-        {
-            "id": 33,
-            "text": "Which composer wrote the opera 'Einstein on the Beach', first performed in 1976?",
-            "options": [
-                {
-                    "id": "A",
-                    "text": "Philip Glass"
-                },
-                {
-                    "id": "B",
-                    "text": "Steve Reich"
-                },
-                {
-                    "id": "C",
-                    "text": "John Adams"
-                },
-                {
-                    "id": "D",
-                    "text": "Karlheinz Stockhausen"
-                }
-            ],
-            "correct": "A",
-            "category": "Literature & Arts"
-        },
-        {
-            "id": 34,
-            "text": "Who is the author of the collection of short stories 'Dubliners', published in 1914?",
-            "options": [
-                {
-                    "id": "A",
-                    "text": "D.H. Lawrence"
-                },
-                {
-                    "id": "B",
-                    "text": "E.M. Forster"
-                },
-                {
-                    "id": "C",
-                    "text": "Virginia Woolf"
-                },
-                {
-                    "id": "D",
-                    "text": "James Joyce"
+                    "text": "Toi Moko"
                 }
             ],
             "correct": "D",
-            "category": "Literature & Arts"
+            "category": "Geography & Culture"
         },
         {
-            "id": 35,
-            "text": "What is the name of the famous painting by Salvador Dali, created in 1931, featuring melting clocks?",
+            "id": 72,
+            "text": "The Kazakh city of Turkestan is home to the mausoleum of which 12th-century Sufi saint?",
             "options": [
                 {
                     "id": "A",
-                    "text": "The Persistence of Memory"
+                    "text": "Yunus Emre"
                 },
                 {
                     "id": "B",
-                    "text": "The Elephants"
+                    "text": "Rumi"
                 },
                 {
                     "id": "C",
-                    "text": "Gala Contemplating the Mediterranean Sea"
+                    "text": "Ahmed Yasawi"
                 },
                 {
                     "id": "D",
-                    "text": "The Disintegration of the Persistence of Memory"
-                }
-            ],
-            "correct": "A",
-            "category": "Literature & Arts"
-        },
-        {
-            "id": 36,
-            "text": "Which American poet wrote the collection 'Leaves of Grass', first published in 1855?",
-            "options": [
-                {
-                    "id": "A",
-                    "text": "Walt Whitman"
-                },
-                {
-                    "id": "B",
-                    "text": "Robert Frost"
-                },
-                {
-                    "id": "C",
-                    "text": "Emily Dickinson"
-                },
-                {
-                    "id": "D",
-                    "text": "Edgar Allan Poe"
-                }
-            ],
-            "correct": "A",
-            "category": "Literature & Arts"
-        },
-        {
-            "id": 37,
-            "text": "Who is the author of the novel 'The Wind-Up Bird Chronicle', published in 1994?",
-            "options": [
-                {
-                    "id": "A",
-                    "text": "Haruki Murakami"
-                },
-                {
-                    "id": "B",
-                    "text": "Yasunari Kawabata"
-                },
-                {
-                    "id": "C",
-                    "text": "Kenzo Kitakata"
-                },
-                {
-                    "id": "D",
-                    "text": "Junichiro Tanizaki"
-                }
-            ],
-            "correct": "A",
-            "category": "Literature & Arts"
-        },
-        {
-            "id": 38,
-            "text": "What is the name of the ballet score composed by Sergei Prokofiev, premiered in 1945?",
-            "options": [
-                {
-                    "id": "A",
-                    "text": "Swan Lake"
-                },
-                {
-                    "id": "B",
-                    "text": "The Firebird"
-                },
-                {
-                    "id": "C",
-                    "text": "Cinderella"
-                },
-                {
-                    "id": "D",
-                    "text": "Romeo and Juliet"
-                }
-            ],
-            "correct": "D",
-            "category": "Literature & Arts"
-        },
-        {
-            "id": 39,
-            "text": "Which artist created the sculpture 'Bird in Space', made in 1923?",
-            "options": [
-                {
-                    "id": "A",
-                    "text": "Constantin Brancusi"
-                },
-                {
-                    "id": "B",
-                    "text": "Henry Moore"
-                },
-                {
-                    "id": "C",
-                    "text": "Barbara Hepworth"
-                },
-                {
-                    "id": "D",
-                    "text": "Alberto Giacometti"
-                }
-            ],
-            "correct": "A",
-            "category": "Literature & Arts"
-        },
-        {
-            "id": 40,
-            "text": "Who is the author of the novel 'The Name of the Rose', published in 1980?",
-            "options": [
-                {
-                    "id": "A",
-                    "text": "Primo Levi"
-                },
-                {
-                    "id": "B",
-                    "text": "Italo Calvino"
-                },
-                {
-                    "id": "C",
-                    "text": "Umberto Eco"
-                },
-                {
-                    "id": "D",
-                    "text": "Eco's contemporary, Carlo Emilio Gadda"
+                    "text": "Nasir Khusraw"
                 }
             ],
             "correct": "C",
-            "category": "Literature & Arts"
+            "category": "Geography & Culture"
+        },
+        {
+            "id": 73,
+            "text": "The ancient city of Thonis-Heraklion is located in which modern-day country?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Greece"
+                },
+                {
+                    "id": "B",
+                    "text": "Cyprus"
+                },
+                {
+                    "id": "C",
+                    "text": "Turkey"
+                },
+                {
+                    "id": "D",
+                    "text": "Egypt"
+                }
+            ],
+            "correct": "D",
+            "category": "Geography & Culture"
+        },
+        {
+            "id": 74,
+            "text": "The Kailash Mountain is considered sacred by which four Eastern religions?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Hinduism, Buddhism, Taoism, and Confucianism"
+                },
+                {
+                    "id": "B",
+                    "text": "Buddhism, Jainism, Sikhism, and Shintoism"
+                },
+                {
+                    "id": "C",
+                    "text": "Hinduism, Buddhism, Jainism, and Sikhism"
+                },
+                {
+                    "id": "D",
+                    "text": "Taoism, Confucianism, Shintoism, and Zoroastrianism"
+                }
+            ],
+            "correct": "C",
+            "category": "Geography & Culture"
+        },
+        {
+            "id": 75,
+            "text": "The festival of Loi Krathong is celebrated on the full moon day of which month in the Thai lunar calendar?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "November"
+                },
+                {
+                    "id": "B",
+                    "text": "December"
+                },
+                {
+                    "id": "C",
+                    "text": "January"
+                },
+                {
+                    "id": "D",
+                    "text": "February"
+                }
+            ],
+            "correct": "A",
+            "category": "Geography & Culture"
+        },
+        {
+            "id": 76,
+            "text": "The traditional Scandinavian practice of decorating homes with evergreen branches and lights during winter is known as?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Lucia"
+                },
+                {
+                    "id": "B",
+                    "text": "Yule"
+                },
+                {
+                    "id": "C",
+                    "text": "Jul"
+                },
+                {
+                    "id": "D",
+                    "text": "Midwinter"
+                }
+            ],
+            "correct": "B",
+            "category": "Geography & Culture"
+        },
+        {
+            "id": 77,
+            "text": "The city of Gjirokastra is a UNESCO World Heritage Site located in which Balkan country?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Macedonia"
+                },
+                {
+                    "id": "B",
+                    "text": "Kosovo"
+                },
+                {
+                    "id": "C",
+                    "text": "Albania"
+                },
+                {
+                    "id": "D",
+                    "text": "Greece"
+                }
+            ],
+            "correct": "C",
+            "category": "Geography & Culture"
+        },
+        {
+            "id": 78,
+            "text": "The ancient city of Ciudad Perdida was discovered in which South American country in 1972?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Venezuela"
+                },
+                {
+                    "id": "B",
+                    "text": "Colombia"
+                },
+                {
+                    "id": "C",
+                    "text": "Ecuador"
+                },
+                {
+                    "id": "D",
+                    "text": "Peru"
+                }
+            ],
+            "correct": "B",
+            "category": "Geography & Culture"
+        },
+        {
+            "id": 79,
+            "text": "The traditional Ethiopian instrument, the krar, is a type of?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Lyre"
+                },
+                {
+                    "id": "B",
+                    "text": "Harp"
+                },
+                {
+                    "id": "C",
+                    "text": "Flute"
+                },
+                {
+                    "id": "D",
+                    "text": "Drum"
+                }
+            ],
+            "correct": "A",
+            "category": "Geography & Culture"
+        },
+        {
+            "id": 80,
+            "text": "The festival of Boun Bang Fai is celebrated in which Southeast Asian country to mark the beginning of the wet season?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Thailand"
+                },
+                {
+                    "id": "B",
+                    "text": "Laos"
+                },
+                {
+                    "id": "C",
+                    "text": "Myanmar"
+                },
+                {
+                    "id": "D",
+                    "text": "Cambodia"
+                }
+            ],
+            "correct": "B",
+            "category": "Geography & Culture"
         }
     ]
 }

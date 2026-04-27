@@ -640,7 +640,7 @@ export default function ShootQuiz_Screen() {
 
     // Topic selection state
     const [topicOrbs, setTopicOrbs] = useState<Array<{ id: string; label: string; emoji: string; x: number; y: number }>>([]);
-    const [topicTimeLeft, setTopicTimeLeft] = useState(10);
+    const [topicTimeLeft, setTopicTimeLeft] = useState(30);
     const [topicVotedControllerIds, setTopicVotedControllerIds] = useState<string[]>([]);
     const [topicPlayerVotes, setTopicPlayerVotes] = useState<Record<string, string>>({});
     const [topicTotalVoters, setTopicTotalVoters] = useState(0);

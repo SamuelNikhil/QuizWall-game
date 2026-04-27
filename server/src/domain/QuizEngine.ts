@@ -72,8 +72,14 @@ export class QuizEngine {
         }
 
         if (this.initialized) {
-            console.log(`[QuizEngine] Already initialized for session: ${this.sessionId} with topic: ${this.selectedTopic}, skipping re-init`);
-            return;
+            // Defensive guard: if initialized but no questions loaded, treat as uninitialized
+            if (this.questions.length === 0) {
+                console.log(`[QuizEngine] initialized=true but no questions loaded — clearing flag and re-initializing`);
+                this.initialized = false;
+            } else {
+                console.log(`[QuizEngine] Already initialized for session: ${this.sessionId} with topic: ${this.selectedTopic}, skipping re-init`);
+                return;
+            }
         }
 
         this.isReset = false;
