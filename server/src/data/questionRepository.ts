@@ -32,6 +32,9 @@ interface SessionCacheEntry {
 // Session-specific generated questions (per room/game)
 const sessionQuestionsCache = new Map<string, SessionCacheEntry>();
 
+// In-flight generation promises — prevents duplicate Groq calls for the same session
+const generatingPromises = new Map<string, Promise<ServerQuestion[]>>();
+
 // Global tracking of recently-used question texts across ALL active sessions
 // Prevents duplicate questions across concurrent rooms
 const globalRecentQuestions = new Set<string>();
@@ -160,7 +163,16 @@ export async function generateSessionQuestions(sessionId: string, topic?: QuizTo
         console.log(`[QuestionRepo] Session ${sessionId} topic changed from ${cached.topic} to ${currentTopic}, regenerating...`);
     }
 
-    let questions: ServerQuestion[] = [];
+    // If already generating for this session+topic, reuse the in-flight promise
+    const inFlightKey = `${sessionId}:${currentTopic}`;
+    const existing = generatingPromises.get(inFlightKey);
+    if (existing) {
+        console.log(`[QuestionRepo] Reusing in-flight generation for session ${sessionId}, topic ${currentTopic}`);
+        return existing;
+    }
+
+    const promise = (async (): Promise<ServerQuestion[]> => {
+        let questions: ServerQuestion[] = [];
 
     // Step 1: ALWAYS try to generate fresh questions via Groq first (to avoid repetition)
     if (isGroqEnabled()) {
@@ -232,6 +244,14 @@ export async function generateSessionQuestions(sessionId: string, topic?: QuizTo
     sessionQuestionsCache.set(sessionId, { questions, topic: currentTopic });
 
     return questions;
+    })();
+
+    generatingPromises.set(inFlightKey, promise);
+    try {
+        return await promise;
+    } finally {
+        generatingPromises.delete(inFlightKey);
+    }
 }
 
 /**
@@ -266,12 +286,14 @@ export async function getSessionQuestions(sessionId: string, additionalCount?: n
 
     // If additionalCount is specified, generate more questions for existing session
     if (additionalCount && additionalCount > 0 && cached && cached.topic === currentTopic) {
-        if (isGroqEnabled() && !isGenerating.has(sessionId)) {
-            isGenerating.add(sessionId);
+        const inFlightKey = `${sessionId}:${currentTopic}:more`;
+        if (isGroqEnabled() && !generatingPromises.has(inFlightKey)) {
+            const morePromise = generateMoreQuestionsForSession(sessionId, additionalCount, currentTopic);
+            generatingPromises.set(inFlightKey, morePromise.then(() => sessionQuestionsCache.get(sessionId)!.questions));
             try {
-                await generateMoreQuestionsForSession(sessionId, additionalCount, currentTopic);
+                await morePromise;
             } finally {
-                isGenerating.delete(sessionId);
+                generatingPromises.delete(inFlightKey);
             }
         }
 
@@ -289,12 +311,12 @@ export async function getSessionQuestions(sessionId: string, additionalCount?: n
             sessionQuestionsCache.set(sessionId, { questions: withBuffer, topic: currentTopic });
 
             // Step 2: Trigger background AI generation if Groq is enabled
-            if (isGroqEnabled() && !isGenerating.has(sessionId)) {
-                isGenerating.add(sessionId);
-
-                // Run generation in background (don't await)
-                generateMoreQuestionsForSession(sessionId, undefined, currentTopic).finally(() => {
-                    isGenerating.delete(sessionId);
+            if (isGroqEnabled() && !generatingPromises.has(`${sessionId}:${currentTopic}:more`)) {
+                const inFlightKey = `${sessionId}:${currentTopic}:more`;
+                const bgPromise = generateMoreQuestionsForSession(sessionId, undefined, currentTopic);
+                generatingPromises.set(inFlightKey, bgPromise.then(() => []));
+                bgPromise.finally(() => {
+                    generatingPromises.delete(inFlightKey);
                 });
             }
 
@@ -314,7 +336,7 @@ export async function getSessionQuestions(sessionId: string, additionalCount?: n
 }
 
 // Track which sessions are currently generating to prevent duplicates
-const isGenerating = new Set<string>();
+// (generatingPromises map is declared near the top of the file)
 
 /**
  * Background generation of more AI questions for a session
