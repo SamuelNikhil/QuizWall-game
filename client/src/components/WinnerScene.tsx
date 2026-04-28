@@ -41,11 +41,18 @@ export default function WinnerScene({
     onClose,
 }: WinnerSceneProps) {
     const [revealed, setRevealed] = useState(false);
+    const [isRestarting, setIsRestarting] = useState(false);
 
     useEffect(() => {
         const timerId = window.setTimeout(() => setRevealed(true), 420);
         return () => window.clearTimeout(timerId);
     }, []);
+
+    const handleRestart = () => {
+        if (role !== 'leader' || isRestarting) return;
+        setIsRestarting(true);
+        onRestart?.();
+    };
 
     const sortedScores = [...scores].sort((a, b) => b.score - a.score);
     const winner = sortedScores[0] ?? null;
@@ -161,10 +168,18 @@ export default function WinnerScene({
                     <button
                         type="button"
                         className="winner-controller__restart"
-                        onClick={onRestart}
-                        disabled={role !== 'leader'}
+                        onClick={handleRestart}
+                        disabled={role !== 'leader' || isRestarting}
                     >
-                        {role === 'leader' ? 'Restart' : 'Waiting for host'}
+                        {role === 'leader' ? (
+                            isRestarting ? (
+                                <span className="winner-controller__spinner" aria-label="Loading" />
+                            ) : (
+                                'Restart'
+                            )
+                        ) : (
+                            'Waiting for host'
+                        )}
                     </button>
                 </footer>
             )}
