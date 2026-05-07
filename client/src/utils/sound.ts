@@ -1,7 +1,6 @@
 // ==========================================
 // Sound Manager — Cross-platform Audio
 // Supports iOS (Web Audio API) and Android (HTMLAudio + Web Audio)
-// All gameplay audio is controller-only.
 // ==========================================
 
 import correctSoundUrl from '../assets/sounds/correct.mp3';
@@ -22,7 +21,6 @@ function isAndroid(): boolean {
 }
 
 // ---- Haptic helpers ----
-// Standard Vibration API (Android, some desktop)
 function vibrateNative(pattern: number | number[]): boolean {
     try {
         if ('vibrate' in navigator && typeof navigator.vibrate === 'function') {
@@ -34,10 +32,62 @@ function vibrateNative(pattern: number | number[]): boolean {
     return false;
 }
 
+// ---- Shared AudioContext factory ----
+// One context per page — reusing avoids "too many AudioContexts" warnings.
+let _sharedContext: AudioContext | null = null;
+
+function getSharedContext(): AudioContext {
+    if (_sharedContext && _sharedContext.state !== 'closed') return _sharedContext;
+    const Ctor =
+        (window as unknown as { AudioContext?: typeof AudioContext; webkitAudioContext?: typeof AudioContext })
+            .AudioContext ??
+        (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!Ctor) throw new Error('Web Audio API not supported');
+    _sharedContext = new Ctor();
+    return _sharedContext;
+}
+
+/**
+ * Resume the shared AudioContext and play a silent buffer to fully unlock
+ * iOS audio. Safe to call multiple times. Must be called from a user-gesture
+ * handler (touchstart / pointerdown / click).
+ */
+export async function unlockAudioContext(): Promise<AudioContext> {
+    const ctx = getSharedContext();
+
+    if (ctx.state === 'suspended') {
+        await ctx.resume();
+    }
+
+    // Play a silent 1-sample buffer — required to fully unlock iOS Safari
+    const silentBuf = ctx.createBuffer(1, 1, 22050);
+    const src = ctx.createBufferSource();
+    src.buffer = silentBuf;
+    src.connect(ctx.destination);
+    src.start(0);
+
+    return ctx;
+}
+
+/**
+ * Ensure the shared context is running. Silently resumes if suspended.
+ * Does NOT play a silent buffer (no user-gesture needed for resume on most
+ * browsers after the first unlock).
+ */
+async function ensureContextRunning(): Promise<AudioContext> {
+    const ctx = getSharedContext();
+    if (ctx.state === 'suspended') {
+        try { await ctx.resume(); } catch { /* ignore */ }
+    }
+    return ctx;
+}
+
+// ==========================================
+// SoundManager — controller-only gameplay audio
+// ==========================================
+
 export class SoundManager {
-    private audioContext: AudioContext | null = null;
     private enabled: boolean = true;
-    // Tracks whether the AudioContext has been unlocked by a user gesture
     private unlocked: boolean = false;
     // Pre-decoded buffers for low-latency playback
     private buffers: Record<string, AudioBuffer> = {};
@@ -59,19 +109,6 @@ export class SoundManager {
         return this.enabled && this.isControllerRoute();
     }
 
-    // ---- AudioContext ----
-    private getContext(): AudioContext {
-        if (!this.audioContext) {
-            const Ctor =
-                (window as unknown as { AudioContext?: typeof AudioContext; webkitAudioContext?: typeof AudioContext })
-                    .AudioContext ??
-                (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-            if (!Ctor) throw new Error('Web Audio API not supported');
-            this.audioContext = new Ctor();
-        }
-        return this.audioContext;
-    }
-
     // ---- Unlock (must be called from a user-gesture handler) ----
     /**
      * Unlocks the AudioContext and pre-loads sound buffers.
@@ -82,19 +119,7 @@ export class SoundManager {
         if (this.unlocked) return;
 
         try {
-            const ctx = this.getContext();
-
-            // Resume suspended context (required on iOS Safari)
-            if (ctx.state === 'suspended') {
-                await ctx.resume();
-            }
-
-            // Play a silent 1-sample buffer — fully unlocks iOS audio
-            const silentBuf = ctx.createBuffer(1, 1, 22050);
-            const src = ctx.createBufferSource();
-            src.buffer = silentBuf;
-            src.connect(ctx.destination);
-            src.start(0);
+            const ctx = await unlockAudioContext();
 
             // Load sounds in parallel
             await Promise.all([
@@ -109,7 +134,7 @@ export class SoundManager {
             }
 
             this.unlocked = true;
-            console.log('[Sound] Unlocked. iOS:', isIOS(), 'Android:', isAndroid());
+            console.log('[Sound] Unlocked. iOS:', isIOS(), 'Android:', isAndroid(), 'ctx state:', ctx.state);
         } catch (e) {
             console.warn('[Sound] Unlock failed:', e);
         }
@@ -118,10 +143,9 @@ export class SoundManager {
     // ---- Buffer loading ----
     private async _loadBuffer(name: string, url: string): Promise<void> {
         try {
-            const ctx = this.getContext();
+            const ctx = getSharedContext();
             const response = await fetch(url);
             const arrayBuffer = await response.arrayBuffer();
-            // Older Safari doesn't return a Promise from decodeAudioData
             const audioBuffer = await new Promise<AudioBuffer>((resolve, reject) => {
                 ctx.decodeAudioData(arrayBuffer, resolve, reject);
             });
@@ -137,7 +161,6 @@ export class SoundManager {
             const el = new Audio(url);
             el.preload = 'auto';
             el.volume = 0;
-            // Trigger a silent play to prime the audio pipeline
             const p = el.play();
             if (p) p.then(() => el.pause()).catch(() => {});
             el.volume = 1;
@@ -155,8 +178,7 @@ export class SoundManager {
         if (!buffer) return;
 
         try {
-            const ctx = this.getContext();
-            if (ctx.state === 'suspended') await ctx.resume();
+            const ctx = await ensureContextRunning();
 
             const source = ctx.createBufferSource();
             const gain = ctx.createGain();
@@ -166,7 +188,6 @@ export class SoundManager {
             gain.gain.value = volume;
             source.start(0);
         } catch (e) {
-            // Fallback to HTMLAudio on Web Audio failure
             this._playHtmlAudio(name, volume);
             console.warn(`[Sound] Web Audio playback failed for "${name}", using HTMLAudio:`, e);
         }
@@ -193,8 +214,7 @@ export class SoundManager {
     ): Promise<void> {
         if (!this.canPlay()) return;
         try {
-            const ctx = this.getContext();
-            if (ctx.state === 'suspended') await ctx.resume();
+            const ctx = await ensureContextRunning();
 
             const osc = ctx.createOscillator();
             const gain = ctx.createGain();
@@ -216,13 +236,12 @@ export class SoundManager {
     // ---- Haptics ----
     /**
      * Triggers haptic feedback.
-     * - Android: uses Vibration API
+     * - Android / desktop: uses Vibration API
      * - iOS: plays a sub-bass tone to engage the Taptic Engine
      */
     vibrate(pattern: number | number[]): void {
         if (!this.canPlay()) return;
 
-        // Android / desktop — standard Vibration API
         if (!isIOS()) {
             vibrateNative(pattern);
             return;
@@ -233,7 +252,6 @@ export class SoundManager {
         let delay = 0;
         for (let i = 0; i < arr.length; i++) {
             if (i % 2 === 0) {
-                // vibrate segment
                 const durationSec = arr[i] / 1000;
                 const d = delay;
                 setTimeout(() => {
@@ -280,21 +298,22 @@ export class SoundManager {
     /** Transition whoosh (rising sweep) */
     playTransitionWhoosh(): void {
         if (!this.canPlay()) return;
-        try {
-            const ctx = this.getContext();
-            const osc = ctx.createOscillator();
-            const gain = ctx.createGain();
-            osc.connect(gain);
-            gain.connect(ctx.destination);
-            osc.frequency.setValueAtTime(200, ctx.currentTime);
-            osc.frequency.exponentialRampToValueAtTime(800, ctx.currentTime + 0.5);
-            gain.gain.setValueAtTime(0.3, ctx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
-            osc.start(ctx.currentTime);
-            osc.stop(ctx.currentTime + 0.5);
-        } catch (e) {
-            console.warn('[Sound] Whoosh error:', e);
-        }
+        ensureContextRunning().then(ctx => {
+            try {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.frequency.setValueAtTime(200, ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(800, ctx.currentTime + 0.5);
+                gain.gain.setValueAtTime(0.3, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+                osc.start(ctx.currentTime);
+                osc.stop(ctx.currentTime + 0.5);
+            } catch (e) {
+                console.warn('[Sound] Whoosh error:', e);
+            }
+        }).catch(() => {});
     }
 
     /** Game start fanfare */
@@ -326,3 +345,65 @@ export class SoundManager {
 }
 
 export const soundManager = new SoundManager();
+
+// ==========================================
+// ScreenAudioManager — for TV/screen routes
+// Plays audio on non-controller pages (lobby screen, etc.)
+// ==========================================
+
+export class ScreenAudioManager {
+    private unlocked = false;
+    private buffers: Record<string, AudioBuffer> = {};
+
+    /**
+     * Call this from a user-gesture handler to unlock audio.
+     * After this, playBuffer() will work reliably on iOS too.
+     */
+    async unlock(): Promise<void> {
+        if (this.unlocked) return;
+        try {
+            await unlockAudioContext();
+            this.unlocked = true;
+            console.log('[ScreenAudio] Unlocked');
+        } catch (e) {
+            console.warn('[ScreenAudio] Unlock failed:', e);
+        }
+    }
+
+    async loadBuffer(name: string, url: string): Promise<void> {
+        try {
+            const ctx = getSharedContext();
+            const response = await fetch(url);
+            const arrayBuffer = await response.arrayBuffer();
+            const audioBuffer = await new Promise<AudioBuffer>((resolve, reject) => {
+                ctx.decodeAudioData(arrayBuffer, resolve, reject);
+            });
+            this.buffers[name] = audioBuffer;
+        } catch (e) {
+            console.warn(`[ScreenAudio] Failed to load buffer "${name}":`, e);
+        }
+    }
+
+    async playBuffer(name: string, volume = 1.0): Promise<void> {
+        const buffer = this.buffers[name];
+        if (!buffer) return;
+        try {
+            const ctx = await ensureContextRunning();
+            const source = ctx.createBufferSource();
+            const gain = ctx.createGain();
+            source.buffer = buffer;
+            source.connect(gain);
+            gain.connect(ctx.destination);
+            gain.gain.value = volume;
+            source.start(0);
+        } catch (e) {
+            console.warn(`[ScreenAudio] Playback failed for "${name}":`, e);
+        }
+    }
+
+    isUnlocked(): boolean {
+        return this.unlocked;
+    }
+}
+
+export const screenAudioManager = new ScreenAudioManager();

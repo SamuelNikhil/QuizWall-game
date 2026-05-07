@@ -87,15 +87,20 @@ export default function Loading_Screen({ lobby, countdownActive, countdownValue,
                 <div style={{
                     width: '120px',
                     height: '120px',
-                    borderRadius: '50%',
-                    border: '4px solid rgba(255,255,255,0.1)',
-                    borderTop: `4px solid #ff9500`,
+                    position: 'relative',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    animation: 'spin 1s linear infinite',
                     marginBottom: '2rem',
                 }}>
+                    <div style={{
+                        position: 'absolute',
+                        inset: 0,
+                        borderRadius: '50%',
+                        border: '4px solid rgba(255,255,255,0.1)',
+                        borderTop: `4px solid #ff9500`,
+                        animation: 'spin 1s linear infinite',
+                    }} />
                     <span className="countdown-number" style={{
                         fontSize: '3.5rem',
                         fontWeight: 900,

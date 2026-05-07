@@ -645,7 +645,6 @@ export default function ShootQuiz_Screen() {
     const loadingCountdownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const pendingTimeoutsRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
     const isMultiplayerRef = useRef(false);
-    const audioContextRef = useRef<AudioContext | null>(null);
 
     // Topic selection state
     const [topicOrbs, setTopicOrbs] = useState<Array<{ id: string; label: string; emoji: string; x: number; y: number }>>([]);
@@ -656,23 +655,6 @@ export default function ShootQuiz_Screen() {
     const [topicCrosshairs, setTopicCrosshairs] = useState<Map<string, { x: number; y: number }>>(new Map());
     const [selectedTopicLabel, setSelectedTopicLabel] = useState<string | null>(null);
     const topicCountdownStartedRef = useRef(false);
-
-    const unlockAudio = useCallback(async () => {
-        if (!audioContextRef.current) {
-            const AudioContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
-            audioContextRef.current = new AudioContextClass();
-        }
-        const ctx = audioContextRef.current;
-        if (!ctx) return;
-        if (ctx.state === 'suspended') {
-            await ctx.resume();
-        }
-        const buffer = ctx.createBuffer(1, 1, 22050);
-        const source = ctx.createBufferSource();
-        source.buffer = buffer;
-        source.connect(ctx.destination);
-        source.start(0);
-    }, []);
 
     const scheduleTimeout = useCallback((cb: () => void, delayMs: number): ReturnType<typeof setTimeout> => {
         const timeoutId = setTimeout(() => {
@@ -1038,13 +1020,12 @@ export default function ShootQuiz_Screen() {
                     clearTrackedTimeout(gameOverIdleTimerRef.current);
                 }
                 gameOverIdleTimerRef.current = scheduleTimeout(() => {
-                    console.log('[Screen] Game-over idle timeout (2 min), refreshing...');
                     window.location.reload();
                 }, 2 * 60 * 1000);
             });
 
             client.onRoomExpired((data) => {
-                console.log('[Screen] room:expired received:', data?.reason);
+
                 if (data?.reason === 'empty_lobby') {
                     // Empty lobby deleted — clear stored roomId and create a fresh room
                     sessionStorage.removeItem('screen_room_id');
@@ -1072,7 +1053,7 @@ export default function ShootQuiz_Screen() {
             });
 
             client.onTopicSelected((data: TopicSelectedPayload) => {
-                console.log('[Screen] Topic selected:', data.topicId, data.topicLabel);
+
                 setSelectedTopicLabel(data.topicLabel);
                 setPhaseSync('loading');
                 setTopicCrosshairs(new Map());
@@ -1132,26 +1113,6 @@ export default function ShootQuiz_Screen() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // ---- Audio unlock on user gesture ----
-    useEffect(() => {
-        const handleUserGesture = () => {
-            unlockAudio().catch(() => {});
-            document.removeEventListener('click', handleUserGesture);
-            document.removeEventListener('touchstart', handleUserGesture);
-            document.removeEventListener('keydown', handleUserGesture);
-        };
-
-        document.addEventListener('click', handleUserGesture);
-        document.addEventListener('touchstart', handleUserGesture);
-        document.addEventListener('keydown', handleUserGesture);
-
-        return () => {
-            document.removeEventListener('click', handleUserGesture);
-            document.removeEventListener('touchstart', handleUserGesture);
-            document.removeEventListener('keydown', handleUserGesture);
-        };
-    }, [unlockAudio]);
-
     // ---- Topic selection countdown timer ----
     useEffect(() => {
         if (phase !== 'topic-selection') {
@@ -1174,11 +1135,6 @@ export default function ShootQuiz_Screen() {
 
         return () => clearInterval(interval);
     }, [phase]);
-
-    // ---- Audio unlock on mount (fallback) ----
-    useEffect(() => {
-        unlockAudio().catch(() => {});
-    }, [unlockAudio]);
 
     // ---- Session Timeout: empty room detection ----
     useEffect(() => {

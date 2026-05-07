@@ -56,15 +56,20 @@ export default function Loading_Controller({ colorIndex, countdownActive, countd
                     <div style={{
                         width: '100px',
                         height: '100px',
-                        borderRadius: '50%',
-                        border: '4px solid rgba(255,255,255,0.1)',
-                        borderTop: '4px solid #ff9500',
+                        position: 'relative',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        animation: 'spin 1s linear infinite',
                         marginBottom: '2rem',
                     }}>
+                        <div style={{
+                            position: 'absolute',
+                            inset: 0,
+                            borderRadius: '50%',
+                            border: '4px solid rgba(255,255,255,0.1)',
+                            borderTop: '4px solid #ff9500',
+                            animation: 'spin 1s linear infinite',
+                        }} />
                         <span className="countdown-number" style={{
                             fontSize: '2.5rem',
                             fontWeight: 900,

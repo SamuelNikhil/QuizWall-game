@@ -280,6 +280,20 @@ export default function ShootQuiz_Controller() {
         }
     }, []);
 
+    // Unlock audio on the very first user gesture — before the WebSocket connects.
+    // This is the most reliable way to satisfy iOS's AudioContext policy.
+    useEffect(() => {
+        const handleGesture = () => {
+            soundManager.unlock().catch(() => {});
+        };
+        window.addEventListener('pointerdown', handleGesture, { once: true, passive: true });
+        window.addEventListener('touchstart', handleGesture, { once: true, passive: true });
+        return () => {
+            window.removeEventListener('pointerdown', handleGesture);
+            window.removeEventListener('touchstart', handleGesture);
+        };
+    }, []);
+
     // ---- Game state (from server) ----
     const [timeLeft, setTimeLeft] = useState(20);
     const [lastHit, setLastHit] = useState<{ correct: boolean } | null>(null);
@@ -377,7 +391,10 @@ export default function ShootQuiz_Controller() {
         });
 
         client.connect().then(() => {
-            // Unlock audio on first successful connection (user has already interacted with the page)
+            // Unlock audio — the WebSocket connect itself isn't a user gesture,
+            // but by this point the user has already tapped to open the page.
+            // We also attach a one-time gesture listener as a belt-and-suspenders
+            // fallback (handled in the top-level useEffect below).
             soundManager.unlock().catch(() => {});
 
             console.log(`[Room] Joining room ${roomId} with clientId ${clientIdRef.current}`);

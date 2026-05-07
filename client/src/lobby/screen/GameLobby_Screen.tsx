@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import shuffleSoundUrl from '../../assets/sounds/shuffle.mp3';
 import backgroundVideo from '../../assets/QuizWall.webm';
@@ -35,40 +35,64 @@ export default function GameLobby_Screen({
 }: GameLobby_ScreenProps) {
     const videoRef = useRef<HTMLVideoElement>(null);
     const hasPlayedShuffleRef = useRef(false);
+    // Pre-created audio element — primed muted on mount so the browser
+    // allows unmuted playback later (no user gesture needed on screen/TV).
+    const shuffleAudioRef = useRef<HTMLAudioElement | null>(null);
 
     const controllerUrl =
         roomId && joinToken
             ? `${window.location.origin}/controller/${roomId}/${joinToken}`
             : '';
 
-    const unlockAudio = useCallback(async () => {
-        const AudioContextClass =
-            (window as any).AudioContext || (window as any).webkitAudioContext;
-        const ctx = new AudioContextClass();
-        if (ctx.state === 'suspended') {
-            await ctx.resume();
+    // On mount: create the audio element, preload it, and play it muted+paused
+    // immediately. This "primes" the browser's autoplay permission for this element.
+    useEffect(() => {
+        const audio = new Audio(shuffleSoundUrl);
+        audio.preload = 'auto';
+        audio.volume = 0;
+        audio.muted = true;
+        shuffleAudioRef.current = audio;
+
+        // Play muted — always allowed, primes the pipeline
+        const p = audio.play();
+        if (p) {
+            p.then(() => {
+                audio.pause();
+                audio.currentTime = 0;
+                audio.muted = false;
+                audio.volume = 0.3;
+            }).catch(() => {
+                // Even if muted play fails, keep the ref for later attempts
+                audio.muted = false;
+                audio.volume = 0.3;
+            });
         }
-        const buffer = ctx.createBuffer(1, 1, 22050);
-        const source = ctx.createBufferSource();
-        source.buffer = buffer;
-        source.connect(ctx.destination);
-        source.start(0);
+
+        return () => {
+            audio.pause();
+            shuffleAudioRef.current = null;
+        };
     }, []);
 
     useEffect(() => {
         if (phase === 'team-lobby' && !hasPlayedShuffleRef.current) {
             hasPlayedShuffleRef.current = true;
-            unlockAudio().then(() => {
-                for (let i = 0; i < 4; i++) {
-                    setTimeout(() => {
-                        const audio = new Audio(shuffleSoundUrl);
-                        audio.volume = 0.3;
-                        audio.play().catch(() => {});
-                    }, i * 100);
-                }
-            }).catch(() => {});
+
+            const playOne = (index: number) => {
+                setTimeout(() => {
+                    const el = shuffleAudioRef.current;
+                    if (!el) return;
+                    // Clone the element so we can overlap 4 plays
+                    const clone = el.cloneNode() as HTMLAudioElement;
+                    clone.volume = 0.3;
+                    clone.currentTime = 0;
+                    clone.play().catch(() => {});
+                }, index * 100);
+            };
+
+            for (let i = 0; i < 4; i++) playOne(i);
         }
-    }, [phase, unlockAudio]);
+    }, [phase]);
 
     useEffect(() => {
         if (phase === 'team-lobby') {
