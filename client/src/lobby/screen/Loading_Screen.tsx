@@ -1,5 +1,5 @@
 import type { LobbyState } from '../../shared/types';
-import { CROSSHAIR_COLORS } from '../../shared/types';
+import { CROSSHAIR_COLORS, PRE_CONFIG_NAMES, PRE_CONFIG_AVATARS } from '../../shared/types';
 import backgroundImg from '../../assets/Background.svg';
 
 interface Loading_ScreenProps {
@@ -9,9 +9,6 @@ interface Loading_ScreenProps {
     showReadyOverlay: boolean;
     selectedTopicLabel: string | null;
 }
-
-const preConfigNames = ["Wulf", "Talon", "Ryker", "Zark"];
-const preConfigAvatars = ["wulf", "talon", "ryker", "zark"];
 
 export default function Loading_Screen({ lobby, countdownActive, countdownValue, showReadyOverlay, selectedTopicLabel }: Loading_ScreenProps) {
     const loadingUI = (
@@ -52,8 +49,8 @@ export default function Loading_Screen({ lobby, countdownActive, countdownValue,
                             overflow: 'hidden',
                         }}>
                             <img
-                                src={`/avatars/${preConfigAvatars[player.colorIndex ?? 0]}.png`}
-                                alt={preConfigNames[player.colorIndex ?? 0]}
+                                src={`/avatars/${PRE_CONFIG_AVATARS[player.colorIndex ?? 0]}.png`}
+                                alt={PRE_CONFIG_NAMES[player.colorIndex ?? 0]}
                                 style={{
                                     width: '90%',
                                     height: '90%',
@@ -66,7 +63,7 @@ export default function Loading_Screen({ lobby, countdownActive, countdownValue,
                             fontWeight: 700,
                             color: '#fff',
                         }}>
-                            {preConfigNames[player.colorIndex ?? 0]}
+                            {PRE_CONFIG_NAMES[player.colorIndex ?? 0]}
                         </span>
                         {player.role === 'leader' && (
                             <span style={{
@@ -217,8 +214,8 @@ export default function Loading_Screen({ lobby, countdownActive, countdownValue,
                             overflow: 'hidden',
                         }}>
                             <img
-                                src={`/avatars/${preConfigAvatars[player.colorIndex ?? 0]}.png`}
-                                alt={preConfigNames[player.colorIndex ?? 0]}
+                                src={`/avatars/${PRE_CONFIG_AVATARS[player.colorIndex ?? 0]}.png`}
+                                alt={PRE_CONFIG_NAMES[player.colorIndex ?? 0]}
                                 style={{
                                     width: '95%',
                                     height: '95%',
@@ -232,7 +229,7 @@ export default function Loading_Screen({ lobby, countdownActive, countdownValue,
                             color: '#fff',
                             textShadow: `0 0 20px ${CROSSHAIR_COLORS[player.colorIndex ?? 0]}`,
                         }}>
-                            {preConfigNames[player.colorIndex ?? 0]}
+                            {PRE_CONFIG_NAMES[player.colorIndex ?? 0]}
                         </span>
                     </div>
                 ))}

@@ -5,7 +5,6 @@
 import { getDatabase, saveDatabase } from './database.ts';
 import { CONFIG } from '../infrastructure/config.ts';
 import type { LeaderboardEntry } from '../shared/types.ts';
-import { existsSync } from 'fs';
 
 /** Create a new team and return its id */
 export function createTeam(name: string): number {
@@ -93,24 +92,6 @@ export function saveGameSession(
     );
     saveDatabase();
     console.log(`[DB] Score updated: team=${teamId}, score=${score}`);
-}
-
-/** Debug: Get all teams with their scores */
-export function getAllTeamsDebug(): { id: number; name: string; total_score: number }[] {
-    const db = getDatabase();
-    const result = db.exec('SELECT id, name, total_score FROM teams ORDER BY id');
-    if (result.length === 0) return [];
-    return result[0].values.map((row) => ({
-        id: row[0] as number,
-        name: row[1] as string,
-        total_score: Number(row[2]),
-    }));
-}
-
-/** Debug: Check if DB file exists and log path */
-export function debugDbPath(): void {
-    console.log(`[DB] Database path: ${CONFIG.DB_PATH}`);
-    console.log(`[DB] File exists: ${existsSync(CONFIG.DB_PATH)}`);
 }
 
 /** Get leaderboard: top teams by total score */

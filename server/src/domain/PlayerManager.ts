@@ -18,7 +18,7 @@ export class PlayerManager {
         }
 
         // Find the player with the highest score
-        const topPlayer = playerScores.reduce((top, current) => 
+        const topPlayer = playerScores.reduce((top, current) =>
             current.score > top.score ? current : top
         );
 
@@ -37,28 +37,5 @@ export class PlayerManager {
      */
     static getPlayerLeaderboard(limit: number = 5): LeaderboardEntry[] {
         return playerRepo.getPlayerLeaderboard(limit);
-    }
-
-    /**
-     * Get an existing player by client ID.
-     * Returns null if player doesn't exist in database.
-     */
-    static getExistingPlayerName(clientId: string): string | null {
-        const player = playerRepo.getPlayerByClientId(clientId);
-        if (player?.name === 'Leader' || player?.name?.startsWith('Player ')) {
-            return null;
-        }
-        if (player?.name && ['Wulf', 'Talon', 'Ryker', 'Zark'].includes(player.name)) {
-            return null;
-        }
-        return player?.name ?? null;
-    }
-
-    /**
-     * Persist a name association immediately.
-     */
-    static persistPlayerName(clientId: string, name: string): void {
-        if (!name || name === 'Leader' || name.startsWith('Player ') || ['Wulf', 'Talon', 'Ryker', 'Zark'].includes(name)) return;
-        playerRepo.savePlayerName(clientId, name);
     }
 }

@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { QUIZ_TOPICS, CROSSHAIR_COLORS } from '../shared/types';
+import { QUIZ_TOPICS, CROSSHAIR_COLORS, PRE_CONFIG_AVATARS } from '../shared/types';
 import type { QuizTopicId, PlayerRole } from '../shared/types';
+import { hexToRgba } from '../utils/color';
 import '../index.css';
 import '../animations.css';
 import './controller-ui.css';
@@ -25,19 +26,6 @@ interface TopicSelection_ControllerProps {
     sendCrosshair: (x: number, y: number) => void;
     sendCancelAiming: () => void;
     sendStartAiming: () => void;
-}
-
-const CONTROLLER_AVATARS = ['wulf', 'talon', 'ryker', 'zark'] as const;
-
-function hexToRgba(hex: string, alpha: number): string {
-    const normalized = hex.replace('#', '');
-    const safeHex = normalized.length === 3
-        ? normalized.split('').map((char) => char + char).join('')
-        : normalized;
-    const r = parseInt(safeHex.slice(0, 2), 16);
-    const g = parseInt(safeHex.slice(2, 4), 16);
-    const b = parseInt(safeHex.slice(4, 6), 16);
-    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
 const TOPIC_HIT_RADIUS = 25;
@@ -178,7 +166,7 @@ export default function TopicSelection_Controller({
     }, [topicOrbs, onVote, sendCancelAiming]);
 
     const controllerAccent = CROSSHAIR_COLORS[colorIndex] || CROSSHAIR_COLORS[0];
-    const characterAvatar = CONTROLLER_AVATARS[colorIndex] || 'wulf';
+    const characterAvatar = PRE_CONFIG_AVATARS[colorIndex] || 'wulf';
 
     const width = containerRef.current?.offsetWidth || 400;
     const height = containerRef.current?.offsetHeight || 800;

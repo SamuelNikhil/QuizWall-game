@@ -4,24 +4,24 @@
 // keeps GamePlay and Winner inline
 // ==========================================
 
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef, useCallback, memo } from 'react';
 import { useParams } from 'react-router-dom';
 import { GameClient } from '../transport/GameClient';
 import GameLobby_Controller from '../lobby/controller/GameLobby_Controller';
 import Loading_Controller from '../lobby/controller/Loading_Controller';
 import WinnerScene from '../components/WinnerScene';
 import type { LobbyState, PlayerRole, ScoreUpdate, QuestionPhase, PlayerSelectionPayload, RevealResultPayload, PlayerScoreEntry, QuizTopicId, TopicVoteUpdatePayload, TopicSelectedPayload } from '../shared/types';
-import { CROSSHAIR_COLORS, QUIZ_TOPICS } from '../shared/types';
+import { CROSSHAIR_COLORS, QUIZ_TOPICS, PRE_CONFIG_AVATARS } from '../shared/types';
 import '../index.css';
 import '../animations.css';
 import './controller-ui.css';
 import { soundManager } from '../utils/sound';
+import { hexToRgba } from '../utils/color';
 import TopicSelection_Controller from './TopicSelection_Controller';
 
-type ControllerPhase = 'connecting' | 'lobby' | 'topic-selection' | 'loading' | 'playing' | 'game-over';
+type ControllerPhase = 'connecting' | 'reconnecting' | 'lobby' | 'topic-selection' | 'loading' | 'playing' | 'game-over';
 
 const TOTAL_QUESTIONS = 10;
-const CONTROLLER_AVATARS = ['wulf', 'talon', 'ryker', 'zark'] as const;
 const SUCCESS_PARTICLES = [
     { left: '6%', bottom: '8%', size: '1.5rem', rotate: '-18deg', delay: '0s', variant: 'bar' },
     { left: '14%', bottom: '24%', size: '0.85rem', rotate: '18deg', delay: '0.12s', variant: 'spark' },
@@ -34,19 +34,6 @@ const SUCCESS_PARTICLES = [
     { left: '80%', bottom: '20%', size: '1.1rem', rotate: '-24deg', delay: '0.18s', variant: 'bar' },
     { left: '90%', bottom: '10%', size: '1.4rem', rotate: '18deg', delay: '0.35s', variant: 'bar' },
 ] as const;
-
-function hexToRgba(hex: string, alpha: number): string {
-    const normalized = hex.replace('#', '');
-    const safeHex = normalized.length === 3
-        ? normalized.split('').map((char) => char + char).join('')
-        : normalized;
-
-    const r = parseInt(safeHex.slice(0, 2), 16);
-    const g = parseInt(safeHex.slice(2, 4), 16);
-    const b = parseInt(safeHex.slice(4, 6), 16);
-
-    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-}
 
 // ==========================================
 // Inline sub-components
@@ -74,7 +61,7 @@ interface GamePlay_ControllerProps {
     onLeaveGame: () => void;
 }
 
-function GamePlay_Controller({
+const GamePlay_Controller = memo(function GamePlay_Controller({
     containerRef,
     isDragging,
     aimAngle,
@@ -241,7 +228,7 @@ function GamePlay_Controller({
             </div>
         </div>
     );
-}
+});
 
 interface Winner_ControllerProps {
     scores: PlayerScoreEntry[];
@@ -278,8 +265,8 @@ export default function ShootQuiz_Controller() {
     const [role, setRole] = useState<PlayerRole>('member');
     const [colorIndex, setColorIndex] = useState<number>(0);
     const [lobby, setLobby] = useState<LobbyState | null>(null);
-    const [persistentName, setPersistentName] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [reconnectInfo, setReconnectInfo] = useState<{ attempt: number; max: number } | null>(null);
 
     // Persistent clientId to survive reloads/React double-mounts (localStorage for cross-session persistence)
     const clientIdRef = useRef<string>(
@@ -371,7 +358,28 @@ export default function ShootQuiz_Controller() {
         const client = new GameClient();
         clientRef.current = client;
 
+        // ---- Auto-reconnect callbacks ----
+        client.onDisconnect(() => {
+            // Only show reconnecting UI if we were already in a session
+            if (phaseRef.current !== 'connecting') {
+                setPhaseSync('reconnecting');
+                setReconnectInfo({ attempt: 0, max: 5 });
+            }
+        });
+
+        client.onReconnecting((attempt, max) => {
+            setReconnectInfo({ attempt, max });
+        });
+
+        client.onReconnectFailed(() => {
+            setError('Connection lost. Please scan the QR code again.');
+            setReconnectInfo(null);
+        });
+
         client.connect().then(() => {
+            // Unlock audio on first successful connection (user has already interacted with the page)
+            soundManager.unlock().catch(() => {});
+
             console.log(`[Room] Joining room ${roomId} with clientId ${clientIdRef.current}`);
             client.joinRoom(roomId, token, clientIdRef.current);
 
@@ -384,24 +392,28 @@ export default function ShootQuiz_Controller() {
                 console.log(`[Room] Role assigned: ${data.role}, Color: ${data.colorIndex}, Name: ${data.playerName || 'new player'}`);
                 setRole(data.role!);
                 setColorIndex(data.colorIndex ?? 0);
-                if (data.playerName) {
-                    setPersistentName(data.playerName);
-                }
+                setReconnectInfo(null);
                 setPhaseSync('lobby');
             });
 
             client.onReconnected((data) => {
                 console.log('[Room] Reconnected:', data);
-                if (!data.success) {
-                    // Fall through to normal join flow
-                    return;
-                }
-                // Sync phase with server's current game state
+                if (!data.success) return;
+
                 setRole(data.role ?? 'member');
                 setColorIndex(data.colorIndex ?? 0);
-                if (data.playerScores) {
-                    setPlayerScores(data.playerScores);
+                setReconnectInfo(null);
+
+                if (data.playerScores) setPlayerScores(data.playerScores);
+
+                // Restore current question if server sent it
+                if (data.currentQuestion) {
+                    // Question state is managed by onQuestion/onPhaseChange — just ensure we're in playing
                 }
+                if (data.phaseTimeLeft !== undefined) {
+                    setPhaseTimeLeft(data.phaseTimeLeft);
+                }
+
                 const serverPhase = data.phase as string;
                 if (serverPhase === 'playing') {
                     setPhaseSync('playing');
@@ -749,8 +761,8 @@ export default function ShootQuiz_Controller() {
         setPullBack(0);
         setPower(0);
 
-        // iOS Audio Unlock - must happen on first user gesture
-        soundManager.unlock();
+        // iOS/Android Audio Unlock — must happen on a user gesture
+        soundManager.unlock().catch(() => {});
 
         // Light haptic feedback when starting to pull the sling
         soundManager.vibrate(15);
@@ -853,14 +865,46 @@ export default function ShootQuiz_Controller() {
         );
     }
 
+    if (phase === 'reconnecting') {
+        return (
+            <div className="controller-container" style={{
+                justifyContent: 'center',
+                alignItems: 'center',
+                flexDirection: 'column',
+                gap: '1rem',
+                background: 'linear-gradient(180deg, #0f0f1a 0%, #1a1a2e 100%)',
+            }}>
+                <div className="pulse-ring" />
+                <h2 className="waiting-title" style={{ marginTop: '1rem', color: '#f59e0b' }}>
+                    Reconnecting...
+                </h2>
+                {reconnectInfo && (
+                    <p style={{
+                        color: 'rgba(255,255,255,0.5)',
+                        fontSize: '0.9rem',
+                        fontWeight: 600,
+                    }}>
+                        Attempt {reconnectInfo.attempt} of {reconnectInfo.max}
+                    </p>
+                )}
+                <p style={{
+                    color: 'rgba(255,255,255,0.35)',
+                    fontSize: '0.8rem',
+                    textAlign: 'center',
+                    maxWidth: '260px',
+                }}>
+                    Your session is being restored. Please wait.
+                </p>
+            </div>
+        );
+    }
+
     if (phase === 'lobby') {
         return (
             <GameLobby_Controller
                 role={role}
                 colorIndex={lobby?.players.find((p) => p.id === clientIdRef.current)?.colorIndex ?? colorIndex}
                 lobby={lobby}
-                persistentName={persistentName || undefined}
-                onSetPlayerName={(name) => clientRef.current?.setPlayerName(name)}
                 onStartGame={() => {
                     console.log('[Controller] onStartGame called, emitting START_GAME');
                     clientRef.current?.startGame();
@@ -928,7 +972,7 @@ export default function ShootQuiz_Controller() {
     }
 
     // phase === 'playing'
-    const characterAvatar = CONTROLLER_AVATARS[activeColorIndex] || 'wulf';
+    const characterAvatar = PRE_CONFIG_AVATARS[activeColorIndex] || 'wulf';
     const controllerAccent = CROSSHAIR_COLORS[activeColorIndex] || CROSSHAIR_COLORS[0];
     const currentScore = playerScores.find((p) => p.controllerId === clientIdRef.current)?.score ?? 0;
     const latestPopup = scorePopups[scorePopups.length - 1] ?? null;

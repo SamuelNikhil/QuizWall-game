@@ -1,4 +1,4 @@
-import { QUIZ_TOPICS, CROSSHAIR_COLORS } from '../shared/types';
+import { QUIZ_TOPICS, CROSSHAIR_COLORS, PRE_CONFIG_NAMES, PRE_CONFIG_AVATARS } from '../shared/types';
 import type { LobbyState, QuizTopicId } from '../shared/types';
 import backgroundImg from '../assets/Background.svg';
 
@@ -19,9 +19,6 @@ interface TopicSelection_ScreenProps {
     timeLeft: number;
     crosshairs: Map<string, { x: number; y: number }>;
 }
-
-const PRE_CONFIG_NAMES = ['Wulf', 'Talon', 'Ryker', 'Zark'];
-const PRE_CONFIG_AVATARS = ['wulf', 'talon', 'ryker', 'zark'];
 
 // Returns the orb index (0-based) that a crosshair at pos.x% is hovering over,
 // given n evenly-distributed cards inside the container. Returns -1 if outside.

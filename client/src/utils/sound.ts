@@ -1,142 +1,316 @@
 // ==========================================
-// Sound Manager — Utilities
+// Sound Manager — Cross-platform Audio
+// Supports iOS (Web Audio API) and Android (HTMLAudio + Web Audio)
+// All gameplay audio is controller-only.
 // ==========================================
 
 import correctSoundUrl from '../assets/sounds/correct.mp3';
 import wrongSoundUrl from '../assets/sounds/wrong.mp3';
 
+// ---- Platform detection ----
+function isIOS(): boolean {
+    if (typeof navigator === 'undefined') return false;
+    return (
+        /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+        (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+    );
+}
+
+function isAndroid(): boolean {
+    if (typeof navigator === 'undefined') return false;
+    return /Android/i.test(navigator.userAgent);
+}
+
+// ---- Haptic helpers ----
+// Standard Vibration API (Android, some desktop)
+function vibrateNative(pattern: number | number[]): boolean {
+    try {
+        if ('vibrate' in navigator && typeof navigator.vibrate === 'function') {
+            return navigator.vibrate(pattern);
+        }
+    } catch {
+        // ignore
+    }
+    return false;
+}
+
 export class SoundManager {
     private audioContext: AudioContext | null = null;
     private enabled: boolean = true;
-    private initialized: boolean = false;
+    // Tracks whether the AudioContext has been unlocked by a user gesture
+    private unlocked: boolean = false;
+    // Pre-decoded buffers for low-latency playback
     private buffers: Record<string, AudioBuffer> = {};
+    // HTMLAudio elements as a fallback for Android (avoids decode overhead)
+    private htmlAudio: Record<string, HTMLAudioElement> = {};
+    // Whether we are on the controller route
+    private _isController: boolean | null = null;
 
-    // Keep all gameplay audio on controller clients only.
+    // ---- Route guard ----
     private isControllerRoute(): boolean {
+        if (this._isController !== null) return this._isController;
         if (typeof window === 'undefined') return false;
-        const pathname = window.location.pathname.toLowerCase();
-        return pathname === '/controller' || pathname.startsWith('/controller/');
+        const p = window.location.pathname.toLowerCase();
+        this._isController = p === '/controller' || p.startsWith('/controller/');
+        return this._isController;
     }
 
     private canPlay(): boolean {
         return this.enabled && this.isControllerRoute();
     }
 
+    // ---- AudioContext ----
     private getContext(): AudioContext {
         if (!this.audioContext) {
-            const AudioContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
-            this.audioContext = new AudioContextClass();
+            const Ctor =
+                (window as unknown as { AudioContext?: typeof AudioContext; webkitAudioContext?: typeof AudioContext })
+                    .AudioContext ??
+                (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+            if (!Ctor) throw new Error('Web Audio API not supported');
+            this.audioContext = new Ctor();
         }
-        return this.audioContext!;
+        return this.audioContext;
     }
 
+    // ---- Unlock (must be called from a user-gesture handler) ----
     /**
-     * Unlocks audio on iOS/Safari. Should be called on first user gesture.
+     * Unlocks the AudioContext and pre-loads sound buffers.
+     * Safe to call multiple times — subsequent calls are no-ops.
      */
     async unlock(): Promise<void> {
         if (!this.isControllerRoute()) return;
-        if (this.initialized) return;
-        
-        const ctx = this.getContext();
-        if (ctx.state === 'suspended') {
-            await ctx.resume();
+        if (this.unlocked) return;
+
+        try {
+            const ctx = this.getContext();
+
+            // Resume suspended context (required on iOS Safari)
+            if (ctx.state === 'suspended') {
+                await ctx.resume();
+            }
+
+            // Play a silent 1-sample buffer — fully unlocks iOS audio
+            const silentBuf = ctx.createBuffer(1, 1, 22050);
+            const src = ctx.createBufferSource();
+            src.buffer = silentBuf;
+            src.connect(ctx.destination);
+            src.start(0);
+
+            // Load sounds in parallel
+            await Promise.all([
+                this._loadBuffer('correct', correctSoundUrl),
+                this._loadBuffer('wrong', wrongSoundUrl),
+            ]);
+
+            // Also prime HTMLAudio elements for Android (lower latency on first play)
+            if (isAndroid()) {
+                this._primeHtmlAudio('correct', correctSoundUrl);
+                this._primeHtmlAudio('wrong', wrongSoundUrl);
+            }
+
+            this.unlocked = true;
+            console.log('[Sound] Unlocked. iOS:', isIOS(), 'Android:', isAndroid());
+        } catch (e) {
+            console.warn('[Sound] Unlock failed:', e);
         }
-        
-        // Play a silent buffer to fully unlock
-        const buffer = ctx.createBuffer(1, 1, 22050);
-        const source = ctx.createBufferSource();
-        source.buffer = buffer;
-        source.connect(ctx.destination);
-        source.start(0);
-        
-        // Load sound files
-        this.loadSound('correct', correctSoundUrl);
-        this.loadSound('wrong', wrongSoundUrl);
-        
-        this.initialized = true;
-        console.log('[Sound] AudioContext unlocked');
     }
 
-    private async loadSound(name: string, url: string): Promise<void> {
+    // ---- Buffer loading ----
+    private async _loadBuffer(name: string, url: string): Promise<void> {
         try {
+            const ctx = this.getContext();
             const response = await fetch(url);
             const arrayBuffer = await response.arrayBuffer();
-            const ctx = this.getContext();
-            
-            // Accommodate older Safari versions that don't return a Promise for decodeAudioData
+            // Older Safari doesn't return a Promise from decodeAudioData
             const audioBuffer = await new Promise<AudioBuffer>((resolve, reject) => {
                 ctx.decodeAudioData(arrayBuffer, resolve, reject);
             });
-            
             this.buffers[name] = audioBuffer;
         } catch (e) {
-            console.warn(`[Sound] Failed to load sound ${name}:`, e);
+            console.warn(`[Sound] Failed to load buffer "${name}":`, e);
         }
     }
 
-    private async playBuffer(name: string, volume: number = 1.0): Promise<void> {
+    // ---- HTMLAudio priming (Android) ----
+    private _primeHtmlAudio(name: string, url: string): void {
+        try {
+            const el = new Audio(url);
+            el.preload = 'auto';
+            el.volume = 0;
+            // Trigger a silent play to prime the audio pipeline
+            const p = el.play();
+            if (p) p.then(() => el.pause()).catch(() => {});
+            el.volume = 1;
+            this.htmlAudio[name] = el;
+        } catch {
+            // ignore
+        }
+    }
+
+    // ---- Core playback ----
+    private async _playBuffer(name: string, volume = 1.0): Promise<void> {
         if (!this.canPlay()) return;
+
         const buffer = this.buffers[name];
         if (!buffer) return;
 
         try {
             const ctx = this.getContext();
-            if (ctx.state === 'suspended') {
-                await ctx.resume();
-            }
+            if (ctx.state === 'suspended') await ctx.resume();
 
             const source = ctx.createBufferSource();
-            const gainNode = ctx.createGain();
-
+            const gain = ctx.createGain();
             source.buffer = buffer;
-            source.connect(gainNode);
-            gainNode.connect(ctx.destination);
-
-            gainNode.gain.value = volume;
+            source.connect(gain);
+            gain.connect(ctx.destination);
+            gain.gain.value = volume;
             source.start(0);
         } catch (e) {
-            console.warn(`[Sound] Error playing ${name}:`, e);
+            // Fallback to HTMLAudio on Web Audio failure
+            this._playHtmlAudio(name, volume);
+            console.warn(`[Sound] Web Audio playback failed for "${name}", using HTMLAudio:`, e);
         }
     }
 
+    private _playHtmlAudio(name: string, volume = 1.0): void {
+        try {
+            const el = this.htmlAudio[name];
+            if (!el) return;
+            el.volume = Math.max(0, Math.min(1, volume));
+            el.currentTime = 0;
+            el.play().catch(() => {});
+        } catch {
+            // ignore
+        }
+    }
+
+    // ---- Tone synthesis ----
+    private async _playTone(
+        frequency: number,
+        duration: number,
+        type: OscillatorType = 'sine',
+        volume = 0.3
+    ): Promise<void> {
+        if (!this.canPlay()) return;
+        try {
+            const ctx = this.getContext();
+            if (ctx.state === 'suspended') await ctx.resume();
+
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+
+            osc.type = type;
+            osc.frequency.setValueAtTime(frequency, ctx.currentTime);
+            gain.gain.setValueAtTime(volume, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+
+            osc.start(ctx.currentTime);
+            osc.stop(ctx.currentTime + duration);
+        } catch (e) {
+            console.warn('[Sound] Tone error:', e);
+        }
+    }
+
+    // ---- Haptics ----
+    /**
+     * Triggers haptic feedback.
+     * - Android: uses Vibration API
+     * - iOS: plays a sub-bass tone to engage the Taptic Engine
+     */
     vibrate(pattern: number | number[]): void {
         if (!this.canPlay()) return;
-        
-        // 1. Try standard vibration API first (Android/Desktop)
-        try {
-            if ('vibrate' in navigator && typeof navigator.vibrate === 'function') {
-                navigator.vibrate(pattern);
-                return; // Supported and executed, we're done.
-            }
-        } catch (e) {
-            // Silently ignore
+
+        // Android / desktop — standard Vibration API
+        if (!isIOS()) {
+            vibrateNative(pattern);
+            return;
         }
 
-        // 2. iOS Safari Workaround (Pseudo-haptics via sub-bass audio)
-        // Check if we are likely on an Apple mobile device where vibrate failed
-        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
-                     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-        
-        if (isIOS) {
-            // Convert standard pattern to an array
-            const patternArray = Array.isArray(pattern) ? pattern : [pattern];
-            
-            // Play a very low frequency tone (sub-bass) to trigger the Taptic Engine implicitly
-            // This won't feel exactly like a native vibration, but it provides physical/auditory feedback
-            let delay = 0;
-            for (let i = 0; i < patternArray.length; i++) {
-                // Even indices are vibrate, odd indices are pause
-                if (i % 2 === 0) {
-                    const durationInSeconds = patternArray[i] / 1000;
-                    setTimeout(() => {
-                        this.playTone(50, durationInSeconds, 'square', 1.0); // 50Hz is very low, strong amplitude
-                    }, delay);
-                }
-                delay += patternArray[i];
+        // iOS — sub-bass audio to trigger Taptic Engine
+        const arr = Array.isArray(pattern) ? pattern : [pattern];
+        let delay = 0;
+        for (let i = 0; i < arr.length; i++) {
+            if (i % 2 === 0) {
+                // vibrate segment
+                const durationSec = arr[i] / 1000;
+                const d = delay;
+                setTimeout(() => {
+                    // 40 Hz square wave — strong physical sensation on iPhone speakers
+                    this._playTone(40, durationSec, 'square', 0.9);
+                }, d);
             }
+            delay += arr[i];
         }
     }
 
+    // ---- Public sound API ----
+
+    /** Play correct/wrong hit sound */
+    playHit(correct: boolean): void {
+        if (correct) {
+            this._playBuffer('correct', 0.7);
+        } else {
+            this._playBuffer('wrong', 0.7);
+        }
+    }
+
+    /** Slingshot release whoosh */
+    playShoot(): void {
+        this._playTone(440, 0.1, 'triangle', 0.3);
+        setTimeout(() => this._playTone(660, 0.08, 'triangle', 0.2), 50);
+    }
+
+    /** Subtle aim feedback */
+    playAim(): void {
+        this._playTone(300, 0.05, 'sine', 0.1);
+    }
+
+    /** Generic UI beep */
+    playBeep(): void {
+        this._playTone(600, 0.08, 'sine', 0.2);
+    }
+
+    /** Countdown tick */
+    playCountdownBeep(): void {
+        this._playTone(800, 0.1, 'sine', 0.3);
+    }
+
+    /** Transition whoosh (rising sweep) */
+    playTransitionWhoosh(): void {
+        if (!this.canPlay()) return;
+        try {
+            const ctx = this.getContext();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.frequency.setValueAtTime(200, ctx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(800, ctx.currentTime + 0.5);
+            gain.gain.setValueAtTime(0.3, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+            osc.start(ctx.currentTime);
+            osc.stop(ctx.currentTime + 0.5);
+        } catch (e) {
+            console.warn('[Sound] Whoosh error:', e);
+        }
+    }
+
+    /** Game start fanfare */
+    playGameStart(): void {
+        this._playTone(523.25, 0.15, 'triangle', 0.4);
+        setTimeout(() => this._playTone(659.25, 0.15, 'triangle', 0.4), 100);
+        setTimeout(() => this._playTone(783.99, 0.2, 'triangle', 0.4), 200);
+    }
+
+    /** Shuffle / card flip sound */
+    playShuffle(): void {
+        this._playTone(350, 0.06, 'triangle', 0.25);
+        setTimeout(() => this._playTone(420, 0.06, 'triangle', 0.2), 60);
+    }
+
+    // ---- Toggle ----
     toggle(): boolean {
         this.enabled = !this.enabled;
         return this.enabled;
@@ -146,94 +320,8 @@ export class SoundManager {
         return this.enabled;
     }
 
-    private async playTone(
-        frequency: number,
-        duration: number,
-        type: OscillatorType = 'sine',
-        volume: number = 0.3
-    ): Promise<void> {
-        if (!this.canPlay()) return;
-
-        try {
-            const ctx = this.getContext();
-            
-            // Auto-resume if suspended (might happen even after unlock on some browsers)
-            if (ctx.state === 'suspended') {
-                await ctx.resume();
-            }
-
-            const oscillator = ctx.createOscillator();
-            const gainNode = ctx.createGain();
-
-            oscillator.connect(gainNode);
-            gainNode.connect(ctx.destination);
-
-            oscillator.type = type;
-            oscillator.frequency.setValueAtTime(frequency, ctx.currentTime);
-
-            gainNode.gain.setValueAtTime(volume, ctx.currentTime);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration);
-
-            oscillator.start(ctx.currentTime);
-            oscillator.stop(ctx.currentTime + duration);
-        } catch (e) {
-            console.warn('Sound error:', e);
-        }
-    }
-
-    playHit(correct: boolean): void {
-        if (correct) {
-            this.playBuffer('correct', 0.6);
-        } else {
-            this.playBuffer('wrong', 0.6);
-        }
-    }
-
-    playShoot(): void {
-        this.playTone(440, 0.1, 'triangle', 0.3);
-        setTimeout(() => this.playTone(660, 0.08, 'triangle', 0.2), 50);
-    }
-
-    playAim(): void {
-        this.playTone(300, 0.05, 'sine', 0.1);
-    }
-
-    playBeep(): void {
-        this.playTone(600, 0.08, 'sine', 0.2);
-    }
-
-    playCountdownBeep(): void {
-        this.playTone(800, 0.1, 'sine', 0.3);
-    }
-
-    playTransitionWhoosh(): void {
-        if (!this.canPlay()) return;
-
-        try {
-            const ctx = this.getContext();
-            const oscillator = ctx.createOscillator();
-            const gainNode = ctx.createGain();
-            
-            oscillator.connect(gainNode);
-            gainNode.connect(ctx.destination);
-            
-            oscillator.frequency.setValueAtTime(200, ctx.currentTime);
-            oscillator.frequency.exponentialRampToValueAtTime(800, ctx.currentTime + 0.5);
-            
-            gainNode.gain.setValueAtTime(0.3, ctx.currentTime);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
-            
-            oscillator.start(ctx.currentTime);
-            oscillator.stop(ctx.currentTime + 0.5);
-        } catch (e) {
-            console.warn('Sound error:', e);
-        }
-    }
-
-    playGameStart(): void {
-        this.playTone(523.25, 0.15, 'triangle', 0.4);
-        setTimeout(() => this.playTone(659.25, 0.15, 'triangle', 0.4), 100);
-        setTimeout(() => this.playTone(783.99, 0.2, 'triangle', 0.4), 200);
+    isUnlocked(): boolean {
+        return this.unlocked;
     }
 }
 

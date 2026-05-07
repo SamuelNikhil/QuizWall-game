@@ -1,4 +1,4 @@
-import { CROSSHAIR_COLORS } from '../../shared/types';
+import { CROSSHAIR_COLORS, PRE_CONFIG_NAMES, PRE_CONFIG_AVATARS } from '../../shared/types';
 import '../../index.css';
 import '../../animations.css';
 
@@ -10,10 +10,8 @@ interface LoadingControllerProps {
 
 export default function Loading_Controller({ colorIndex, countdownActive, countdownValue }: LoadingControllerProps) {
     const myColor = CROSSHAIR_COLORS[colorIndex] || '#6750A4';
-    const preConfigAvatars = ['wulf', 'talon', 'ryker', 'zark'];
-    const preConfigNames = ['Wulf', 'Talon', 'Ryker', 'Zark'];
-    const characterAvatar = preConfigAvatars[colorIndex] || 'wulf';
-    const characterName = preConfigNames[colorIndex] || `Player ${colorIndex + 1}`;
+    const characterAvatar = PRE_CONFIG_AVATARS[colorIndex] || 'wulf';
+    const characterName = PRE_CONFIG_NAMES[colorIndex] || `Player ${colorIndex + 1}`;
 
     return (
         <div className="controller-container" style={{

@@ -3,9 +3,10 @@
 // ==========================================
 
 import { randomBytes } from 'crypto';
+import { createGameEngine } from './GameRegistry.ts';
+import type { GameEngine, GameType } from './GameEngine.ts';
 import { QuizEngine } from './QuizEngine.ts';
 import { EVENTS } from '../shared/protocol.ts';
-import { PlayerManager } from './PlayerManager.ts';
 import { CONFIG } from '../infrastructure/config.ts';
 import type { PlayerRole, PlayerInfo, PlayerScoreEntry, LobbyState, QuizTopicId, TopicVoteUpdatePayload, TopicSelectedPayload } from '../shared/types.ts';
 import { QUIZ_TOPICS, DEFAULT_TOPIC, TOPIC_SELECTION_TIMEOUT_MS } from '../shared/types.ts';
@@ -34,10 +35,11 @@ export interface DisconnectedPlayerScore {
 export interface Room {
     roomId: string;
     joinToken: string;
+    gameType: GameType;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     screenChannel: any; // Geckos.io ServerChannel
     controllers: RoomController[];
-    quizEngine: QuizEngine;
+    engine: GameEngine;
     gameStarted: boolean;
     lastActivity: number; // Timestamp of last activity for idle reaping
     disconnectedPlayerScores: Map<string, DisconnectedPlayerScore>;
@@ -46,6 +48,11 @@ export interface Room {
     topicSelectionTimer: ReturnType<typeof setTimeout> | null;
     topicSelectionStarted: boolean;
     topicSelectionStartedAt: number | null;
+    // Screen reconnect grace period
+    screenDisconnected?: boolean;
+    screenGraceTimer?: NodeJS.Timeout;
+    // Empty lobby deletion timer (fires when last controller leaves the lobby)
+    emptyLobbyTimer?: NodeJS.Timeout;
 }
 
 export const PRE_CONFIG_NAMES = ['Wulf', 'Talon', 'Ryker', 'Zark'];
@@ -55,6 +62,17 @@ export class RoomManager {
     private idleReaperInterval: ReturnType<typeof setInterval> | null = null;
     private static readonly IDLE_TIMEOUT_MS = 2 * 60 * 1000; // 2 minutes
     private static readonly REAPER_INTERVAL_MS = 30 * 1000; // Check every 30 seconds
+    /** Unified grace period for any disconnect (controller or screen) before removal/destruction (ms) */
+    private static readonly GRACE_MS = 60_000;
+    /** Delay before deleting an empty lobby (ms) */
+    private static readonly EMPTY_LOBBY_DELETE_MS = 500;
+
+    /** Called when an empty lobby is deleted so the transport layer can notify the screen */
+    private onEmptyLobbyDeleted: ((room: Room) => void) | null = null;
+
+    setOnEmptyLobbyDeleted(cb: (room: Room) => void): void {
+        this.onEmptyLobbyDeleted = cb;
+    }
 
     constructor() {
         // Start the idle room reaper
@@ -72,20 +90,21 @@ export class RoomManager {
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    createRoom(screenChannel: any): { roomId: string; joinToken: string } {
+    createRoom(screenChannel: any, gameType: GameType = 'shootquiz'): { roomId: string; joinToken: string } {
         const roomId = this.generateRoomId();
         const joinToken = this.generateToken();
 
-        // Create quiz engine with unique session ID
+        // Create game engine via registry — decoupled from specific game type
         const sessionId = `room-${roomId}-${Date.now()}`;
-        const quizEngine = new QuizEngine(sessionId);
+        const engine = createGameEngine(gameType, sessionId);
 
         const room: Room = {
             roomId,
             joinToken,
+            gameType,
             screenChannel,
             controllers: [],
-            quizEngine,
+            engine,
             gameStarted: false,
             lastActivity: Date.now(),
             disconnectedPlayerScores: new Map(),
@@ -97,7 +116,7 @@ export class RoomManager {
         };
 
         this.rooms.set(roomId, room);
-        console.log(`[Room] Created: ${roomId} with session: ${sessionId}`);
+        console.log(`[Room] Created: ${roomId} (game: ${gameType}, session: ${sessionId})`);
         return { roomId, joinToken };
     }
 
@@ -145,8 +164,7 @@ export class RoomManager {
         }
 
         // 2. Also check if this CHANNEL (connection) is in ANY other room and clean up
-        const removed = this.removeController(channel.id);
-        // If we accidentally removed this same room's controller (shouldn't happen), re-check
+        this.removeController(channel.id);
         // removeController may have promoted a new leader in another room; that's fine.
 
         if (room.controllers.length >= CONFIG.MAX_PLAYERS_PER_ROOM) {
@@ -194,15 +212,17 @@ export class RoomManager {
 
         room.controllers.push(controller);
         room.lastActivity = Date.now();
-        console.log(`[Room] ${role.toUpperCase()} joined ${roomId} (clientId: ${clientId.substring(0, 8)}...)`);
 
-        // If this is a returning player from the database, return their name
-        const existingName = PlayerManager.getExistingPlayerName(clientId);
-        if (existingName) {
-            controller.name = existingName;
+        // Cancel any pending empty-lobby deletion — someone just joined
+        if (room.emptyLobbyTimer) {
+            clearTimeout(room.emptyLobbyTimer);
+            room.emptyLobbyTimer = undefined;
+            console.log(`[Room] Empty-lobby timer cancelled — new controller joined ${roomId}`);
         }
 
-        return { success: true, role, colorIndex, playerName: existingName ?? undefined };
+        console.log(`[Room] ${role.toUpperCase()} joined ${roomId} (clientId: ${clientId.substring(0, 8)}...)`);
+
+        return { success: true, role, colorIndex, playerName: undefined };
     }
 
     /** Mark a player as ready. Uses clientId for lookup. */
@@ -217,14 +237,11 @@ export class RoomManager {
         return true;
     }
 
-    /** Check if game can be started (at least 1 player present) */
+    /** Check if game can be started (at least 1 connected player present) */
     canStartGame(roomId: string): boolean {
         const room = this.rooms.get(roomId);
         if (!room) return false;
-        if (room.controllers.length === 0) return false;
-
-        // Leader can start as long as there are connected players
-        return true;
+        return room.controllers.some(c => !c.disconnected);
     }
 
     /** Start the game. Uses clientId for leader verification. */
@@ -269,14 +286,17 @@ export class RoomManager {
         const room = this.rooms.get(roomId);
         if (!room) return null;
 
-        const players: PlayerInfo[] = room.controllers.map((c) => ({
-            id: c.clientId,
-            role: c.role,
-            isReady: c.isReady,
-            colorIndex: c.colorIndex,
-            name: c.name,
-            isSpectating: c.isSpectating,
-        }));
+        // Only include connected (non-disconnected) controllers in the lobby view
+        const players: PlayerInfo[] = room.controllers
+            .filter(c => !c.disconnected)
+            .map((c) => ({
+                id: c.clientId,
+                role: c.role,
+                isReady: c.isReady,
+                colorIndex: c.colorIndex,
+                name: c.name,
+                isSpectating: c.isSpectating,
+            }));
 
         return {
             roomId,
@@ -295,16 +315,24 @@ export class RoomManager {
             const leftColorIndex = leftController.colorIndex;
 
             if (room.gameStarted) {
+                // Last player disconnecting during gameplay — delete room+session immediately
                 if (room.controllers.length === 1) {
                     room.controllers.splice(idx, 1);
                     room.lastActivity = Date.now();
-                    room.gameStarted = false;
-                    room.quizEngine.reset();
-                    this.clearDisconnectedScores(room.roomId);
-                    console.log(`[Room] Last player ${leftController.name} disconnected - ending session immediately`);
+                    console.log(`[Room] Last player ${leftController.name} disconnected during gameplay — deleting room+session immediately`);
+                    if (!room.emptyLobbyTimer) {
+                        room.emptyLobbyTimer = setTimeout(() => {
+                            const deletedRoom = this.deleteRoomById(room.roomId);
+                            if (deletedRoom) {
+                                console.log(`[Room] Room ${room.roomId} deleted after last player left`);
+                                this.onEmptyLobbyDeleted?.(deletedRoom);
+                            }
+                        }, RoomManager.EMPTY_LOBBY_DELETE_MS);
+                    }
                     return { room, wasLeader, promotedControllerId: undefined };
                 }
 
+                // Other players still in game — 60s grace so network blips don't lose progress
                 leftController.disconnected = true;
                 leftController.channel = null;
 
@@ -320,20 +348,51 @@ export class RoomManager {
                 const clientId = leftController.clientId;
                 const timer = setTimeout(() => {
                     this.fullyRemoveController(room.roomId, clientId);
-                }, 60_000);
+                }, RoomManager.GRACE_MS);
                 room.disconnectGraceTimers.set(clientId, timer);
 
-                console.log(`[Room] Controller ${leftController.name} (${clientId}) disconnected during gameplay — 60s grace period started`);
+                console.log(`[Room] Controller ${leftController.name} (${clientId}) disconnected during gameplay — ${RoomManager.GRACE_MS / 1000}s grace period started`);
 
                 const promotedControllerId = this.ensureSingleLeader(room);
                 return { room, wasLeader, promotedControllerId };
             }
 
-            room.controllers.splice(idx, 1);
-            room.lastActivity = Date.now();
+            // Lobby disconnect — if this is the last connected player, skip the grace
+            // period and go straight to the 1s empty-lobby deletion.
+            leftController.disconnected = true;
+            leftController.channel = null;
 
+            const clientId = leftController.clientId;
+            const remainingConnected = room.controllers.filter(c => !c.disconnected && c !== leftController).length;
+
+            if (remainingConnected === 0) {
+                // Nobody left — fully remove immediately and let the empty-lobby timer handle deletion
+                room.controllers.splice(idx, 1);
+                room.lastActivity = Date.now();
+                console.log(`[Room] Last lobby player ${leftController.name} (colorIndex: ${leftColorIndex}) disconnected — scheduling room deletion in ${RoomManager.EMPTY_LOBBY_DELETE_MS}ms`);
+                if (!room.emptyLobbyTimer) {
+                    room.emptyLobbyTimer = setTimeout(() => {
+                        const deletedRoom = this.deleteRoomById(room.roomId);
+                        if (deletedRoom) {
+                            console.log(`[Room] Empty lobby ${room.roomId} deleted`);
+                            this.onEmptyLobbyDeleted?.(deletedRoom);
+                        }
+                    }, RoomManager.EMPTY_LOBBY_DELETE_MS);
+                }
+                const promotedControllerId = this.ensureSingleLeader(room);
+                return { room, wasLeader, promotedControllerId };
+            }
+
+            // Other players still connected — use the unified grace period so brief
+            // network blips don't permanently remove the player's slot and color.
+            const lobbyTimer = setTimeout(() => {
+                this.fullyRemoveController(room.roomId, clientId);
+            }, RoomManager.GRACE_MS);
+            room.disconnectGraceTimers.set(clientId, lobbyTimer);
+
+            room.lastActivity = Date.now();
             const promotedControllerId = this.ensureSingleLeader(room);
-            console.log(`[Room] Controller left (colorIndex: ${leftColorIndex}), remaining: ${room.controllers.length}`);
+            console.log(`[Room] Controller ${leftController.name} (colorIndex: ${leftColorIndex}) disconnected in lobby — ${RoomManager.GRACE_MS / 1000}s grace period started`);
             return { room, wasLeader, promotedControllerId };
         }
         return { room: null, wasLeader: false };
@@ -395,17 +454,34 @@ export class RoomManager {
 
         console.log(`[Room] Grace period expired — fully removed controller ${controller.name} (${clientId})`);
 
+        // If the lobby is now completely empty, schedule room deletion in 5s
+        const connectedCount = room.controllers.filter(c => !c.disconnected).length;
+        if (connectedCount === 0 && !room.gameStarted) {
+            if (!room.emptyLobbyTimer) {
+                console.log(`[Room] Lobby ${roomId} is empty — scheduling deletion in ${RoomManager.EMPTY_LOBBY_DELETE_MS}ms`);
+                room.emptyLobbyTimer = setTimeout(() => {
+                    const deletedRoom = this.deleteRoomById(roomId);
+                    if (deletedRoom) {
+                        console.log(`[Room] Empty lobby ${roomId} deleted`);
+                        this.onEmptyLobbyDeleted?.(deletedRoom);
+                    }
+                }, RoomManager.EMPTY_LOBBY_DELETE_MS);
+            }
+        }
+
         return this.ensureSingleLeader(room);
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    reconnectController(roomId: string, clientId: string, newChannel: any): { success: boolean; phase?: string; playerScores?: PlayerScoreEntry[]; error?: string } {
+    reconnectController(roomId: string, clientId: string, newChannel: any): { success: boolean; phase?: string; playerScores?: PlayerScoreEntry[]; resyncState?: Record<string, unknown>; error?: string } {
         const room = this.rooms.get(roomId);
         if (!room) return { success: false, error: 'Room not found' };
 
+        // Accept reconnect for both gameplay and lobby disconnects
         const controller = room.controllers.find(c => c.clientId === clientId && c.disconnected);
         if (!controller) return { success: false, error: 'No disconnected controller found with that ID' };
 
+        // Clear any pending grace timer
         const timer = room.disconnectGraceTimers.get(clientId);
         if (timer) {
             clearTimeout(timer);
@@ -413,14 +489,28 @@ export class RoomManager {
         }
 
         controller.disconnected = false;
+        controller.id = newChannel.id; // Update channel ID to new connection
         controller.channel = newChannel;
+
+        // Cancel any pending empty-lobby deletion
+        if (room.emptyLobbyTimer) {
+            clearTimeout(room.emptyLobbyTimer);
+            room.emptyLobbyTimer = undefined;
+            console.log(`[Room] Empty-lobby timer cancelled — controller reconnected to ${roomId}`);
+        }
         room.lastActivity = Date.now();
 
+        // Remove from disconnected scores map (score is live on the controller object)
         room.disconnectedPlayerScores.delete(clientId);
 
         this.ensureSingleLeader(room);
 
         const phase = room.gameStarted ? 'playing' : 'lobby';
+
+        // Provide current game state so the reconnected client can resync
+        const resyncState = room.gameStarted
+            ? room.engine.getResyncState?.()
+            : undefined;
 
         console.log(`[Room] Controller ${controller.name} (${clientId}) reconnected — phase: ${phase}`);
 
@@ -428,20 +518,129 @@ export class RoomManager {
             success: true,
             phase,
             playerScores: this.getPlayerScores(roomId),
+            resyncState,
         };
     }
 
-    /** Delete a room (when screen disconnects) */
+    /**
+     * Mark the screen as disconnected and start a grace period.
+     * Returns the room if found, null otherwise.
+     * The caller is responsible for destroying the room if the grace timer fires.
+     */
+    markScreenDisconnected(
+        channelId: string,
+        onGraceExpired: (room: Room) => void
+    ): Room | null {
+        for (const [, room] of this.rooms) {
+            if (room.screenChannel?.id !== channelId) continue;
+
+            // Already in grace period — ignore duplicate disconnect
+            if (room.screenDisconnected) return room;
+
+            // Landing page with no players — delete immediately, no grace needed
+            if (room.controllers.length === 0 && !room.gameStarted) {
+                console.log(`[Room] Screen disconnected from empty landing page ${room.roomId} — deleting immediately`);
+                onGraceExpired(room);
+                return room;
+            }
+
+            room.screenDisconnected = true;
+            room.lastActivity = Date.now();
+
+            console.log(`[Room] Screen disconnected from ${room.roomId} — ${RoomManager.GRACE_MS / 1000}s grace period started`);
+
+            room.screenGraceTimer = setTimeout(() => {
+                room.screenGraceTimer = undefined;
+                onGraceExpired(room);
+            }, RoomManager.GRACE_MS);
+
+            return room;
+        }
+        return null;
+    }
+
+    /**
+     * Reconnect (or take over) the screen channel for an existing room.
+     * Works whether the screen was already marked disconnected or not —
+     * handles the race where the new channel arrives before the old one closes.
+     */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    reconnectScreen(roomId: string, newChannel: any): { success: boolean; error?: string } {
+        const room = this.rooms.get(roomId);
+        if (!room) return { success: false, error: 'Room not found' };
+
+        // Clear any pending grace timer (covers both the disconnected and race-condition cases)
+        if (room.screenGraceTimer) {
+            clearTimeout(room.screenGraceTimer);
+            room.screenGraceTimer = undefined;
+        }
+
+        const wasDisconnected = room.screenDisconnected;
+        room.screenChannel = newChannel;
+        room.screenDisconnected = false;
+        room.lastActivity = Date.now();
+
+        console.log(`[Room] Screen took over channel for ${roomId} (was disconnected: ${wasDisconnected})`);
+        return { success: true };
+    }
+
+    /** Find a room that has a disconnected screen (for screen reconnect flow) */
+    findRoomWithDisconnectedScreen(roomId: string): Room | null {
+        const room = this.rooms.get(roomId);
+        return room?.screenDisconnected ? room : null;
+    }
+
+    /** Delete a room (when screen grace period expires or screen leaves intentionally) */
     deleteRoomByScreen(channelId: string): Room | null {
         for (const [roomId, room] of this.rooms) {
-            if (room.screenChannel.id === channelId) {
-                room.quizEngine.destroy();
-                this.rooms.delete(roomId);
+            if (room.screenChannel?.id === channelId || room.screenDisconnected) {
+                // Only delete if the channel matches OR the room is already in grace period
+                if (room.screenChannel?.id !== channelId && !room.screenDisconnected) continue;
 
+                if (room.screenGraceTimer) {
+                    clearTimeout(room.screenGraceTimer);
+                    room.screenGraceTimer = undefined;
+                }
+                // Clear topic selection timer
+                if (room.topicSelectionTimer) {
+                    clearTimeout(room.topicSelectionTimer);
+                    room.topicSelectionTimer = null;
+                }
+                // Clear all controller grace timers
+                for (const t of room.disconnectGraceTimers.values()) clearTimeout(t);
+                room.disconnectGraceTimers.clear();
+
+                room.engine.destroy();
+                this.rooms.delete(roomId);
                 return room;
             }
         }
         return null;
+    }
+
+    /** Delete a room by its roomId directly (used after grace period expires) */
+    deleteRoomById(roomId: string): Room | null {
+        const room = this.rooms.get(roomId);
+        if (!room) return null;
+
+        if (room.screenGraceTimer) {
+            clearTimeout(room.screenGraceTimer);
+            room.screenGraceTimer = undefined;
+        }
+        if (room.emptyLobbyTimer) {
+            clearTimeout(room.emptyLobbyTimer);
+            room.emptyLobbyTimer = undefined;
+        }
+        if (room.topicSelectionTimer) {
+            clearTimeout(room.topicSelectionTimer);
+            room.topicSelectionTimer = null;
+        }
+        for (const t of room.disconnectGraceTimers.values()) clearTimeout(t);
+        room.disconnectGraceTimers.clear();
+
+        room.engine.destroy();
+        this.rooms.delete(roomId);
+        return room;
     }
 
     /** Get room by ID */
@@ -462,7 +661,7 @@ export class RoomManager {
     /** Find room by screen channel ID */
     findRoomByScreen(channelId: string): Room | null {
         for (const [, room] of this.rooms) {
-            if (room.screenChannel.id === channelId) {
+            if (room.screenChannel?.id === channelId) {
                 return room;
             }
         }
@@ -483,7 +682,7 @@ export class RoomManager {
         if (!room) return;
 
         room.gameStarted = false;
-        room.quizEngine.reset();
+        room.engine.reset();
 
         this.resetSpectatingStatus(roomId);
         for (const c of room.controllers) {
@@ -511,22 +710,6 @@ export class RoomManager {
 
         controller.isSpectating = true;
         console.log(`[Room] Player ${controller.name} (${clientId.substring(0, 8)}) is now spectating`);
-        return true;
-    }
-
-    /** Set player name. Uses clientId for lookup. */
-    setPlayerName(roomId: string, clientId: string, name: string): boolean {
-        const room = this.rooms.get(roomId);
-        if (!room) return false;
-
-        const controller = room.controllers.find((c) => c.clientId === clientId);
-        if (!controller) return false;
-
-        controller.name = name;
-
-        // Persist the name association immediately to the database
-        PlayerManager.persistPlayerName(clientId, name);
-
         return true;
     }
 
@@ -676,7 +859,10 @@ export class RoomManager {
         room.topicSelectionStarted = false;
         room.topicSelectionTimer = null;
 
-        room.quizEngine.setTopic(selectedTopic);
+        // setTopic is quiz-specific — cast safely
+        if (room.engine instanceof QuizEngine) {
+            room.engine.setTopic(selectedTopic);
+        }
 
         console.log(`[Room] Topic selected in ${roomId}: ${selectedTopic} (${topicLabel})`);
         return { topicId: selectedTopic, topicLabel };
@@ -725,7 +911,7 @@ export class RoomManager {
             if (room.controllers.length === 0 && !room.gameStarted) {
                 if (idleTime > STALE_ROOM_TTL_MS) {
                     console.log(`[RoomManager] Reaping orphaned landing-page room ${roomId} (idle for ${Math.round(idleTime / 60000)}min)`);
-                    room.quizEngine.destroy();
+                    room.engine.destroy();
                     this.rooms.delete(roomId);
                     try { room.screenChannel.emit(EVENTS.ROOM_EXPIRED, { reason: 'idle_timeout' }); } catch { /* closed */ }
                 }
@@ -733,10 +919,10 @@ export class RoomManager {
             }
 
             // Lobby (team-lobby) or Winner Screen (game-over): reap after 2 minutes idle.
-            // Gameplay is excluded — the QuizEngine timer drives it to game-over naturally.
+            // Gameplay is excluded — the game engine timer drives it to game-over naturally.
             if (!room.gameStarted && idleTime > RoomManager.IDLE_TIMEOUT_MS) {
                 console.log(`[RoomManager] Reaping idle lobby/game-over room ${roomId} (idle for ${Math.round(idleTime / 1000)}s)`);
-                room.quizEngine.destroy();
+                room.engine.destroy();
                 this.rooms.delete(roomId);
                 try {
                     room.screenChannel.emit(EVENTS.ROOM_EXPIRED, { reason: 'idle_timeout' });

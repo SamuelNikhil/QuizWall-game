@@ -1,13 +1,15 @@
 // ==========================================
 // Quiz Engine — Domain Layer
 // Server-authoritative game logic
-// Supports Gemini AI + JSON fallback
+// Supports Groq AI + JSON fallback
 // Phase-based multiplayer timer system
+// Implements GameEngine interface
 // ==========================================
 
 import { getSessionQuestions, clearSessionQuestions, generateSessionQuestions, getAllQuestions } from '../data/questionRepository.ts';
 import { CONFIG } from '../infrastructure/config.ts';
 import type { ServerQuestion, ClientQuestion, QuestionPhase, PlayerSelectionPayload, RevealResultPayload, QuizTopicId } from '../shared/types.ts';
+import type { GameEngine } from './GameEngine.ts';
 
 // Phase durations in seconds
 const PHASE_DURATIONS: Record<QuestionPhase, number> = {
@@ -16,7 +18,7 @@ const PHASE_DURATIONS: Record<QuestionPhase, number> = {
     reveal: 3,
 };
 
-export class QuizEngine {
+export class QuizEngine implements GameEngine {
     private sessionId: string;
     private questions: ServerQuestion[] = [];
     private currentIndex: number = 0;
@@ -34,6 +36,7 @@ export class QuizEngine {
     private totalQuestionsAttempted: number = 0;
     private destroyed: boolean = false;
     private selectedTopic: QuizTopicId | null = null;
+    private isReset: boolean = false; // Guard against async callbacks after reset
 
     // Phase-based multiplayer fields
     private currentPhase: QuestionPhase = 'analysis';
@@ -183,9 +186,6 @@ export class QuizEngine {
     // ==========================================
     // SINGLEPLAYER TIMER (unchanged)
     // ==========================================
-    private isReset: boolean = false; // Guard against async callbacks after reset
-
-
 
     /** Start the game timer (singleplayer) */
     startTimer(): void {
@@ -692,9 +692,22 @@ export class QuizEngine {
         return this.timeLeft;
     }
 
+    /** Get current phase time left (multiplayer) */
+    getPhaseTimeLeft(): number {
+        return this.phaseTimeLeft;
+    }
+
     /** Get total questions available */
     getTotalQuestions(): number {
         return this.questions.length;
+    }
+
+    /** Get game-specific state for reconnecting clients */
+    getResyncState(): Record<string, unknown> | undefined {
+        if (!this.initialized) return undefined;
+        const currentQuestion = this.getCurrentQuestion() ?? undefined;
+        const phaseTimeLeft = this.getPhaseTimeLeft?.() ?? this.getTimeLeft?.() ?? undefined;
+        return { currentQuestion, phaseTimeLeft };
     }
 
     /** Clean up and clear session questions */

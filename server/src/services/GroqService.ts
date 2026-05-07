@@ -25,7 +25,7 @@ interface TopicCacheEntry {
     generatedAt: number;
 }
 
-const CACHE_TTL_MS = 30 * 60 * 1000;
+const CACHE_TTL_MS = 5 * 60 * 1000;
 
 const topicCache = new Map<QuizTopicId, TopicCacheEntry>();
 let globalQuestionIdCounter = 1;
@@ -94,9 +94,17 @@ export class GroqService {
     }
 
     async generateQuestionsForTopic(topicId: QuizTopicId, excludeQuestions?: string[], forceRefresh: boolean = false): Promise<ServerQuestion[]> {
+        return this.generateQuestionsForTopicWithCount(topicId, this.questionCount, excludeQuestions, forceRefresh);
+    }
+
+    /**
+     * Generate questions with an explicit count, without mutating shared state.
+     * Use this instead of setQuestionCount() + generateQuestionsForTopic() to avoid race conditions.
+     */
+    async generateQuestionsForTopicWithCount(topicId: QuizTopicId, count: number, excludeQuestions?: string[], forceRefresh: boolean = false): Promise<ServerQuestion[]> {
         const cached = topicCache.get(topicId);
         if (!forceRefresh && cached && (Date.now() - cached.generatedAt < CACHE_TTL_MS)) {
-            console.log(`[GroqService] Cache hit for topic "${topicId}" (${cached.questions.length} questions, age: ${Math.round((Date.now() - cached.generatedAt) / 60000)}min)`);
+            console.log(`[GroqService] Cache hit for topic "${topicId}" (${cached.questions.length} questions, age: ${Math.round((Date.now() - cached.generatedAt) / 1000)}s)`);
             // Assign fresh IDs from the global counter
             return cached.questions.map(q => ({
                 ...q,
@@ -107,7 +115,7 @@ export class GroqService {
         const topicLabel = this.getTopicLabel(topicId);
 
         try {
-            const prompt = this.buildPrompt(topicLabel, excludeQuestions);
+            const prompt = this.buildPrompt(topicLabel, count, excludeQuestions);
 
             const data = await this.fetchWithRetry(
                 'https://api.groq.com/openai/v1/chat/completions',
@@ -169,7 +177,7 @@ export class GroqService {
         return labels[topicId] || topicId;
     }
 
-    private buildPrompt(topicLabel: string, excludeQuestions?: string[]): string {
+    private buildPrompt(topicLabel: string, count: number, excludeQuestions?: string[]): string {
         const randomSeed = Math.random().toString(36).substring(2, 10);
         const timeSeed = Date.now().toString(36).substring(2, 8);
 
@@ -179,7 +187,7 @@ export class GroqService {
             exclusionBlock = `\n\nDO NOT generate any of these questions (they were already used in other active sessions):\n${truncated.map((q, i) => `${i + 1}. ${q}`).join('\n')}\n\nGenerate COMPLETELY DIFFERENT questions from the ones listed above.`;
         }
 
-        return `Generate ${this.questionCount} multiple-choice quiz questions about "${topicLabel}".
+        return `Generate ${count} multiple-choice quiz questions about "${topicLabel}".
 
 UNIQUE GENERATION SEED: ${randomSeed}-${timeSeed}
 Use this seed to ensure you generate COMPLETELY DIFFERENT questions from any previous requests.

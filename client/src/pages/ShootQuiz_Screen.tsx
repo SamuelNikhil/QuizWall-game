@@ -4,11 +4,10 @@
 // Keeps GamePlay_Screen and Winner_Screen inline
 // ==========================================
 
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef, useCallback, memo, useMemo } from 'react';
 import { GameClient } from '../transport/GameClient';
 import backgroundImg from '../assets/Background.svg';
-import thumbnailImg from '../assets/thumbnail/ShootQuiz.png';
-import { ORB_POSITIONS, CROSSHAIR_COLORS, QUIZ_TOPICS } from '../shared/types';
+import { ORB_POSITIONS, CROSSHAIR_COLORS, PRE_CONFIG_NAMES, PRE_CONFIG_AVATARS } from '../shared/types';
 import type {
     ClientQuestion,
     HitResultPayload,
@@ -16,8 +15,6 @@ import type {
     GameOverPayload,
     PlayerSelectionPayload,
     PlayerScoreEntry,
-    QuizTopicId,
-    TopicVoteUpdatePayload,
     TopicSelectedPayload,
 } from '../shared/types';
 import '../animations.css';
@@ -34,9 +31,6 @@ interface ScorePopup { id: string; x: number; y: number; text: string; type: str
 interface Ripple { id: string; x: number; y: number; color: string; size: number; }
 interface Confetti { id: string; x: number; y: number; color: string; '--dx': string; '--dy': string; '--rot': string; width: number; height: number; }
 
-const PRE_CONFIG_NAMES = ['Wulf', 'Talon', 'Ryker', 'Zark'];
-const PRE_CONFIG_AVATARS = ['wulf', 'talon', 'ryker', 'zark'];
-
 // ---- GamePlay_Screen Inline Component ----
 interface GamePlay_ScreenProps {
     containerRef: React.RefObject<HTMLDivElement | null>;
@@ -48,7 +42,8 @@ interface GamePlay_ScreenProps {
     isTransitioning: boolean;
     showReadyOverlay: boolean;
     targetedOrbId: string | null;
-    playerSelections: PlayerSelectionPayload[];
+    /** Pre-computed map of orbId → selections for O(1) lookup during render */
+    selectionsMap: Map<string, PlayerSelectionPayload[]>;
     crosshairs: Map<string, { x: number; y: number }>;
     lobby: LobbyState | null;
     playerScores: PlayerScoreEntry[];
@@ -58,7 +53,7 @@ interface GamePlay_ScreenProps {
     confetti: Confetti[];
 }
 
-function GamePlay_Screen({
+const GamePlay_Screen = memo(function GamePlay_Screen({
     containerRef,
     arenaRef,
     question,
@@ -68,7 +63,7 @@ function GamePlay_Screen({
     isTransitioning,
     showReadyOverlay,
     targetedOrbId,
-    playerSelections,
+    selectionsMap,
     crosshairs,
     lobby,
     playerScores,
@@ -214,7 +209,7 @@ function GamePlay_Screen({
 
                 {/* Answer Orbs - Pill-shaped with text wrapping */}
                 {question?.options.map((opt, i) => {
-                    const selectionsForOrb = playerSelections.filter(s => s.orbId === opt.id);
+                    const selectionsForOrb = selectionsMap.get(opt.id) ?? [];
 
                     const pillGradient = 'linear-gradient(135deg, #8800feff 0%, #d865ecff 100%)';
                     const pillBorder = '2px solid #FFFFFF';
@@ -569,7 +564,7 @@ function GamePlay_Screen({
             </div>
         </div>
     );
-}
+});
 
 // ---- Winner_Screen Inline Component ----
 interface Winner_ScreenProps {
@@ -626,6 +621,20 @@ export default function ShootQuiz_Screen() {
     const [questionNumber, setQuestionNumber] = useState(0);
     const [playerSelections, setPlayerSelections] = useState<PlayerSelectionPayload[]>([]);
 
+    // Pre-compute selections map for O(1) orb lookup during render
+    const selectionsMap = useMemo(() => {
+        const map = new Map<string, PlayerSelectionPayload[]>();
+        for (const sel of playerSelections) {
+            const existing = map.get(sel.orbId);
+            if (existing) {
+                existing.push(sel);
+            } else {
+                map.set(sel.orbId, [sel]);
+            }
+        }
+        return map;
+    }, [playerSelections]);
+
     const arenaRef = useRef<HTMLDivElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const targetTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -646,7 +655,6 @@ export default function ShootQuiz_Screen() {
     const [topicTotalVoters, setTopicTotalVoters] = useState(0);
     const [topicCrosshairs, setTopicCrosshairs] = useState<Map<string, { x: number; y: number }>>(new Map());
     const [selectedTopicLabel, setSelectedTopicLabel] = useState<string | null>(null);
-    const [topicTargetedOrbId, setTopicTargetedOrbId] = useState<string | null>(null);
     const topicCountdownStartedRef = useRef(false);
 
     const unlockAudio = useCallback(async () => {
@@ -793,11 +801,17 @@ export default function ShootQuiz_Screen() {
         clientRef.current = client;
 
         client.connect().then(() => {
-            client.createRoom();
+            // Attempt to reconnect to a previous session if we have a stored roomId
+            const storedRoomId = sessionStorage.getItem('screen_room_id') || undefined;
+            client.createRoom(storedRoomId);
 
             client.onRoomCreated((data) => {
                 setRoomId(data.roomId);
                 setJoinToken(data.joinToken);
+                // Store roomId on the client for screen reconnect
+                client.setScreenRoomId(data.roomId);
+                // Persist roomId in sessionStorage for page refresh reconnect
+                sessionStorage.setItem('screen_room_id', data.roomId);
                 setPhaseSync('qr-lobby');
             });
 
@@ -1029,9 +1043,16 @@ export default function ShootQuiz_Screen() {
                 }, 2 * 60 * 1000);
             });
 
-            client.onRoomExpired(() => {
-                console.log('[Screen] room:expired received from server, reloading for new session...');
-                window.location.reload();
+            client.onRoomExpired((data) => {
+                console.log('[Screen] room:expired received:', data?.reason);
+                if (data?.reason === 'empty_lobby') {
+                    // Empty lobby deleted — clear stored roomId and create a fresh room
+                    sessionStorage.removeItem('screen_room_id');
+                    client.createRoom();
+                } else {
+                    // Other expiry (inactivity etc.) — full reload
+                    window.location.reload();
+                }
             });
 
             // Topic selection events
@@ -1302,7 +1323,7 @@ export default function ShootQuiz_Screen() {
                 isTransitioning={isTransitioning}
                 showReadyOverlay={showReadyOverlay}
                 targetedOrbId={targetedOrbId}
-                playerSelections={playerSelections}
+                selectionsMap={selectionsMap}
                 crosshairs={crosshairs}
                 lobby={lobby}
                 playerScores={playerScores}

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { LobbyState, PlayerRole } from '../../shared/types';
-import { CROSSHAIR_COLORS } from '../../shared/types';
+import { CROSSHAIR_COLORS, PRE_CONFIG_NAMES, PRE_CONFIG_AVATARS } from '../../shared/types';
 import '../../index.css';
 import '../../pages/controller-ui.css';
 
@@ -8,15 +8,10 @@ interface GameLobbyControllerProps {
     role: PlayerRole;
     colorIndex: number;
     lobby: LobbyState | null;
-    persistentName?: string;
-    onSetPlayerName: (name: string) => void;
     onStartGame: () => void;
     onLeave: () => void;
     isSpectating?: boolean;
 }
-
-const preConfigNames = ["Wulf", "Talon", "Ryker", "Zark"];
-const preConfigAvatars = ["wulf", "talon", "ryker", "zark"];
 
 interface ConfirmationPopupProps {
     playerCount: number;
@@ -163,15 +158,14 @@ export default function GameLobby_Controller({
     role,
     colorIndex,
     lobby,
-    onSetPlayerName,
     onStartGame,
     onLeave,
     isSpectating,
 }: GameLobbyControllerProps) {
     const [showConfirmPopup, setShowConfirmPopup] = useState(false);
 
-    const characterName = preConfigNames[colorIndex] || `Player ${colorIndex + 1}`;
-    const characterAvatar = preConfigAvatars[colorIndex] || 'wulf';
+    const characterName = PRE_CONFIG_NAMES[colorIndex] || `Player ${colorIndex + 1}`;
+    const characterAvatar = PRE_CONFIG_AVATARS[colorIndex] || 'wulf';
     const characterColor = CROSSHAIR_COLORS[colorIndex] || '#6750A4';
     const closeButton = (
         <button
@@ -196,14 +190,14 @@ export default function GameLobby_Controller({
 
         if (player) {
             return {
-                name: player.name || preConfigNames[slotIndex] || `Player ${slotIndex + 1}`,
+                name: player.name || PRE_CONFIG_NAMES[slotIndex] || `Player ${slotIndex + 1}`,
                 colorIndex: slotIndex,
                 isReady: true,
                 isCurrentPlayer,
             };
         }
         return {
-            name: preConfigNames[slotIndex],
+            name: PRE_CONFIG_NAMES[slotIndex],
             colorIndex: slotIndex,
             isReady: false,
             isEmpty: true,
@@ -213,7 +207,7 @@ export default function GameLobby_Controller({
 
     const readyPlayers = lobby?.players
         .map(p => ({
-            name: preConfigNames[p.colorIndex ?? 0] || `Player ${p.colorIndex! + 1}`,
+            name: PRE_CONFIG_NAMES[p.colorIndex ?? 0] || `Player ${p.colorIndex! + 1}`,
             colorIndex: p.colorIndex ?? 0,
         })) || [];
 

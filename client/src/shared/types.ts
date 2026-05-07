@@ -37,6 +37,10 @@ export interface PlayerInfo {
 // Profile accent colors for each fixed character slot: Wulf, Talon, Ryker, Zark
 export const CROSSHAIR_COLORS = ['#2EA8FF', '#F5A623', '#FF7A45', '#FF5FA2'] as const;
 
+// Pre-configured character names and avatar slugs (index-aligned with CROSSHAIR_COLORS)
+export const PRE_CONFIG_NAMES = ['Wulf', 'Talon', 'Ryker', 'Zark'] as const;
+export const PRE_CONFIG_AVATARS = ['wulf', 'talon', 'ryker', 'zark'] as const;
+
 // ---------- Lobby ----------
 
 export interface LobbyState {

@@ -2,7 +2,7 @@ import { useEffect, useRef, useCallback } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import shuffleSoundUrl from '../../assets/sounds/shuffle.mp3';
 import backgroundVideo from '../../assets/QuizWall.webm';
-import { CROSSHAIR_COLORS } from '../../shared/types';
+import { CROSSHAIR_COLORS, PRE_CONFIG_NAMES, PRE_CONFIG_AVATARS } from '../../shared/types';
 import type { LobbyState } from '../../shared/types';
 import '../../animations.css';
 
@@ -19,8 +19,6 @@ export interface GameLobby_ScreenProps {
     onStartGame?: () => void;
 }
 
-const PRE_CONFIG_NAMES = ['Wulf', 'Talon', 'Ryker', 'Zark'];
-const PRE_CONFIG_AVATARS = ['wulf', 'talon', 'ryker', 'zark'];
 const LIME_GREEN = '#C8F526';
 
 export default function GameLobby_Screen({

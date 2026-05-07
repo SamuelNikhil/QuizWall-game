@@ -38,7 +38,7 @@ const generatingPromises = new Map<string, Promise<ServerQuestion[]>>();
 // Global tracking of recently-used question texts across ALL active sessions
 // Prevents duplicate questions across concurrent rooms
 const globalRecentQuestions = new Set<string>();
-const MAX_GLOBAL_RECENT = 200; // Hard cap to prevent unbounded growth
+const MAX_GLOBAL_RECENT = 500; // Hard cap — covers 15 rooms × 10 questions with headroom
 
 /** Add a question text to global tracking (with eviction if over cap) */
 function addToGlobalRecent(text: string): void {
@@ -240,8 +240,10 @@ export async function generateSessionQuestions(sessionId: string, topic?: QuizTo
     // Normalize format
     questions = questions.map(q => normalizeQuestionFormat(q));
 
-    // Cache for this session
-    sessionQuestionsCache.set(sessionId, { questions, topic: currentTopic });
+    // Cache for this session — only if it hasn't been deleted while generation was in-flight
+    if (sessionQuestionsCache.has(sessionId) || !generatingPromises.has(inFlightKey)) {
+        sessionQuestionsCache.set(sessionId, { questions, topic: currentTopic });
+    }
 
     return questions;
     })();
@@ -351,15 +353,8 @@ async function generateMoreQuestionsForSession(sessionId: string, count?: number
         const questionCount = count || (CONFIG.QUESTIONS_PER_SESSION || 10);
         const currentTopic = topic || sessionQuestionsCache.get(sessionId)?.topic || DEFAULT_TOPIC;
 
-        // Temporarily override question count for this generation
-        const originalCount = groqService.getQuestionCount();
-        groqService.setQuestionCount(questionCount);
-
-        // Generate fresh questions (not from cache)
-        const newQuestions = await groqService.generateQuestionsForTopic(currentTopic);
-
-        // Restore original count
-        groqService.setQuestionCount(originalCount);
+        // Generate fresh questions with an explicit count — avoids mutating shared groqService state
+        const newQuestions = await groqService.generateQuestionsForTopicWithCount(currentTopic, questionCount);
 
         if (newQuestions && newQuestions.length > 0) {
             // Normalize new questions
@@ -485,19 +480,4 @@ export function getCurrentTopic(): QuizTopicId {
 export function forceRegenerateAiQuestions(): void {
     deleteAiQuestions();
     clearAllSessionQuestions();
-
-}
-
-/**
- * Check if AI is enabled
- */
-export function isUsingAi(): boolean {
-    return isGroqEnabled();
-}
-
-/**
- * Get the path to AI questions file (for debugging)
- */
-export function getAiQuestionsPath(): string {
-    return AI_QUESTIONS_PATH;
 }

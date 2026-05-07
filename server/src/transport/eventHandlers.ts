@@ -5,28 +5,40 @@
 
 import { EVENTS } from '../shared/protocol.ts';
 import { ORB_POSITIONS, QUIZ_TOPICS, TOPIC_SELECTION_TIMEOUT_MS } from '../shared/types.ts';
-import type { PlayerSelectionPayload, RevealResultPayload, TutorialProgressPayload, TutorialPlayerStatus, TutorialStatusUpdatePayload, TutorialStep, QuizTopicId } from '../shared/types.ts';
-import { RoomManager } from '../domain/RoomManager.ts';
+import type { PlayerSelectionPayload, RevealResultPayload, TutorialProgressPayload, TutorialPlayerStatus, TutorialStatusUpdatePayload, QuizTopicId } from '../shared/types.ts';
+import { RoomManager, type Room } from '../domain/RoomManager.ts';
 import { PlayerManager } from '../domain/PlayerManager.ts';
-import { preGenerateForSession } from '../data/questionRepository.ts';
+import { QuizEngine } from '../domain/QuizEngine.ts';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type GeckosServer = any;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type ServerChannel = any;
 
+/**
+ * Safely cast a room's engine to QuizEngine.
+ * Returns null if the room is running a different game type.
+ * All quiz-specific event handlers use this instead of accessing room.engine directly.
+ */
+function asQuizEngine(room: Room): QuizEngine | null {
+    return room.engine instanceof QuizEngine ? room.engine : null;
+}
+
 const connectionTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
 const crosshairLastSent = new Map<string, number>(); // Throttle crosshair relay per controller
 const CROSSHAIR_THROTTLE_MS = 33; // ~30fps max relay rate
-
 // Periodically clean up old crosshair timestamps to prevent memory leaks
 setInterval(() => {
     const now = Date.now();
-    // Remove entries older than 5 minutes
     for (const [clientId, timestamp] of crosshairLastSent.entries()) {
         if (now - timestamp > 300000) { // 5 minutes
             crosshairLastSent.delete(clientId);
         }
+    }
+    // Hard cap — evict oldest if map grows beyond expected max (25 rooms × 4 players)
+    while (crosshairLastSent.size > 100) {
+        const oldest = crosshairLastSent.keys().next().value;
+        if (oldest) crosshairLastSent.delete(oldest);
     }
 }, 60000); // Run cleanup every minute
 
@@ -51,18 +63,18 @@ async function finalizeTopicSelection(roomId: string, topicId: QuizTopicId, room
         if (c.channel) c.channel.emit(EVENTS.TOPIC_SELECTED, topicSelectedPayload);
     }
 
-    // Fire-and-forget: start pre-generating questions immediately so they may be
-    // ready (or partially ready) by the time initialize() is called in startGameAfterTopicSelection.
-    preGenerateForSession(room.quizEngine.getSessionId(), topicId).catch(err => {
-        console.warn(`[Game] Pre-generation failed for room ${roomId}, topic ${topicId}:`, err);
-    });
-
     await startGameAfterTopicSelection(roomId, topicId, roomManager);
 }
 
 async function startGameAfterTopicSelection(roomId: string, topicId: QuizTopicId, roomManager: RoomManager): Promise<void> {
     const room = roomManager.getRoom(roomId);
     if (!room) return;
+
+    const quizEngine = asQuizEngine(room);
+    if (!quizEngine) {
+        console.error(`[Game] Room ${roomId} is not running a quiz game — cannot start quiz`);
+        return;
+    }
 
     const playerCount = room.controllers.length;
 
@@ -73,9 +85,9 @@ async function startGameAfterTopicSelection(roomId: string, topicId: QuizTopicId
 
     try {
         // Ensure initialized flag is cleared before loading questions for this round
-        room.quizEngine.reset(true);
-        await room.quizEngine.initialize(topicId);
-        console.log(`[Game] Quiz engine initialized with ${room.quizEngine.getTotalQuestions()} questions for room ${roomId} (topic: ${topicId})`);
+        quizEngine.reset(true);
+        await quizEngine.initialize(topicId);
+        console.log(`[Game] Quiz engine initialized with ${quizEngine.getTotalQuestions()} questions for room ${roomId} (topic: ${topicId})`);
     } catch (error) {
         console.error(`[Game] Failed to initialize quiz engine:`, error);
     }
@@ -87,16 +99,16 @@ async function startGameAfterTopicSelection(roomId: string, topicId: QuizTopicId
 
     await new Promise(resolve => setTimeout(resolve, 3000));
 
-    const modeChanged = room.quizEngine.setPlayerCount(playerCount);
+    const modeChanged = quizEngine.setPlayerCount(playerCount);
     if (modeChanged) {
         console.log(`[EventHandlers] Game mode changed — resetting player scores`);
         roomManager.resetPlayerScores(roomId);
     }
 
-    const question = room.quizEngine.getCurrentQuestion();
+    const question = quizEngine.getCurrentQuestion();
 
     if (playerCount >= 2) {
-        room.quizEngine.setPhaseCallbacks(
+        quizEngine.setPhaseCallbacks(
             (phase, timeLeft, questionNumber) => {
                 const phasePayload = { phase, timeLeft, questionNumber };
                 room.screenChannel.emit(EVENTS.PHASE_CHANGE, phasePayload);
@@ -104,7 +116,7 @@ async function startGameAfterTopicSelection(roomId: string, topicId: QuizTopicId
                     if (c.channel) c.channel.emit(EVENTS.PHASE_CHANGE, phasePayload);
                 }
                 if (phase === 'analysis' && timeLeft === 1 && questionNumber > 1) {
-                    const nextQ = room.quizEngine.getLastSelectedQuestion();
+                    const nextQ = quizEngine.getLastSelectedQuestion();
                     if (nextQ) {
                         room.screenChannel.emit(EVENTS.QUESTION, nextQ);
                         for (const c of room.controllers) {
@@ -132,11 +144,11 @@ async function startGameAfterTopicSelection(roomId: string, topicId: QuizTopicId
                 }
             },
             () => {
-                const questionsAnswered = room.quizEngine.getSessionQuestionsAnswered();
+                const questionsAnswered = quizEngine.getSessionQuestionsAnswered();
                 const playerScores = roomManager.getPlayerScores(roomId);
                 PlayerManager.saveTopPlayer(roomId, playerScores);
                 const leaderboard = PlayerManager.getPlayerLeaderboard(5);
-                const reason = room.quizEngine.getLastGameOverReason();
+                const reason = quizEngine.getLastGameOverReason();
                 const gameOverPayload = { leaderboard, reason, questionsAnswered, playerScores };
                 room.screenChannel.emit(EVENTS.GAME_OVER, gameOverPayload);
                 for (const c of room.controllers) {
@@ -151,9 +163,9 @@ async function startGameAfterTopicSelection(roomId: string, topicId: QuizTopicId
         for (const c of room.controllers) {
             if (c.channel) c.channel.emit(EVENTS.GAME_STARTED, gameStartPayload);
         }
-        room.quizEngine.startPhaseTimer();
+        quizEngine.startPhaseTimer();
     } else {
-        room.quizEngine.setCallbacks(
+        quizEngine.setCallbacks(
             (timeLeft: number) => {
                 room.screenChannel.emit(EVENTS.TIMER_SYNC, { timeLeft });
                 for (const c of room.controllers) {
@@ -161,13 +173,13 @@ async function startGameAfterTopicSelection(roomId: string, topicId: QuizTopicId
                 }
             },
             () => {
-                const questionsAnswered = room.quizEngine.getSessionQuestionsAnswered();
+                const questionsAnswered = quizEngine.getSessionQuestionsAnswered();
                 const playerScores = roomManager.getPlayerScores(roomId);
                 PlayerManager.saveTopPlayer(roomId, playerScores);
                 const leaderboard = PlayerManager.getPlayerLeaderboard(5);
                 const gameOverPayload = {
                     leaderboard,
-                    reason: room.quizEngine.getLastGameOverReason(),
+                    reason: quizEngine.getLastGameOverReason(),
                     questionsAnswered,
                     playerScores,
                 };
@@ -179,8 +191,8 @@ async function startGameAfterTopicSelection(roomId: string, topicId: QuizTopicId
             }
         );
 
-        room.quizEngine.startTimer();
-        const gameStartPayload = { question, timeLeft: room.quizEngine.getTimeLeft() };
+        quizEngine.startTimer();
+        const gameStartPayload = { question, timeLeft: quizEngine.getTimeLeft() };
         room.screenChannel.emit(EVENTS.GAME_STARTED, gameStartPayload);
         for (const c of room.controllers) {
             if (c.channel) c.channel.emit(EVENTS.GAME_STARTED, gameStartPayload);
@@ -189,21 +201,56 @@ async function startGameAfterTopicSelection(roomId: string, topicId: QuizTopicId
 }
 
 export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager): void {
+
+    // When an empty lobby is deleted, notify the screen so it resets to a fresh room
+    roomManager.setOnEmptyLobbyDeleted((deletedRoom) => {
+        if (!deletedRoom.screenDisconnected && deletedRoom.screenChannel) {
+            try {
+                deletedRoom.screenChannel.emit(EVENTS.ROOM_EXPIRED, { reason: 'empty_lobby' });
+                console.log(`[Transport] Notified screen of empty lobby deletion for room ${deletedRoom.roomId}`);
+            } catch { /* screen channel may already be closed */ }
+        }
+    });
+
     io.onConnection((channel: ServerChannel) => {
 
-
-        // Handshake timeout
+        // Handshake timeout — close idle channels that never send CREATE_ROOM or JOIN_ROOM
         const timeoutId = setTimeout(() => {
             if (connectionTimeouts.has(channel.id)) {
                 connectionTimeouts.delete(channel.id);
+                console.warn(`[Transport] Handshake timeout for channel ${channel.id} — closing`);
+                try { channel.close(); } catch { /* already closed */ }
             }
         }, 15000);
         connectionTimeouts.set(channel.id, timeoutId);
 
         // ---------- Room Lifecycle ----------
 
-        channel.on(EVENTS.CREATE_ROOM, () => {
+        channel.on(EVENTS.CREATE_ROOM, (data?: { roomId?: string }) => {
             clearConnectionTimeout(channel.id);
+
+            // Screen reconnect: if a roomId is provided and the room has a disconnected screen,
+            // restore the session instead of creating a new room.
+            if (data?.roomId) {
+                const reconnectResult = roomManager.reconnectScreen(data.roomId, channel);
+                if (reconnectResult.success) {
+                    channel.userData = { role: 'screen', roomId: data.roomId };
+                    const room = roomManager.getRoom(data.roomId);
+                    if (room) {
+                        const leaderboard = PlayerManager.getPlayerLeaderboard(5);
+                        channel.emit(EVENTS.ROOM_CREATED, {
+                            roomId: data.roomId,
+                            joinToken: room.joinToken,
+                            leaderboard,
+                            reconnected: true,
+                        });
+                        broadcastLobbyUpdate(roomManager, data.roomId);
+                        console.log(`[Transport] Screen reconnected to room ${data.roomId}`);
+                    }
+                    return;
+                }
+            }
+
             const { roomId, joinToken } = roomManager.createRoom(channel);
             channel.userData = { role: 'screen', roomId };
             const leaderboard = PlayerManager.getPlayerLeaderboard(5);
@@ -219,9 +266,9 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
                 return;
             }
 
-            // Try reconnect first if game is in progress
+            // Try reconnect for both gameplay AND lobby disconnects
             const existingRoom = roomManager.getRoom(roomId);
-            if (existingRoom && existingRoom.gameStarted) {
+            if (existingRoom) {
                 const reconnectResult = roomManager.reconnectController(roomId, clientId, channel);
                 if (reconnectResult.success) {
                     channel.userData = { role: 'controller', roomId, clientId };
@@ -231,6 +278,8 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
                         playerScores: reconnectResult.playerScores,
                         colorIndex: existingRoom.controllers.find(c => c.clientId === clientId)?.colorIndex ?? 0,
                         role: existingRoom.controllers.find(c => c.clientId === clientId)?.role ?? 'member',
+                        // Game-specific resync state (e.g. currentQuestion, phaseTimeLeft for quiz)
+                        ...reconnectResult.resyncState,
                     });
                     console.log(`[Transport] Controller ${clientId} reconnected to room ${roomId}, phase: ${reconnectResult.phase}`);
                     broadcastLobbyUpdate(roomManager, roomId);
@@ -256,27 +305,14 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
 
             const room = roomManager.getRoom(roomId);
             if (room) {
-                room.screenChannel.emit(EVENTS.CONTROLLER_JOINED, { controllerId: clientId, role: result.role, colorIndex: result.colorIndex });
+                if (!room.screenDisconnected) {
+                    room.screenChannel.emit(EVENTS.CONTROLLER_JOINED, { controllerId: clientId, role: result.role, colorIndex: result.colorIndex });
+                }
                 broadcastLobbyUpdate(roomManager, roomId);
             }
         });
 
         // ---------- Lobby ----------
-
-        channel.on(EVENTS.SET_PLAYER_NAME, (data: { name: string }) => {
-            const { roomId, clientId } = channel.userData || {};
-            if (!roomId || !clientId) return;
-
-            const trimmedName = (data.name || '').trim();
-            if (trimmedName.length < 1 || trimmedName.length > 20) return;
-
-            const success = roomManager.setPlayerName(roomId, clientId, trimmedName);
-            if (success) {
-                const room = roomManager.getRoom(roomId);
-                if (room) room.lastActivity = Date.now();
-                broadcastLobbyUpdate(roomManager, roomId);
-            }
-        });
 
         channel.on(EVENTS.START_GAME, async () => {
             const { roomId, clientId } = channel.userData || {};
@@ -328,20 +364,23 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
                     });
                 }
 
-                // Broadcast countdown every second
-                let topicCountdown = setInterval(() => {
-                    const currentUpdate = roomManager.getTopicVoteUpdate(roomId);
+                // Broadcast countdown every second — store reference so it can be cleared on room deletion
+                const topicCountdown = setInterval(() => {
+                    const currentRoom = roomManager.getRoom(roomId);
+                    const currentUpdate = currentRoom ? roomManager.getTopicVoteUpdate(roomId) : null;
                     if (!currentUpdate || currentUpdate.timeLeft <= 0) {
                         clearInterval(topicCountdown);
                         return;
                     }
-                    room.screenChannel.emit(EVENTS.TOPIC_VOTE_UPDATE, {
-                        votes: currentUpdate.votes,
-                        votedControllerIds: currentUpdate.votedControllerIds,
-                        totalVoters: currentUpdate.totalVoters,
-                        timeLeft: currentUpdate.timeLeft,
-                        topics: topicOrbs,
-                    });
+                    if (!currentRoom?.screenDisconnected) {
+                        currentRoom?.screenChannel.emit(EVENTS.TOPIC_VOTE_UPDATE, {
+                            votes: currentUpdate.votes,
+                            votedControllerIds: currentUpdate.votedControllerIds,
+                            totalVoters: currentUpdate.totalVoters,
+                            timeLeft: currentUpdate.timeLeft,
+                            topics: topicOrbs,
+                        });
+                    }
                 }, 1000);
 
                 // Override the timeout to call startGameAfterTopicSelection
@@ -400,46 +439,43 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
             room.lastActivity = Date.now();
             console.log(`[Game] SHOOT from ${clientId?.substring(0, 8)}... hitOrb: ${hitOrb}, coords: (${data.targetXPercent.toFixed(1)}, ${data.targetYPercent.toFixed(1)})`);
 
-            if (room.quizEngine.isMultiplayer()) {
+            const quizEngine = asQuizEngine(room);
+            if (!quizEngine) return; // Not a quiz room
+
+            if (quizEngine.isMultiplayer()) {
                 // ==========================================
                 // MULTIPLAYER — Phase-based selection
                 // ==========================================
 
-                const currentPhase = room.quizEngine.getCurrentPhase();
+                const currentPhase = quizEngine.getCurrentPhase();
                 console.log(`[Game] Multiplayer shoot, currentPhase: ${currentPhase}`);
 
                 if (currentPhase !== 'selection') {
-                    // During analysis and reveal phases, ignore shots completely
-                    // But still show the projectile visual if during analysis (so players see the slingshot animating)
                     console.log(`[Game] Ignoring shot - not in selection phase (current: ${currentPhase})`);
                     return;
                 }
 
                 if (!hitOrb) {
                     console.log(`[Game] Shot missed all orbs`);
-                    return; // Missed all orbs
+                    return;
                 }
 
-                // Find the controller's color index
                 const controller = room.controllers.find(c => c.clientId === clientId);
                 if (!controller) {
                     console.log(`[Game] Controller not found for clientId: ${clientId}`);
                     return;
                 }
 
-                // Try to record the selection
-                const accepted = room.quizEngine.recordSelection(clientId!, hitOrb, controller.colorIndex);
+                const accepted = quizEngine.recordSelection(clientId!, hitOrb, controller.colorIndex);
                 console.log(`[Game] Selection accepted: ${accepted} for ${clientId?.substring(0, 8)}... orb: ${hitOrb}`);
-                if (!accepted) return; // Already selected or wrong phase
+                if (!accepted) return;
 
-                // Send projectile to screen for visual
                 room.screenChannel.emit(EVENTS.PROJECTILE, {
                     controllerId: clientId,
                     targetXPercent: data.targetXPercent,
                     targetYPercent: data.targetYPercent,
                 });
 
-                // Broadcast the player's selection to screen + all controllers
                 const selectionPayload: PlayerSelectionPayload = {
                     controllerId: clientId!,
                     orbId: hitOrb,
@@ -450,15 +486,11 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
                     if (c.channel) c.channel.emit(EVENTS.PLAYER_SELECTION, selectionPayload);
                 }
 
-                // No HIT_RESULT in multiplayer — correctness is only revealed during the Reveal phase
-                // The controller already locks after shooting via client-side state
-
             } else {
                 // ==========================================
                 // SINGLEPLAYER — Classic immediate validation
                 // ==========================================
 
-                // Send projectile to screen for visual
                 room.screenChannel.emit(EVENTS.PROJECTILE, {
                     controllerId: channel.id,
                     targetXPercent: data.targetXPercent,
@@ -466,10 +498,8 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
                 });
 
                 if (hitOrb) {
-                    // Validate answer server-side
-                    const result = room.quizEngine.validateAnswer(hitOrb);
+                    const result = quizEngine.validateAnswer(hitOrb);
 
-                    // Award individual score for correct singleplayer hit
                     if (result.correct) {
                         if (clientId) {
                             roomManager.addPlayerScore(roomId, clientId, result.points);
@@ -485,32 +515,26 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
                         orbId: hitOrb,
                     };
 
-                    // Send result to screen and controller
                     room.screenChannel.emit(EVENTS.HIT_RESULT, hitPayload);
                     channel.emit(EVENTS.HIT_RESULT, hitPayload);
 
-                    // Send score update
-                    const scorePayload = {
-                        playerScores: roomManager.getPlayerScores(roomId),
-                    };
+                    const scorePayload = { playerScores: roomManager.getPlayerScores(roomId) };
                     room.screenChannel.emit(EVENTS.SCORE_UPDATE, scorePayload);
                     for (const c of room.controllers) {
                         if (c.channel) c.channel.emit(EVENTS.SCORE_UPDATE, scorePayload);
                     }
 
-                    // Always advance to next question after showing animation (both correct and wrong)
-                    // Reset timer for fresh time on next question
-                    room.quizEngine.resetTimer();
+                    quizEngine.resetTimer();
 
                     setTimeout(async () => {
-                        const nextQ = await room.quizEngine.nextQuestion();
+                        const nextQ = await quizEngine.nextQuestion();
                         if (nextQ) {
                             room.screenChannel.emit(EVENTS.QUESTION, nextQ);
                             for (const c of room.controllers) {
                                 if (c.channel) c.channel.emit(EVENTS.QUESTION, nextQ);
                             }
                         }
-                    }, 1500); // Match the existing transition delay
+                    }, 1500);
                 }
             }
         });
@@ -554,15 +578,13 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
 
             if (roomManager.isTopicSelectionStarted(roomId)) {
                 // Allow crosshair during topic selection
-            } else if (room.quizEngine.isMultiplayer()) {
-                const currentPhase = room.quizEngine.getCurrentPhase();
-                if (currentPhase !== 'selection') return;
+            } else {
+                const qe = asQuizEngine(room);
+                if (qe?.isMultiplayer() && qe.getCurrentPhase() !== 'selection') return;
             }
 
-            // Update activity on crosshair move (throttled by the check below naturally)
             room.lastActivity = Date.now();
 
-            // Throttle relay to ~30fps per controller to reduce bandwidth
             const now = Date.now();
             const lastSent = crosshairLastSent.get(clientId) || 0;
             if (now - lastSent < CROSSHAIR_THROTTLE_MS) return;
@@ -578,12 +600,11 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
 
             if (roomManager.isTopicSelectionStarted(roomId)) {
                 // Allow aiming during topic selection
-            } else if (room.quizEngine.isMultiplayer()) {
-                const currentPhase = room.quizEngine.getCurrentPhase();
-                if (currentPhase !== 'selection') return;
+            } else {
+                const qe = asQuizEngine(room);
+                if (qe?.isMultiplayer() && qe.getCurrentPhase() !== 'selection') return;
             }
 
-            // Always send with gyro disabled since we removed that functionality
             room.screenChannel.emit(EVENTS.START_AIMING, { controllerId: clientId, gyroEnabled: false });
         });
 
@@ -654,7 +675,7 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
 
         // ---------- Restart ----------
 
-        channel.on(EVENTS.RESTART_GAME, async () => {
+        channel.on(EVENTS.RESTART_GAME, () => {
             const { roomId } = channel.userData || {};
             const room = roomManager.getRoom(roomId);
             if (!room) return;
@@ -664,15 +685,8 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
             const controller = room.controllers.find((c) => c.clientId === restartClientId);
             if (!controller || controller.role !== 'leader') return;
 
-            console.log(`[Room] Regenerating questions for restart in ${roomId}...`);
-
-            // Regenerate fresh AI questions (async)
-            try {
-                await room.quizEngine.resetAndRegenerate();
-            } catch (err) {
-                console.error('[Room] Failed to regenerate questions on restart, using reset fallback:', err);
-                room.quizEngine.reset();
-            }
+            // Reset game state — fresh questions will be generated when the next topic is selected
+            room.engine.reset();
 
             // NOTE: We do NOT reset the score - it accumulates across restarts
             room.gameStarted = false;
@@ -705,36 +719,55 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
             // Clean up crosshair throttle map
             if (clientId) crosshairLastSent.delete(clientId);
 
-
             if (role === 'screen') {
-                const room = roomManager.deleteRoomByScreen(channel.id);
-                if (room) {
+                // Start a 60s grace period before destroying the room.
+                // If the screen reconnects within that window the session is preserved.
+                const room = roomManager.markScreenDisconnected(channel.id, (expiredRoom) => {
+                    // Grace period expired — destroy the room now
+                    const leaderboard = PlayerManager.getPlayerLeaderboard(5);
+                    for (const c of expiredRoom.controllers) {
+                        if (c.channel) {
+                            try {
+                                c.channel.emit(EVENTS.GAME_OVER, {
+                                    leaderboard,
+                                    reason: 'screen_disconnected',
+                                    questionsAnswered: expiredRoom.engine.getSessionQuestionsAnswered(),
+                                    playerScores: roomManager.getPlayerScores(expiredRoom.roomId),
+                                });
+                            } catch { /* channel may be closed */ }
+                        }
+                    }
+                    roomManager.deleteRoomById(expiredRoom.roomId);
+                    roomTutorialStates.delete(expiredRoom.roomId);
+                    console.log(`[Transport] Room ${expiredRoom.roomId} destroyed after screen grace period`);
+                });
 
-                    // Save the top player score before deleting the room (if game was in progress)
+                if (room) {
+                    // Save top player score immediately (in case grace period expires)
                     if (room.gameStarted) {
                         const playerScores = roomManager.getPlayerScores(roomId);
                         PlayerManager.saveTopPlayer(roomId, playerScores);
                     }
-
-                    // Get updated leaderboard
-                    const leaderboard = PlayerManager.getPlayerLeaderboard(5);
-
-                    // Notify all controllers that the room is gone
+                    // Notify controllers that the screen is temporarily gone
                     for (const c of room.controllers) {
-                        if (c.channel) c.channel.emit(EVENTS.GAME_OVER, {
-                            leaderboard,
-                            reason: 'time',
-                            questionsAnswered: room.quizEngine.getSessionQuestionsAnswered(),
-                            playerScores: roomManager.getPlayerScores(roomId),
-                        });
+                        if (c.channel) {
+                            try {
+                                c.channel.emit(EVENTS.CONTROLLER_LEFT, {
+                                    controllerId: 'screen',
+                                    wasLeader: false,
+                                    screenDisconnected: true,
+                                });
+                            } catch { /* ignore */ }
+                        }
                     }
                 }
             } else if (role === 'controller') {
                 const { room, wasLeader, promotedControllerId } = roomManager.removeController(channel.id);
                 if (room) {
-
-                    // Use persistent clientId so screen and controllers resolve the same player identity.
-                    room.screenChannel.emit(EVENTS.CONTROLLER_LEFT, { controllerId: clientId || channel.id, wasLeader });
+                    // Only emit to screen if it's still connected
+                    if (!room.screenDisconnected) {
+                        room.screenChannel.emit(EVENTS.CONTROLLER_LEFT, { controllerId: clientId || channel.id, wasLeader });
+                    }
                     broadcastLobbyUpdate(roomManager, room.roomId);
 
                     // If NO active players left, return everyone to lobby
@@ -742,8 +775,9 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
                         console.log(`[Events] No active players left after disconnect in ${room.roomId}, returning to lobby`);
                         roomManager.forceEndGame(room.roomId);
 
-                        // Broadcast game restarted to return all remaining controllers to lobby view
-                        room.screenChannel.emit(EVENTS.GAME_RESTARTED, {});
+                        if (!room.screenDisconnected) {
+                            room.screenChannel.emit(EVENTS.GAME_RESTARTED, {});
+                        }
                         for (const c of room.controllers) {
                             if (c.channel) c.channel.emit(EVENTS.GAME_RESTARTED, {});
                         }
@@ -753,13 +787,11 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
                     // Notify the promoted controller of their new role
                     if (promotedControllerId) {
                         const promotedController = room.controllers.find(c => c.clientId === promotedControllerId);
-                        if (promotedController) {
+                        if (promotedController?.channel) {
                             promotedController.channel.emit(EVENTS.ROLE_PROMOTED, { role: 'leader' });
                             console.log(`[Events] Emitted ROLE_PROMOTED to ${promotedControllerId}`);
                         }
                     }
-                } else {
-
                 }
             }
         });
