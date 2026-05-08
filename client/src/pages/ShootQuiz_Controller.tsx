@@ -169,7 +169,8 @@ const GamePlay_Controller = memo(function GamePlay_Controller({
                     aria-label="Leave controller"
                     type="button"
                 >
-                    &times;
+                    <span className="controller-close-button__x">&times;</span>
+                    Quit
                 </button>
             </header>
 

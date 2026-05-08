@@ -180,13 +180,14 @@ export default function GameLobby_Controller({
                 zIndex: 20,
             }}
         >
-            &times;
+            <span className="controller-close-button__x">&times;</span>
+            Quit
         </button>
     );
 
     const lobbySlots = [0, 1, 2, 3].map(slotIndex => {
         const player = lobby?.players.find(p => p.colorIndex === slotIndex);
-        const isCurrentPlayer = slotIndex === colorIndex && role === 'member';
+        const isCurrentPlayer = slotIndex === colorIndex;
 
         if (player) {
             return {
@@ -323,7 +324,7 @@ export default function GameLobby_Controller({
                     }}>
                         Lobby
                     </span>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                    <div className="controller-lobby-player-list" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                         {lobbySlots.filter(slot => !slot.isCurrentPlayer).map((slot, idx) => (
                             <div
                                 key={idx}
@@ -339,6 +340,7 @@ export default function GameLobby_Controller({
                                     border: slot.isEmpty
                                         ? '1px dashed rgba(255, 255, 255, 0.1)'
                                         : `1px solid ${CROSSHAIR_COLORS[slot.colorIndex]}30`,
+                                    flexShrink: 0,
                                 }}
                             >
                                 <span style={{
@@ -585,7 +587,7 @@ export default function GameLobby_Controller({
                 }}>
                     Lobby
                 </span>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                <div className="controller-lobby-player-list" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                     {lobbySlots.filter(slot => !slot.isCurrentPlayer).map((slot, idx) => (
                         <div
                             key={idx}
@@ -601,6 +603,7 @@ export default function GameLobby_Controller({
                                 border: slot.isEmpty
                                     ? '1px dashed rgba(255, 255, 255, 0.1)'
                                     : `1px solid ${CROSSHAIR_COLORS[slot.colorIndex]}30`,
+                                flexShrink: 0,
                             }}
                         >
                             <span style={{

@@ -97,7 +97,8 @@ export default function WinnerScene({
                     aria-label="Close winner screen"
                     onClick={onClose}
                 >
-                    &times;
+                    <span className="controller-close-button__x">&times;</span>
+                    Quit
                 </button>
             )}
 

@@ -145,6 +145,14 @@ export class RoomManager {
             existing.id = channel.id;
             existing.channel = channel;
             existing.disconnected = false;
+
+            // If there is already another leader while this player was away, demote
+            // the rejoining player to member so the promoted leader keeps their role.
+            const otherLeader = room.controllers.find(c => c.clientId !== clientId && c.role === 'leader' && !c.disconnected);
+            if (otherLeader) {
+                existing.role = 'member';
+            }
+
             this.ensureSingleLeader(room);
             return {
                 success: true,
@@ -502,6 +510,13 @@ export class RoomManager {
 
         // Remove from disconnected scores map (score is live on the controller object)
         room.disconnectedPlayerScores.delete(clientId);
+
+        // If another leader was promoted while this player was disconnected, keep
+        // the promoted leader and demote the rejoining player to member.
+        const otherLeader = room.controllers.find(c => c.clientId !== clientId && c.role === 'leader' && !c.disconnected);
+        if (otherLeader) {
+            controller.role = 'member';
+        }
 
         this.ensureSingleLeader(room);
 

@@ -166,6 +166,26 @@ export class QuizEngine implements GameEngine {
         return modeChanged;
     }
 
+    /**
+     * Update the active player count mid-game (e.g. when a player disconnects or
+     * leaves during the selection phase). If all remaining active players have
+     * already selected, this triggers an immediate early transition to reveal.
+     */
+    updateActivePlayerCount(count: number): void {
+        const newCount = Math.max(1, count);
+        if (newCount === this.playerCount) return;
+        this.playerCount = newCount;
+        console.log(`[QuizEngine] Active player count updated to ${this.playerCount}`);
+
+        // If we're in the selection phase and everyone remaining has already selected,
+        // advance immediately rather than waiting for the timer.
+        if (this.currentPhase === 'selection' && this.playerSelections.size >= this.playerCount) {
+            console.log(`[QuizEngine] All remaining ${this.playerCount} active players already selected — advancing to reveal early`);
+            this.stopPhaseTimer();
+            this.advancePhase();
+        }
+    }
+
     /** Check if game is in multiplayer mode */
     isMultiplayer(): boolean {
         return this.playerCount >= 2;
@@ -338,6 +358,15 @@ export class QuizEngine implements GameEngine {
         const selectionTime = (Date.now() - this.selectionPhaseStartTime) / 1000;
         this.playerSelections.set(controllerId, { controllerId, orbId, colorIndex, selectionTime });
         console.log(`[QuizEngine] Player ${controllerId.substring(0, 8)}... selected orb ${orbId} at ${selectionTime.toFixed(2)}s`);
+
+        // Early phase transition: if all active players have now selected, skip the
+        // remaining selection timer and move straight to the reveal phase.
+        if (this.playerSelections.size >= this.playerCount) {
+            console.log(`[QuizEngine] All ${this.playerCount} players selected — advancing to reveal early`);
+            this.stopPhaseTimer();
+            this.advancePhase();
+        }
+
         return true;
     }
 

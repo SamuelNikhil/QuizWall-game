@@ -272,16 +272,27 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
                 const reconnectResult = roomManager.reconnectController(roomId, clientId, channel);
                 if (reconnectResult.success) {
                     channel.userData = { role: 'controller', roomId, clientId };
+                    const rejoiningController = existingRoom.controllers.find(c => c.clientId === clientId);
                     channel.emit(EVENTS.RECONNECTED, {
                         success: true,
                         phase: reconnectResult.phase,
                         playerScores: reconnectResult.playerScores,
-                        colorIndex: existingRoom.controllers.find(c => c.clientId === clientId)?.colorIndex ?? 0,
-                        role: existingRoom.controllers.find(c => c.clientId === clientId)?.role ?? 'member',
+                        colorIndex: rejoiningController?.colorIndex ?? 0,
+                        role: rejoiningController?.role ?? 'member',
                         // Game-specific resync state (e.g. currentQuestion, phaseTimeLeft for quiz)
                         ...reconnectResult.resyncState,
                     });
-                    console.log(`[Transport] Controller ${clientId} reconnected to room ${roomId}, phase: ${reconnectResult.phase}`);
+                    console.log(`[Transport] Controller ${clientId} reconnected to room ${roomId}, phase: ${reconnectResult.phase}, role: ${rejoiningController?.role}`);
+
+                    // Notify the current leader so their controller UI stays in sync.
+                    // This matters when the rejoining player was the old leader and got
+                    // demoted — the promoted leader must know they're still leader.
+                    const currentLeader = existingRoom.controllers.find(c => c.role === 'leader' && c.clientId !== clientId && !c.disconnected);
+                    if (currentLeader?.channel) {
+                        currentLeader.channel.emit(EVENTS.ROLE_PROMOTED, { role: 'leader' });
+                        console.log(`[Transport] Confirmed ROLE_PROMOTED(leader) to ${currentLeader.clientId.substring(0, 8)} after ${clientId.substring(0, 8)} rejoined`);
+                    }
+
                     broadcastLobbyUpdate(roomManager, roomId);
                     return;
                 }
@@ -308,6 +319,18 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
                 if (!room.screenDisconnected) {
                     room.screenChannel.emit(EVENTS.CONTROLLER_JOINED, { controllerId: clientId, role: result.role, colorIndex: result.colorIndex });
                 }
+
+                // If the joining player came in as member, confirm the current leader's role
+                // so their controller UI stays in sync (handles the case where the old leader
+                // rejoins after their grace period expired and gets a fresh member slot).
+                if (result.role === 'member') {
+                    const currentLeader = room.controllers.find(c => c.role === 'leader' && c.clientId !== clientId && !c.disconnected);
+                    if (currentLeader?.channel) {
+                        currentLeader.channel.emit(EVENTS.ROLE_PROMOTED, { role: 'leader' });
+                        console.log(`[Transport] Confirmed ROLE_PROMOTED(leader) to ${currentLeader.clientId.substring(0, 8)} after new member joined`);
+                    }
+                }
+
                 broadcastLobbyUpdate(roomManager, roomId);
             }
         });
@@ -470,6 +493,10 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
                 console.log(`[Game] Selection accepted: ${accepted} for ${clientId?.substring(0, 8)}... orb: ${hitOrb}`);
                 if (!accepted) return;
 
+                // Keep the engine's active player count in sync with non-spectating, connected players
+                const activePlayers = room.controllers.filter(c => !c.isSpectating && !c.disconnected);
+                quizEngine.updateActivePlayerCount(activePlayers.length);
+
                 room.screenChannel.emit(EVENTS.PROJECTILE, {
                     controllerId: clientId,
                     targetXPercent: data.targetXPercent,
@@ -561,6 +588,14 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
                 room.screenChannel.emit(EVENTS.GAME_RESTARTED, {});
                 for (const c of room.controllers) {
                     if (c.channel) c.channel.emit(EVENTS.GAME_RESTARTED, {});
+                }
+            } else {
+                // Update the engine's active player count so the early-reveal check
+                // stays accurate if a player leaves during the selection phase.
+                const quizEngine = asQuizEngine(room);
+                if (quizEngine?.isMultiplayer()) {
+                    const activePlayers = room.controllers.filter(c => !c.isSpectating && !c.disconnected);
+                    quizEngine.updateActivePlayerCount(activePlayers.length);
                 }
             }
 
@@ -790,6 +825,16 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
                         if (promotedController?.channel) {
                             promotedController.channel.emit(EVENTS.ROLE_PROMOTED, { role: 'leader' });
                             console.log(`[Events] Emitted ROLE_PROMOTED to ${promotedControllerId}`);
+                        }
+                    }
+
+                    // Update the engine's active player count so the early-reveal check
+                    // stays accurate if a player disconnects during the selection phase.
+                    if (room.gameStarted) {
+                        const quizEngine = asQuizEngine(room);
+                        if (quizEngine?.isMultiplayer()) {
+                            const activePlayers = room.controllers.filter(c => !c.isSpectating && !c.disconnected);
+                            quizEngine.updateActivePlayerCount(activePlayers.length);
                         }
                     }
                 }
