@@ -5,7 +5,7 @@
 
 import { EVENTS } from '../shared/protocol.ts';
 import { ORB_POSITIONS, QUIZ_TOPICS, TOPIC_SELECTION_TIMEOUT_MS } from '../shared/types.ts';
-import type { PlayerSelectionPayload, RevealResultPayload, TutorialProgressPayload, TutorialPlayerStatus, TutorialStatusUpdatePayload, QuizTopicId } from '../shared/types.ts';
+import type { PlayerSelectionPayload, RevealResultPayload, TutorialProgressPayload, TutorialPlayerStatus, TutorialStatusUpdatePayload, QuizTopicId, QuizDifficulty } from '../shared/types.ts';
 import { RoomManager, type Room } from '../domain/RoomManager.ts';
 import { PlayerManager } from '../domain/PlayerManager.ts';
 import { QuizEngine } from '../domain/QuizEngine.ts';
@@ -50,23 +50,23 @@ interface RoomTutorialState {
 }
 const roomTutorialStates = new Map<string, RoomTutorialState>();
 
-async function finalizeTopicSelection(roomId: string, topicId: QuizTopicId, roomManager: RoomManager): Promise<void> {
+async function finalizeTopicSelection(roomId: string, topicId: QuizTopicId, roomManager: RoomManager, difficulty: QuizDifficulty = 'medium'): Promise<void> {
     const room = roomManager.getRoom(roomId);
     if (!room) return;
 
     const topicLabel = QUIZ_TOPICS.find(t => t.id === topicId)?.label || topicId;
-    console.log(`[Game] Topic selected in ${roomId}: ${topicId} (${topicLabel})`);
+    console.log(`[Game] Topic selected in ${roomId}: ${topicId} (${topicLabel}), difficulty: ${difficulty}`);
 
-    const topicSelectedPayload = { topicId, topicLabel };
+    const topicSelectedPayload = { topicId, topicLabel, difficulty };
     room.screenChannel.emit(EVENTS.TOPIC_SELECTED, topicSelectedPayload);
     for (const c of room.controllers) {
         if (c.channel) c.channel.emit(EVENTS.TOPIC_SELECTED, topicSelectedPayload);
     }
 
-    await startGameAfterTopicSelection(roomId, topicId, roomManager);
+    await startGameAfterTopicSelection(roomId, topicId, roomManager, difficulty);
 }
 
-async function startGameAfterTopicSelection(roomId: string, topicId: QuizTopicId, roomManager: RoomManager): Promise<void> {
+async function startGameAfterTopicSelection(roomId: string, topicId: QuizTopicId, roomManager: RoomManager, difficulty: QuizDifficulty = 'medium'): Promise<void> {
     const room = roomManager.getRoom(roomId);
     if (!room) return;
 
@@ -86,7 +86,7 @@ async function startGameAfterTopicSelection(roomId: string, topicId: QuizTopicId
     try {
         // Ensure initialized flag is cleared before loading questions for this round
         quizEngine.reset(true);
-        await quizEngine.initialize(topicId);
+        await quizEngine.initialize(topicId, difficulty);
         console.log(`[Game] Quiz engine initialized with ${quizEngine.getTotalQuestions()} questions for room ${roomId} (topic: ${topicId})`);
     } catch (error) {
         console.error(`[Game] Failed to initialize quiz engine:`, error);
@@ -376,6 +376,7 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
                     totalVoters: topicUpdate.totalVoters,
                     timeLeft: topicUpdate.timeLeft,
                     topics: topicOrbs,
+                    difficulty: topicUpdate.difficulty,
                 });
                 for (const c of room.controllers) {
                     if (c.channel) c.channel.emit(EVENTS.TOPIC_VOTE_UPDATE, {
@@ -384,6 +385,7 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
                         totalVoters: topicUpdate.totalVoters,
                         timeLeft: topicUpdate.timeLeft,
                         topics: topicOrbs,
+                        difficulty: topicUpdate.difficulty,
                     });
                 }
 
@@ -402,6 +404,7 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
                             totalVoters: currentUpdate.totalVoters,
                             timeLeft: currentUpdate.timeLeft,
                             topics: topicOrbs,
+                            difficulty: currentUpdate.difficulty,
                         });
                     }
                 }, 1000);
@@ -412,7 +415,7 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
                 }
                 room.topicSelectionTimer = setTimeout(() => {
                     const result = roomManager.resolveTopicVote(roomId);
-                    finalizeTopicSelection(roomId, result.topicId, roomManager);
+                    finalizeTopicSelection(roomId, result.topicId, roomManager, result.difficulty);
                 }, TOPIC_SELECTION_TIMEOUT_MS);
             }
         });
@@ -434,12 +437,31 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
             }
 
             if (result.resolved) {
-                finalizeTopicSelection(roomId, result.resolved.topicId, roomManager);
+                finalizeTopicSelection(roomId, result.resolved.topicId, roomManager, result.resolved.difficulty);
+            }
+        });
+
+        channel.on(EVENTS.SET_DIFFICULTY, (data: { difficulty: QuizDifficulty }) => {
+            const { roomId, clientId } = channel.userData || {};
+            if (!roomId || !clientId) return;
+
+            const accepted = roomManager.setDifficulty(roomId, clientId, data.difficulty);
+            if (!accepted) return; // Not the leader — ignore
+
+            // Broadcast updated vote state (which now includes the new difficulty)
+            const update = roomManager.getTopicVoteUpdate(roomId);
+            if (update) {
+                const room = roomManager.getRoom(roomId);
+                if (room) {
+                    room.screenChannel.emit(EVENTS.TOPIC_VOTE_UPDATE, update);
+                    for (const c of room.controllers) {
+                        if (c.channel) c.channel.emit(EVENTS.TOPIC_VOTE_UPDATE, update);
+                    }
+                }
             }
         });
 
         // ---------- Game Input ----------
-
         channel.on(EVENTS.SHOOT, (data: { targetXPercent: number; targetYPercent: number; power: number }) => {
             const { roomId, clientId } = channel.userData || {};
             const room = roomManager.getRoom(roomId);

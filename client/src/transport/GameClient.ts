@@ -27,6 +27,7 @@ import type {
     TopicVoteUpdatePayload,
     TopicSelectedPayload,
     QuizTopicId,
+    QuizDifficulty,
 } from '../shared/types';
 
 // --------------- Config ---------------
@@ -404,6 +405,10 @@ export class GameClient {
 
     sendTopicVote(topicId: QuizTopicId): void {
         this.channel?.emit(EVENTS.TOPIC_VOTE, { topicId });
+    }
+
+    sendSetDifficulty(difficulty: QuizDifficulty): void {
+        this.channel?.emit(EVENTS.SET_DIFFICULTY, { difficulty });
     }
 
     onTopicVoteUpdate(cb: (data: TopicVoteUpdatePayload & { topics?: Array<{ id: string; label: string; emoji: string; x: number; y: number }> }) => void): void {

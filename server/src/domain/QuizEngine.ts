@@ -8,7 +8,7 @@
 
 import { getSessionQuestions, clearSessionQuestions, generateSessionQuestions, getAllQuestions } from '../data/questionRepository.ts';
 import { CONFIG } from '../infrastructure/config.ts';
-import type { ServerQuestion, ClientQuestion, QuestionPhase, PlayerSelectionPayload, RevealResultPayload, QuizTopicId } from '../shared/types.ts';
+import type { ServerQuestion, ClientQuestion, QuestionPhase, PlayerSelectionPayload, RevealResultPayload, QuizTopicId, QuizDifficulty } from '../shared/types.ts';
 import type { GameEngine } from './GameEngine.ts';
 
 // Phase durations in seconds
@@ -36,6 +36,7 @@ export class QuizEngine implements GameEngine {
     private totalQuestionsAttempted: number = 0;
     private destroyed: boolean = false;
     private selectedTopic: QuizTopicId | null = null;
+    private selectedDifficulty: QuizDifficulty = 'easy';
     private isReset: boolean = false; // Guard against async callbacks after reset
 
     // Phase-based multiplayer fields
@@ -69,9 +70,12 @@ export class QuizEngine implements GameEngine {
      * Must be called before the game starts
      * Uses Gemini if available, falls back to static JSON
      */
-    async initialize(topic?: QuizTopicId): Promise<void> {
+    async initialize(topic?: QuizTopicId, difficulty?: QuizDifficulty): Promise<void> {
         if (topic) {
             this.selectedTopic = topic;
+        }
+        if (difficulty) {
+            this.selectedDifficulty = difficulty;
         }
 
         if (this.initialized) {
@@ -88,8 +92,8 @@ export class QuizEngine implements GameEngine {
         this.isReset = false;
 
         try {
-            console.log(`[QuizEngine] Initializing session: ${this.sessionId}, topic: ${this.selectedTopic}`);
-            this.questions = await getSessionQuestions(this.sessionId, undefined, this.selectedTopic ?? undefined);
+            console.log(`[QuizEngine] Initializing session: ${this.sessionId}, topic: ${this.selectedTopic}, difficulty: ${this.selectedDifficulty}`);
+            this.questions = await getSessionQuestions(this.sessionId, undefined, this.selectedTopic ?? undefined, this.selectedDifficulty);
             this.shuffleQuestions();
             this.initialized = true;
             console.log(`[QuizEngine] Initialized with ${this.questions.length} questions for session: ${this.sessionId}, topic: ${this.selectedTopic}`);
@@ -114,6 +118,14 @@ export class QuizEngine implements GameEngine {
 
     getTopic(): QuizTopicId | null {
         return this.selectedTopic;
+    }
+
+    setDifficulty(difficulty: QuizDifficulty): void {
+        this.selectedDifficulty = difficulty;
+    }
+
+    getDifficulty(): QuizDifficulty {
+        return this.selectedDifficulty;
     }
 
     /**
@@ -521,6 +533,7 @@ export class QuizEngine implements GameEngine {
         this.currentPhase = 'analysis';
         this.initialized = false;
         this.selectedTopic = null;
+        this.selectedDifficulty = 'easy';
         this.shuffleQuestions();
     }
 
@@ -559,7 +572,7 @@ export class QuizEngine implements GameEngine {
         console.log(`[QuizEngine] Fresh questions loaded: ${this.questions.length}`);
         } catch (err) {
             console.error('[QuizEngine] Failed to regenerate questions, falling back to existing:', err);
-            this.questions = await getSessionQuestions(this.sessionId, undefined, this.selectedTopic ?? undefined);
+            this.questions = await getSessionQuestions(this.sessionId, undefined, this.selectedTopic ?? undefined, this.selectedDifficulty);
             this.shuffleQuestions();
         }
     }
@@ -683,7 +696,7 @@ export class QuizEngine implements GameEngine {
 
             // Refresh questions from session cache to get any newly generated ones
             try {
-                const updatedQuestions = await getSessionQuestions(this.sessionId, undefined, this.selectedTopic ?? undefined);
+                const updatedQuestions = await getSessionQuestions(this.sessionId, undefined, this.selectedTopic ?? undefined, this.selectedDifficulty);
                 if (updatedQuestions.length > this.questions.length) {
                     console.log(`[QuizEngine] Refreshed questions: ${this.questions.length} -> ${updatedQuestions.length}`);
                     this.questions = updatedQuestions;

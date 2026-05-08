@@ -653,6 +653,7 @@ export default function ShootQuiz_Screen() {
     const [topicPlayerVotes, setTopicPlayerVotes] = useState<Record<string, string>>({});
     const [topicTotalVoters, setTopicTotalVoters] = useState(0);
     const [topicCrosshairs, setTopicCrosshairs] = useState<Map<string, { x: number; y: number }>>(new Map());
+    const [topicDifficulty, setTopicDifficulty] = useState<import('../shared/types').QuizDifficulty>('easy');
     const [selectedTopicLabel, setSelectedTopicLabel] = useState<string | null>(null);
     const topicCountdownStartedRef = useRef(false);
 
@@ -1045,6 +1046,7 @@ export default function ShootQuiz_Screen() {
                 if (data.playerVotes) setTopicPlayerVotes(data.playerVotes);
                 setTopicTotalVoters(data.totalVoters);
                 setTopicTimeLeft(data.timeLeft);
+                if (data.difficulty) setTopicDifficulty(data.difficulty);
 
                 // Auto-switch to topic-selection phase when first update arrives
                 if (phaseRef.current === 'team-lobby' || phaseRef.current === 'qr-lobby') {
@@ -1073,6 +1075,7 @@ export default function ShootQuiz_Screen() {
                 setTopicPlayerVotes({});
                 setTopicTotalVoters(0);
                 setTopicCrosshairs(new Map());
+                setTopicDifficulty('easy');
                 setSelectedTopicLabel(null);
                 // Cancel any pending game-over idle timer
                 if (gameOverIdleTimerRef.current) {
@@ -1244,6 +1247,7 @@ export default function ShootQuiz_Screen() {
                 totalVoters={topicTotalVoters}
                 timeLeft={topicTimeLeft}
                 crosshairs={topicCrosshairs}
+                difficulty={topicDifficulty}
             />
         );
     }

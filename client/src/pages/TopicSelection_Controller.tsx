@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { QUIZ_TOPICS, CROSSHAIR_COLORS, PRE_CONFIG_AVATARS } from '../shared/types';
-import type { QuizTopicId, PlayerRole } from '../shared/types';
+import { QUIZ_TOPICS, CROSSHAIR_COLORS, PRE_CONFIG_AVATARS, QUIZ_DIFFICULTIES } from '../shared/types';
+import type { QuizTopicId, QuizDifficulty, PlayerRole } from '../shared/types';
 import { hexToRgba } from '../utils/color';
 import '../index.css';
 import '../animations.css';
@@ -23,6 +23,8 @@ interface TopicSelection_ControllerProps {
     votedControllerIds: string[];
     hasVoted: boolean;
     onVote: (topicId: QuizTopicId) => void;
+    selectedDifficulty: QuizDifficulty;
+    onDifficultyChange: (difficulty: QuizDifficulty) => void;
     sendCrosshair: (x: number, y: number) => void;
     sendCancelAiming: () => void;
     sendStartAiming: () => void;
@@ -53,6 +55,8 @@ export default function TopicSelection_Controller({
     votedControllerIds,
     hasVoted,
     onVote,
+    selectedDifficulty,
+    onDifficultyChange,
     sendCrosshair,
     sendCancelAiming,
     sendStartAiming,
@@ -265,7 +269,92 @@ export default function TopicSelection_Controller({
                     </div>
                 )}
 
-                {!hasVoted && !isDragging && (
+                {!hasVoted && !isDragging && role === 'leader' && (
+                    <div style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        width: '100%',
+                        padding: '0 1.5rem',
+                    }}>
+                        <span style={{
+                            fontSize: '0.65rem',
+                            fontWeight: 700,
+                            letterSpacing: '2px',
+                            textTransform: 'uppercase',
+                            color: 'rgba(255,255,255,0.4)',
+                        }}>
+                            Difficulty
+                        </span>
+                        <div style={{
+                            display: 'flex',
+                            gap: '0.5rem',
+                            width: '100%',
+                        }}>
+                            {QUIZ_DIFFICULTIES.map((d) => {
+                                const isSelected = selectedDifficulty === d.id;
+                                const accentMap: Record<string, string> = {
+                                    easy: '#22c55e',
+                                    medium: '#f59e0b',
+                                    hard: '#ef4444',
+                                };
+                                const accent = accentMap[d.id];
+                                return (
+                                    <button
+                                        key={d.id}
+                                        onPointerDown={(e) => {
+                                            e.stopPropagation();
+                                            onDifficultyChange(d.id);
+                                        }}
+                                        style={{
+                                            flex: 1,
+                                            padding: '0.55rem 0',
+                                            borderRadius: '12px',
+                                            border: isSelected
+                                                ? `2px solid ${accent}`
+                                                : '2px solid rgba(255,255,255,0.1)',
+                                            background: isSelected
+                                                ? `${accent}22`
+                                                : 'rgba(255,255,255,0.04)',
+                                            color: isSelected ? accent : 'rgba(255,255,255,0.4)',
+                                            fontSize: '0.75rem',
+                                            fontWeight: 800,
+                                            letterSpacing: '0.5px',
+                                            cursor: 'pointer',
+                                            transition: 'all 0.15s ease',
+                                            touchAction: 'none',
+                                        }}
+                                    >
+                                        {d.label}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
+
+                {!hasVoted && !isDragging && role !== 'leader' && (
+                    <div style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: '0.25rem',
+                    }}>
+                        <div className="controller-bottom-hint">DRAG TO AIM</div>
+                        <span style={{
+                            fontSize: '0.65rem',
+                            fontWeight: 700,
+                            color: 'rgba(255,255,255,0.3)',
+                            letterSpacing: '1px',
+                        }}>
+                            {QUIZ_DIFFICULTIES.find(d => d.id === selectedDifficulty)?.emoji}{' '}
+                            {QUIZ_DIFFICULTIES.find(d => d.id === selectedDifficulty)?.label}
+                        </span>
+                    </div>
+                )}
+
+                {!hasVoted && isDragging && (
                     <div className="controller-bottom-hint">DRAG TO AIM</div>
                 )}
             </div>

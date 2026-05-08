@@ -10,7 +10,7 @@ import { GameClient } from '../transport/GameClient';
 import GameLobby_Controller from '../lobby/controller/GameLobby_Controller';
 import Loading_Controller from '../lobby/controller/Loading_Controller';
 import WinnerScene from '../components/WinnerScene';
-import type { LobbyState, PlayerRole, ScoreUpdate, QuestionPhase, PlayerSelectionPayload, RevealResultPayload, PlayerScoreEntry, QuizTopicId, TopicVoteUpdatePayload, TopicSelectedPayload } from '../shared/types';
+import type { LobbyState, PlayerRole, ScoreUpdate, QuestionPhase, PlayerSelectionPayload, RevealResultPayload, PlayerScoreEntry, QuizTopicId, QuizDifficulty, TopicVoteUpdatePayload, TopicSelectedPayload } from '../shared/types';
 import { CROSSHAIR_COLORS, QUIZ_TOPICS, PRE_CONFIG_AVATARS } from '../shared/types';
 import '../index.css';
 import '../animations.css';
@@ -320,6 +320,7 @@ export default function ShootQuiz_Controller() {
     const [topicVotedControllerIds, setTopicVotedControllerIds] = useState<string[]>([]);
     const [hasVotedTopic, setHasVotedTopic] = useState(false);
     const hasVotedTopicRef = useRef(false);
+    const [selectedDifficulty, setSelectedDifficulty] = useState<QuizDifficulty>('easy');
     const topicCountdownStartedRef = useRef(false);
 
     // Loading screen state
@@ -642,6 +643,7 @@ export default function ShootQuiz_Controller() {
                 setTopicTotalVoters(0);
                 setHasVotedTopic(false);
                 hasVotedTopicRef.current = false;
+                setSelectedDifficulty('easy');
                 if (loadingCountdownIntervalRef.current) {
                     clearInterval(loadingCountdownIntervalRef.current);
                     loadingCountdownIntervalRef.current = null;
@@ -665,6 +667,7 @@ export default function ShootQuiz_Controller() {
                 }
                 setTopicVotedControllerIds(data.votedControllerIds);
                 setTopicTotalVoters(data.totalVoters);
+                if (data.difficulty) setSelectedDifficulty(data.difficulty);
 
                 if (!topicCountdownStartedRef.current) {
                     setTopicTimeLeft(data.timeLeft);
@@ -961,6 +964,11 @@ export default function ShootQuiz_Controller() {
                     setHasVotedTopic(true);
                     hasVotedTopicRef.current = true;
                     clientRef.current?.sendTopicVote(topicId);
+                }}
+                selectedDifficulty={selectedDifficulty}
+                onDifficultyChange={(difficulty: QuizDifficulty) => {
+                    setSelectedDifficulty(difficulty);
+                    clientRef.current?.sendSetDifficulty(difficulty);
                 }}
                 sendCrosshair={(x, y) => clientRef.current?.sendCrosshair(x, y)}
                 sendCancelAiming={() => clientRef.current?.sendCancelAiming()}

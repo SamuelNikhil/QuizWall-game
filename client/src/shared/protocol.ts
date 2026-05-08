@@ -60,6 +60,7 @@ export const EVENTS = {
     TOPIC_VOTE: 'topicVote',
     TOPIC_VOTE_UPDATE: 'topicVoteUpdate',
     TOPIC_SELECTED: 'topicSelected',
+    SET_DIFFICULTY: 'setDifficulty',
 
     // --- Leaderboard ---
     LEADERBOARD: 'leaderboard',

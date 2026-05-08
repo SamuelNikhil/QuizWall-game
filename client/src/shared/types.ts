@@ -225,8 +225,24 @@ export const DEFAULT_TOPIC: QuizTopicId = 'animal-kingdom';
 
 export const TOPIC_SELECTION_TIMEOUT_MS = 30_000;
 
+// ---------- Difficulty ----------
+
+export type QuizDifficulty = 'easy' | 'medium' | 'hard';
+
+export const DEFAULT_DIFFICULTY: QuizDifficulty = 'easy';
+
+export const QUIZ_DIFFICULTIES: { id: QuizDifficulty; label: string; emoji: string }[] = [
+    { id: 'easy',   label: 'Easy',   emoji: '🟢' },
+    { id: 'medium', label: 'Medium', emoji: '🟡' },
+    { id: 'hard',   label: 'Hard',   emoji: '🔴' },
+];
+
 export interface TopicVotePayload {
     topicId: QuizTopicId;
+}
+
+export interface SetDifficultyPayload {
+    difficulty: QuizDifficulty;
 }
 
 export interface TopicVoteUpdatePayload {
@@ -235,11 +251,13 @@ export interface TopicVoteUpdatePayload {
     playerVotes: Record<string, string>; // controllerId -> topicId
     totalVoters: number;
     timeLeft: number;
+    difficulty: QuizDifficulty;          // current leader-selected difficulty
 }
 
 export interface TopicSelectedPayload {
     topicId: QuizTopicId;
     topicLabel: string;
+    difficulty: QuizDifficulty;
 }
 
 // ---------- Orb positions (shared constant) ----------

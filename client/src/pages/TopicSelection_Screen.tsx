@@ -1,5 +1,5 @@
-import { QUIZ_TOPICS, CROSSHAIR_COLORS, PRE_CONFIG_NAMES, PRE_CONFIG_AVATARS } from '../shared/types';
-import type { LobbyState, QuizTopicId } from '../shared/types';
+import { QUIZ_TOPICS, CROSSHAIR_COLORS, PRE_CONFIG_NAMES, PRE_CONFIG_AVATARS, QUIZ_DIFFICULTIES } from '../shared/types';
+import type { LobbyState, QuizTopicId, QuizDifficulty } from '../shared/types';
 import backgroundImg from '../assets/Background.svg';
 
 interface TopicOrbData {
@@ -18,6 +18,7 @@ interface TopicSelection_ScreenProps {
     totalVoters: number;
     timeLeft: number;
     crosshairs: Map<string, { x: number; y: number }>;
+    difficulty: QuizDifficulty;
 }
 
 // Returns the orb index (0-based) that a crosshair at pos.x% is hovering over,
@@ -39,6 +40,7 @@ export default function TopicSelection_Screen({
     totalVoters,
     timeLeft,
     crosshairs,
+    difficulty,
 }: TopicSelection_ScreenProps) {
     const votesByPlayer = new Map<string, number>();
     for (const id of votedControllerIds) {
@@ -98,6 +100,39 @@ export default function TopicSelection_Screen({
                     </span>
                 </div>
 
+                {(() => {
+                    const diffInfo = QUIZ_DIFFICULTIES.find(d => d.id === difficulty);
+                    const accentMap: Record<string, string> = {
+                        easy: '#22c55e',
+                        medium: '#f59e0b',
+                        hard: '#ef4444',
+                    };
+                    const accent = accentMap[difficulty] || '#f59e0b';
+                    return (
+                        <div style={{
+                            padding: '0.8rem 1.5rem',
+                            background: `${accent}18`,
+                            border: `1px solid ${accent}44`,
+                            borderRadius: '30px',
+                            backdropFilter: 'blur(10px)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.5rem',
+                        }}>
+                            <span style={{ fontSize: '1rem' }}>{diffInfo?.emoji}</span>
+                            <span style={{
+                                fontSize: '1rem',
+                                fontWeight: 800,
+                                color: accent,
+                                letterSpacing: '1px',
+                                textTransform: 'uppercase',
+                            }}>
+                                {diffInfo?.label}
+                            </span>
+                        </div>
+                    );
+                })()}
+
                 <div style={{
                     padding: '0.8rem 2rem',
                     background: 'rgba(255, 107, 53, 0.15)',
@@ -119,13 +154,25 @@ export default function TopicSelection_Screen({
                 fontSize: 'clamp(2rem, 4vw, 3rem)',
                 fontWeight: 950,
                 color: '#ffffff',
-                marginBottom: '2rem',
+                marginBottom: '0.5rem',
                 textTransform: 'uppercase',
                 letterSpacing: '3px',
                 zIndex: 10,
             }}>
-                Choose a Topic
+                Vote for the Topic
             </h2>
+
+            <p style={{
+                fontSize: 'clamp(0.75rem, 1.2vw, 0.9rem)',
+                fontWeight: 600,
+                color: 'rgba(255,255,255,0.45)',
+                marginBottom: '1.5rem',
+                letterSpacing: '1px',
+                zIndex: 10,
+                textAlign: 'center',
+            }}>
+                Leader can set difficulty on their controller
+            </p>
 
             <div style={{
                 position: 'relative',

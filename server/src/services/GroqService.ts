@@ -4,7 +4,7 @@
 // Per-topic generation with cache (30min TTL)
 // ==========================================
 
-import type { ServerQuestion, QuizTopicId } from '../shared/types';
+import type { ServerQuestion, QuizTopicId, QuizDifficulty } from '../shared/types';
 
 interface GroqConfig {
     apiKey: string;
@@ -93,15 +93,15 @@ export class GroqService {
         throw lastError || new Error('All retries exhausted');
     }
 
-    async generateQuestionsForTopic(topicId: QuizTopicId, excludeQuestions?: string[], forceRefresh: boolean = false): Promise<ServerQuestion[]> {
-        return this.generateQuestionsForTopicWithCount(topicId, this.questionCount, excludeQuestions, forceRefresh);
+    async generateQuestionsForTopic(topicId: QuizTopicId, excludeQuestions?: string[], forceRefresh: boolean = false, difficulty: QuizDifficulty = 'medium'): Promise<ServerQuestion[]> {
+        return this.generateQuestionsForTopicWithCount(topicId, this.questionCount, excludeQuestions, forceRefresh, difficulty);
     }
 
     /**
      * Generate questions with an explicit count, without mutating shared state.
      * Use this instead of setQuestionCount() + generateQuestionsForTopic() to avoid race conditions.
      */
-    async generateQuestionsForTopicWithCount(topicId: QuizTopicId, count: number, excludeQuestions?: string[], forceRefresh: boolean = false): Promise<ServerQuestion[]> {
+    async generateQuestionsForTopicWithCount(topicId: QuizTopicId, count: number, excludeQuestions?: string[], forceRefresh: boolean = false, difficulty: QuizDifficulty = 'medium'): Promise<ServerQuestion[]> {
         const cached = topicCache.get(topicId);
         if (!forceRefresh && cached && (Date.now() - cached.generatedAt < CACHE_TTL_MS)) {
             console.log(`[GroqService] Cache hit for topic "${topicId}" (${cached.questions.length} questions, age: ${Math.round((Date.now() - cached.generatedAt) / 1000)}s)`);
@@ -115,7 +115,7 @@ export class GroqService {
         const topicLabel = this.getTopicLabel(topicId);
 
         try {
-            const prompt = this.buildPrompt(topicLabel, count, excludeQuestions);
+            const prompt = this.buildPrompt(topicLabel, count, excludeQuestions, difficulty);
 
             const data = await this.fetchWithRetry(
                 'https://api.groq.com/openai/v1/chat/completions',
@@ -177,7 +177,7 @@ export class GroqService {
         return labels[topicId] || topicId;
     }
 
-    private buildPrompt(topicLabel: string, count: number, excludeQuestions?: string[]): string {
+    private buildPrompt(topicLabel: string, count: number, excludeQuestions?: string[], difficulty: QuizDifficulty = 'medium'): string {
         const randomSeed = Math.random().toString(36).substring(2, 10);
         const timeSeed = Date.now().toString(36).substring(2, 8);
 
@@ -187,7 +187,16 @@ export class GroqService {
             exclusionBlock = `\n\nDO NOT generate any of these questions (they were already used in other active sessions):\n${truncated.map((q, i) => `${i + 1}. ${q}`).join('\n')}\n\nGenerate COMPLETELY DIFFERENT questions from the ones listed above.`;
         }
 
+        const difficultyInstructions: Record<QuizDifficulty, string> = {
+            easy:   'Questions should be straightforward and based on well-known, commonly taught facts. Suitable for general audiences and younger players. Avoid obscure details.',
+            medium: 'Questions should require moderate knowledge of the topic. Mix well-known facts with some less-obvious details. Suitable for most adults.',
+            hard:   'Questions should be genuinely challenging. Focus on specific details, precise dates, lesser-known facts, and nuanced distinctions. Avoid obvious or commonly known answers.',
+        };
+
         return `Generate ${count} multiple-choice quiz questions about "${topicLabel}".
+
+DIFFICULTY LEVEL: ${difficulty.toUpperCase()}
+${difficultyInstructions[difficulty]}
 
 UNIQUE GENERATION SEED: ${randomSeed}-${timeSeed}
 Use this seed to ensure you generate COMPLETELY DIFFERENT questions from any previous requests.
@@ -203,6 +212,7 @@ CRITICAL REQUIREMENTS:
 8. Generate COMPLETELY DIFFERENT questions - do NOT repeat common/popular questions
 9. Cover diverse sub-topics within "${topicLabel}" - don't focus on the same events/people
 10. Be creative and explore lesser-known but interesting facts
+11. STRICTLY match the ${difficulty.toUpperCase()} difficulty level described above
 
 Respond ONLY with valid JSON in this EXACT format (no markdown, no explanation):
 [

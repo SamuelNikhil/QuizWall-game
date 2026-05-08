@@ -8,8 +8,8 @@ import type { GameEngine, GameType } from './GameEngine.ts';
 import { QuizEngine } from './QuizEngine.ts';
 import { EVENTS } from '../shared/protocol.ts';
 import { CONFIG } from '../infrastructure/config.ts';
-import type { PlayerRole, PlayerInfo, PlayerScoreEntry, LobbyState, QuizTopicId, TopicVoteUpdatePayload, TopicSelectedPayload } from '../shared/types.ts';
-import { QUIZ_TOPICS, DEFAULT_TOPIC, TOPIC_SELECTION_TIMEOUT_MS } from '../shared/types.ts';
+import type { PlayerRole, PlayerInfo, PlayerScoreEntry, LobbyState, QuizTopicId, QuizDifficulty, TopicVoteUpdatePayload, TopicSelectedPayload } from '../shared/types.ts';
+import { QUIZ_TOPICS, DEFAULT_TOPIC, DEFAULT_DIFFICULTY, TOPIC_SELECTION_TIMEOUT_MS } from '../shared/types.ts';
 
 export interface RoomController {
     id: string;
@@ -48,6 +48,7 @@ export interface Room {
     topicSelectionTimer: ReturnType<typeof setTimeout> | null;
     topicSelectionStarted: boolean;
     topicSelectionStartedAt: number | null;
+    selectedDifficulty: QuizDifficulty;
     // Screen reconnect grace period
     screenDisconnected?: boolean;
     screenGraceTimer?: NodeJS.Timeout;
@@ -113,6 +114,7 @@ export class RoomManager {
             topicSelectionTimer: null,
             topicSelectionStarted: false,
             topicSelectionStartedAt: null,
+            selectedDifficulty: DEFAULT_DIFFICULTY,
         };
 
         this.rooms.set(roomId, room);
@@ -783,6 +785,19 @@ export class RoomManager {
         console.log(`[Room] Cleared disconnected scores in ${roomId}`);
     }
 
+    /** Set difficulty — only the leader can change it */
+    setDifficulty(roomId: string, clientId: string, difficulty: QuizDifficulty): boolean {
+        const room = this.rooms.get(roomId);
+        if (!room) return false;
+
+        const controller = room.controllers.find(c => c.clientId === clientId);
+        if (!controller || controller.role !== 'leader') return false;
+
+        room.selectedDifficulty = difficulty;
+        console.log(`[Room] Difficulty set to "${difficulty}" in ${roomId} by leader ${clientId.substring(0, 8)}`);
+        return true;
+    }
+
     startTopicSelection(roomId: string): TopicVoteUpdatePayload | null {
         const room = this.rooms.get(roomId);
         if (!room || room.topicSelectionStarted) return null;
@@ -838,7 +853,7 @@ export class RoomManager {
 
     resolveTopicVote(roomId: string): TopicSelectedPayload {
         const room = this.rooms.get(roomId);
-        if (!room) return { topicId: DEFAULT_TOPIC, topicLabel: QUIZ_TOPICS.find(t => t.id === DEFAULT_TOPIC)!.label };
+        if (!room) return { topicId: DEFAULT_TOPIC, topicLabel: QUIZ_TOPICS.find(t => t.id === DEFAULT_TOPIC)!.label, difficulty: DEFAULT_DIFFICULTY };
 
         const voteCounts = new Map<QuizTopicId, number>();
         for (const [, topicId] of room.topicVotes) {
@@ -880,7 +895,7 @@ export class RoomManager {
         }
 
         console.log(`[Room] Topic selected in ${roomId}: ${selectedTopic} (${topicLabel})`);
-        return { topicId: selectedTopic, topicLabel };
+        return { topicId: selectedTopic, topicLabel, difficulty: room.selectedDifficulty };
     }
 
     getTopicVoteUpdate(roomId: string): TopicVoteUpdatePayload | null {
@@ -903,7 +918,7 @@ export class RoomManager {
             ? 0
             : Math.max(0, Math.ceil((TOPIC_SELECTION_TIMEOUT_MS - elapsedMs) / 1000));
 
-        return { votes, votedControllerIds, playerVotes, totalVoters, timeLeft };
+        return { votes, votedControllerIds, playerVotes, totalVoters, timeLeft, difficulty: room.selectedDifficulty };
     }
 
     isTopicSelectionStarted(roomId: string): boolean {

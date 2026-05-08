@@ -7,8 +7,8 @@ import { readFileSync, existsSync, writeFileSync, unlinkSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { CONFIG } from '../infrastructure/config.ts';
-import type { ServerQuestion, QuizTopicId } from '../shared/types.ts';
-import { DEFAULT_TOPIC } from '../shared/types.ts';
+import type { ServerQuestion, QuizTopicId, QuizDifficulty } from '../shared/types.ts';
+import { DEFAULT_TOPIC, DEFAULT_DIFFICULTY } from '../shared/types.ts';
 import { getGroqService, isGroqEnabled } from '../services/GroqService.ts';
 ///
 // Get current directory for file paths
@@ -27,6 +27,7 @@ let staticQuestionsCache: ServerQuestion[] | null = null;
 interface SessionCacheEntry {
     questions: ServerQuestion[];
     topic: QuizTopicId;
+    difficulty: QuizDifficulty;
 }
 
 // Session-specific generated questions (per room/game)
@@ -151,20 +152,21 @@ function deleteAiQuestions(): void {
  * ALWAYS generates fresh AI questions via Groq to avoid repetition
  * Falls back to static JSON only if AI generation fails
  */
-export async function generateSessionQuestions(sessionId: string, topic?: QuizTopicId): Promise<ServerQuestion[]> {
+export async function generateSessionQuestions(sessionId: string, topic?: QuizTopicId, difficulty?: QuizDifficulty): Promise<ServerQuestion[]> {
     const currentTopic = topic || DEFAULT_TOPIC;
+    const currentDifficulty = difficulty || DEFAULT_DIFFICULTY;
 
     const cached = sessionQuestionsCache.get(sessionId);
-    if (cached && cached.topic === currentTopic) {
+    if (cached && cached.topic === currentTopic && cached.difficulty === currentDifficulty) {
         return cached.questions;
     }
 
-    if (cached && cached.topic !== currentTopic) {
-        console.log(`[QuestionRepo] Session ${sessionId} topic changed from ${cached.topic} to ${currentTopic}, regenerating...`);
+    if (cached && (cached.topic !== currentTopic || cached.difficulty !== currentDifficulty)) {
+        console.log(`[QuestionRepo] Session ${sessionId} topic/difficulty changed, regenerating...`);
     }
 
-    // If already generating for this session+topic, reuse the in-flight promise
-    const inFlightKey = `${sessionId}:${currentTopic}`;
+    // If already generating for this session+topic+difficulty, reuse the in-flight promise
+    const inFlightKey = `${sessionId}:${currentTopic}:${currentDifficulty}`;
     const existing = generatingPromises.get(inFlightKey);
     if (existing) {
         console.log(`[QuestionRepo] Reusing in-flight generation for session ${sessionId}, topic ${currentTopic}`);
@@ -181,7 +183,7 @@ export async function generateSessionQuestions(sessionId: string, topic?: QuizTo
             try {
                 const groqService = getGroqService()!;
 
-                questions = await groqService.generateQuestionsForTopic(currentTopic, getGlobalExclusionList(), true);
+                questions = await groqService.generateQuestionsForTopic(currentTopic, getGlobalExclusionList(), true, currentDifficulty);
 
                 if (!questions || questions.length === 0) {
                     throw new Error('Groq returned empty questions array');
@@ -242,7 +244,7 @@ export async function generateSessionQuestions(sessionId: string, topic?: QuizTo
 
     // Cache for this session — only if it hasn't been deleted while generation was in-flight
     if (sessionQuestionsCache.has(sessionId) || !generatingPromises.has(inFlightKey)) {
-        sessionQuestionsCache.set(sessionId, { questions, topic: currentTopic });
+        sessionQuestionsCache.set(sessionId, { questions, topic: currentTopic, difficulty: currentDifficulty });
     }
 
     return questions;
@@ -282,13 +284,14 @@ export async function preGenerateForSession(sessionId: string, topic?: QuizTopic
  * @param sessionId - The session ID
  * @param additionalCount - Optional number of additional questions to generate (for dynamic limit increases)
  */
-export async function getSessionQuestions(sessionId: string, additionalCount?: number, topic?: QuizTopicId): Promise<ServerQuestion[]> {
+export async function getSessionQuestions(sessionId: string, additionalCount?: number, topic?: QuizTopicId, difficulty?: QuizDifficulty): Promise<ServerQuestion[]> {
     const currentTopic = topic || DEFAULT_TOPIC;
+    const currentDifficulty = difficulty || DEFAULT_DIFFICULTY;
     const cached = sessionQuestionsCache.get(sessionId);
 
     // If additionalCount is specified, generate more questions for existing session
     if (additionalCount && additionalCount > 0 && cached && cached.topic === currentTopic) {
-        const inFlightKey = `${sessionId}:${currentTopic}:more`;
+        const inFlightKey = `${sessionId}:${currentTopic}:${currentDifficulty}:more`;
         if (isGroqEnabled() && !generatingPromises.has(inFlightKey)) {
             const morePromise = generateMoreQuestionsForSession(sessionId, additionalCount, currentTopic);
             generatingPromises.set(inFlightKey, morePromise.then(() => sessionQuestionsCache.get(sessionId)!.questions));
@@ -310,11 +313,11 @@ export async function getSessionQuestions(sessionId: string, additionalCount?: n
             // Step 1: Immediately add static questions as temporary buffer
             const staticBuffer = getRandomStaticQuestions(10);
             const withBuffer = [...questions, ...staticBuffer];
-            sessionQuestionsCache.set(sessionId, { questions: withBuffer, topic: currentTopic });
+            sessionQuestionsCache.set(sessionId, { questions: withBuffer, topic: currentTopic, difficulty: currentDifficulty });
 
             // Step 2: Trigger background AI generation if Groq is enabled
-            if (isGroqEnabled() && !generatingPromises.has(`${sessionId}:${currentTopic}:more`)) {
-                const inFlightKey = `${sessionId}:${currentTopic}:more`;
+            if (isGroqEnabled() && !generatingPromises.has(`${sessionId}:${currentTopic}:${currentDifficulty}:more`)) {
+                const inFlightKey = `${sessionId}:${currentTopic}:${currentDifficulty}:more`;
                 const bgPromise = generateMoreQuestionsForSession(sessionId, undefined, currentTopic);
                 generatingPromises.set(inFlightKey, bgPromise.then(() => []));
                 bgPromise.finally(() => {
@@ -328,13 +331,13 @@ export async function getSessionQuestions(sessionId: string, additionalCount?: n
         return questions;
     }
 
-    // If cached but topic changed, regenerate
-    if (cached && cached.topic !== currentTopic) {
-        console.log(`[QuestionRepo] Session ${sessionId} topic changed from ${cached.topic} to ${currentTopic}, regenerating...`);
+    // If cached but topic or difficulty changed, regenerate
+    if (cached && (cached.topic !== currentTopic || cached.difficulty !== currentDifficulty)) {
+        console.log(`[QuestionRepo] Session ${sessionId} topic/difficulty changed, regenerating...`);
         sessionQuestionsCache.delete(sessionId);
     }
 
-    return generateSessionQuestions(sessionId, currentTopic);
+    return generateSessionQuestions(sessionId, currentTopic, currentDifficulty);
 }
 
 // Track which sessions are currently generating to prevent duplicates
@@ -351,7 +354,9 @@ async function generateMoreQuestionsForSession(sessionId: string, count?: number
     try {
         const groqService = getGroqService()!;
         const questionCount = count || (CONFIG.QUESTIONS_PER_SESSION || 10);
-        const currentTopic = topic || sessionQuestionsCache.get(sessionId)?.topic || DEFAULT_TOPIC;
+        const cachedEntry = sessionQuestionsCache.get(sessionId);
+        const currentTopic = topic || cachedEntry?.topic || DEFAULT_TOPIC;
+        const currentDifficulty = cachedEntry?.difficulty || DEFAULT_DIFFICULTY;
 
         // Generate fresh questions with an explicit count — avoids mutating shared groqService state
         const newQuestions = await groqService.generateQuestionsForTopicWithCount(currentTopic, questionCount);
@@ -373,7 +378,7 @@ async function generateMoreQuestionsForSession(sessionId: string, count?: number
 
             // Combine existing with new fresh questions
             const allQuestions = [...currentQuestions, ...uniqueNewQuestions];
-            sessionQuestionsCache.set(sessionId, { questions: allQuestions, topic: currentTopic });
+            sessionQuestionsCache.set(sessionId, { questions: allQuestions, topic: currentTopic, difficulty: currentDifficulty });
 
             // Also save to file for persistence (append mode)
             const currentTopicLabel = currentTopic;
