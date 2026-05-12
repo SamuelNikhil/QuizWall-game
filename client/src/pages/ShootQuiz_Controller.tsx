@@ -55,6 +55,7 @@ interface GamePlay_ControllerProps {
     selectedOrbId: string | null;
     phaseTimeLeft: number;
     lastHit: { correct: boolean } | null;
+    isTopScorer: boolean;
     handleStart: () => void;
     handleMove: (e: React.TouchEvent | React.MouseEvent) => void;
     handleEnd: () => void;
@@ -77,6 +78,7 @@ const GamePlay_Controller = memo(function GamePlay_Controller({
     selectedOrbId,
     phaseTimeLeft,
     lastHit,
+    isTopScorer,
     handleStart,
     handleMove,
     handleEnd,
@@ -155,7 +157,10 @@ const GamePlay_Controller = memo(function GamePlay_Controller({
 
             <header className="controller-shell__topbar">
                 <div className="controller-score-label">
-                    <span aria-hidden="true">&#x1F451;</span>
+                    <span
+                        aria-hidden="true"
+                        className={`controller-score-crown ${isTopScorer ? 'controller-score-crown--visible' : ''}`}
+                    >&#x1F451;</span>
                     <span>Score: {currentScore}</span>
                 </div>
 
@@ -1006,6 +1011,11 @@ export default function ShootQuiz_Controller() {
     const isAnswerLocked = isMultiplayer && hasSelectedThisRound && currentPhase === 'selection';
     const isAnalysisPhase = isMultiplayer && currentPhase === 'analysis' && phase === 'playing';
 
+    // Crown logic: only the top scorer in the room gets the crown.
+    // In singleplayer (no other scores), the crown is never shown (no competition).
+    const topScore = playerScores.length > 0 ? Math.max(...playerScores.map(p => p.score)) : 0;
+    const isTopScorer = playerScores.length > 1 && currentScore > 0 && currentScore === topScore;
+
     return (
         <GamePlay_Controller
             containerRef={containerRef}
@@ -1023,6 +1033,7 @@ export default function ShootQuiz_Controller() {
             selectedOrbId={selectedOrbId}
             phaseTimeLeft={phaseTimeLeft}
             lastHit={lastHit}
+            isTopScorer={isTopScorer}
             handleStart={handleStart}
             handleMove={handleMove}
             handleEnd={handleEnd}

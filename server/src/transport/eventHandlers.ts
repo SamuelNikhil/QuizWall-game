@@ -583,7 +583,7 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
                                 if (c.channel) c.channel.emit(EVENTS.QUESTION, nextQ);
                             }
                         }
-                    }, 1500);
+                    }, 800);
                 }
             }
         });

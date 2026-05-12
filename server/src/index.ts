@@ -12,8 +12,13 @@ import { RoomManager } from './domain/RoomManager.ts';
 import { registerEventHandlers } from './transport/eventHandlers.ts';
 import { getPlayerLeaderboard } from './data/playerRepository.ts';
 import { initializeGroqService, isGroqEnabled } from './services/GroqService.ts';
+import { clearAllSessionQuestions } from './data/questionRepository.ts';
 
 async function main() {
+    // 0. Clean up any leftover Quizwall_*.json files from a previous server run
+    clearAllSessionQuestions();
+    console.log('[Boot] Cleaned up leftover room question cache files');
+
     // 1. Initialize Groq AI service (if API key is configured)
     if (CONFIG.AI_ENABLED) {
         console.log('[Boot] Initializing Groq AI service...');

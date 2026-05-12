@@ -769,8 +769,9 @@ export default function ShootQuiz_Screen() {
             createConfetti(targetX, targetY);
 
             // Transition animation before next question
+            // Exit animation starts at 800ms (0.4s duration), clears at 1200ms
             scheduleTimeout(() => setIsTransitioning(true), 800);
-            scheduleTimeout(() => setIsTransitioning(false), 1500);
+            scheduleTimeout(() => setIsTransitioning(false), 1200);
         } else {
             createParticles(targetX, targetY, 15, '#ef4444');
             createScorePopup(targetX, targetY, '✗', 'wrong');
@@ -914,21 +915,23 @@ export default function ShootQuiz_Screen() {
                 const correctY = correctOrb ? (correctOrb.y / 100) * window.innerHeight : window.innerHeight / 2;
 
                 const orbElements = document.querySelectorAll('.orb');
-                orbElements.forEach((orb) => {
-                    const orbEl = orb as HTMLElement;
-                    if (orbEl.dataset.option === data.correctOrbId) {
-                        orb.classList.add('correct-answer', 'hit-orb');
-                    } else {
-                        orb.classList.add('wrong-answer');
-                    }
-                });
-                scheduleTimeout(() => {
-                    orbElements.forEach((orb) => {
-                        orb.classList.remove('correct-answer', 'wrong-answer', 'hit-orb');
-                    });
-                }, 2500);
 
                 if (data.anyCorrect) {
+                    // At least one player got it right — normal correct/wrong highlight
+                    orbElements.forEach((orb) => {
+                        const orbEl = orb as HTMLElement;
+                        if (orbEl.dataset.option === data.correctOrbId) {
+                            orb.classList.add('correct-answer', 'hit-orb');
+                        } else {
+                            orb.classList.add('wrong-answer');
+                        }
+                    });
+                    scheduleTimeout(() => {
+                        orbElements.forEach((orb) => {
+                            orb.classList.remove('correct-answer', 'wrong-answer', 'hit-orb');
+                        });
+                    }, 2500);
+
                     createParticles(correctX, correctY, 20, '#10b981');
                     createScorePopup(correctX, correctY, `+${data.points}`, 'correct');
                     createRipple(correctX, correctY, '#10b981');
@@ -937,6 +940,21 @@ export default function ShootQuiz_Screen() {
                     scheduleTimeout(() => setIsTransitioning(true), 1800);
                     scheduleTimeout(() => setIsTransitioning(false), 2500);
                 } else {
+                    // Nobody got it right — dim wrong orbs quietly, reveal correct orb with green glow
+                    orbElements.forEach((orb) => {
+                        const orbEl = orb as HTMLElement;
+                        if (orbEl.dataset.option === data.correctOrbId) {
+                            orb.classList.add('reveal-correct-orb');
+                        } else {
+                            orb.classList.add('wrong-answer-dim');
+                        }
+                    });
+                    scheduleTimeout(() => {
+                        orbElements.forEach((orb) => {
+                            orb.classList.remove('reveal-correct-orb', 'wrong-answer-dim', 'hit-orb');
+                        });
+                    }, 2500);
+
                     createParticles(correctX, correctY, 15, '#ef4444');
                     createScorePopup(correctX, correctY, '✗', 'wrong');
                     createRipple(correctX, correctY, '#ef4444');

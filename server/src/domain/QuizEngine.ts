@@ -546,7 +546,10 @@ export class QuizEngine implements GameEngine {
         clearSessionQuestions(this.sessionId);
 
         // Generate a new session ID to avoid stale cache hits
-        this.sessionId = `${this.sessionId.split('-')[0]}-${Date.now()}`;
+        // Preserve the roomId segment: "room-ABCDEF-<old_ts>" → "room-ABCDEF-<new_ts>"
+        const sessionParts = this.sessionId.split('-');
+        const roomSegment = sessionParts.length >= 2 ? `${sessionParts[0]}-${sessionParts[1]}` : sessionParts[0];
+        this.sessionId = `${roomSegment}-${Date.now()}`;
 
         console.log(`[QuizEngine] Regenerating questions for new session: ${this.sessionId}`);
 
