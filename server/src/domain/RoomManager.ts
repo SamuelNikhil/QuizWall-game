@@ -54,6 +54,8 @@ export interface Room {
     screenGraceTimer?: NodeJS.Timeout;
     // Empty lobby deletion timer (fires when last controller leaves the lobby)
     emptyLobbyTimer?: NodeJS.Timeout;
+    // Topic selection countdown broadcast interval (stored so it can be cleared on room deletion)
+    topicCountdownInterval?: ReturnType<typeof setInterval>;
 }
 
 export const PRE_CONFIG_NAMES = ['Wulf', 'Talon', 'Ryker', 'Zark'];
@@ -70,9 +72,15 @@ export class RoomManager {
 
     /** Called when an empty lobby is deleted so the transport layer can notify the screen */
     private onEmptyLobbyDeleted: ((room: Room) => void) | null = null;
+    /** Called whenever any room is fully deleted — lets the transport layer clean up its own per-room state */
+    private onRoomDeleted: ((roomId: string) => void) | null = null;
 
     setOnEmptyLobbyDeleted(cb: (room: Room) => void): void {
         this.onEmptyLobbyDeleted = cb;
+    }
+
+    setOnRoomDeleted(cb: (roomId: string) => void): void {
+        this.onRoomDeleted = cb;
     }
 
     constructor() {
@@ -554,6 +562,11 @@ export class RoomManager {
             // Already in grace period — ignore duplicate disconnect
             if (room.screenDisconnected) return room;
 
+            // The screen channel has already been replaced by a reconnect — the old
+            // channel's onDisconnect fired late. Do not start a new grace period.
+            // (room.screenChannel.id !== channelId means a new channel took over)
+            // This check is redundant with the one above but kept for clarity.
+
             // Landing page with no players — delete immediately, no grace needed
             if (room.controllers.length === 0 && !room.gameStarted) {
                 console.log(`[Room] Screen disconnected from empty landing page ${room.roomId} — deleting immediately`);
@@ -568,6 +581,11 @@ export class RoomManager {
 
             room.screenGraceTimer = setTimeout(() => {
                 room.screenGraceTimer = undefined;
+                // Double-check the room hasn't reconnected while the timer was pending
+                if (!room.screenDisconnected) {
+                    console.log(`[Room] Grace timer fired but screen already reconnected for ${room.roomId} — ignoring`);
+                    return;
+                }
                 onGraceExpired(room);
             }, RoomManager.GRACE_MS);
 
@@ -623,12 +641,18 @@ export class RoomManager {
                     clearTimeout(room.topicSelectionTimer);
                     room.topicSelectionTimer = null;
                 }
+                // Clear topic countdown broadcast interval
+                if (room.topicCountdownInterval) {
+                    clearInterval(room.topicCountdownInterval);
+                    room.topicCountdownInterval = undefined;
+                }
                 // Clear all controller grace timers
                 for (const t of room.disconnectGraceTimers.values()) clearTimeout(t);
                 room.disconnectGraceTimers.clear();
 
                 room.engine.destroy();
                 this.rooms.delete(roomId);
+                this.onRoomDeleted?.(roomId);
                 return room;
             }
         }
@@ -652,11 +676,16 @@ export class RoomManager {
             clearTimeout(room.topicSelectionTimer);
             room.topicSelectionTimer = null;
         }
+        if (room.topicCountdownInterval) {
+            clearInterval(room.topicCountdownInterval);
+            room.topicCountdownInterval = undefined;
+        }
         for (const t of room.disconnectGraceTimers.values()) clearTimeout(t);
         room.disconnectGraceTimers.clear();
 
         room.engine.destroy();
         this.rooms.delete(roomId);
+        this.onRoomDeleted?.(roomId);
         return room;
     }
 

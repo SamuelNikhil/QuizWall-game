@@ -212,6 +212,11 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
         }
     });
 
+    // Clean up transport-layer per-room state whenever any room is deleted
+    roomManager.setOnRoomDeleted((roomId) => {
+        roomTutorialStates.delete(roomId);
+    });
+
     io.onConnection((channel: ServerChannel) => {
 
         // Handshake timeout — close idle channels that never send CREATE_ROOM or JOIN_ROOM
@@ -390,11 +395,14 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
                 }
 
                 // Broadcast countdown every second — store reference so it can be cleared on room deletion
-                const topicCountdown = setInterval(() => {
+                room.topicCountdownInterval = setInterval(() => {
                     const currentRoom = roomManager.getRoom(roomId);
                     const currentUpdate = currentRoom ? roomManager.getTopicVoteUpdate(roomId) : null;
                     if (!currentUpdate || currentUpdate.timeLeft <= 0) {
-                        clearInterval(topicCountdown);
+                        if (currentRoom?.topicCountdownInterval) {
+                            clearInterval(currentRoom.topicCountdownInterval);
+                            currentRoom.topicCountdownInterval = undefined;
+                        }
                         return;
                     }
                     if (!currentRoom?.screenDisconnected) {
