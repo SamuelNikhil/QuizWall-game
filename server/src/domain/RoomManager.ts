@@ -908,10 +908,10 @@ export class RoomManager {
         } else if (tiedTopics.length === 1) {
             selectedTopic = tiedTopics[0];
         } else {
-            const leader = room.controllers.find(c => c.role === 'leader' && !c.disconnected);
-            const leaderVote = leader ? room.topicVotes.get(leader.clientId) : null;
-            selectedTopic = leaderVote && tiedTopics.includes(leaderVote) ? leaderVote : tiedTopics[0];
-            console.log(`[Room] Tie in ${roomId}, leader's vote: ${leaderVote || 'none'}, selected: ${selectedTopic}`);
+            // True tie — pick randomly from the tied topics so no single player
+            // (including the host) has a systematic advantage.
+            selectedTopic = tiedTopics[Math.floor(Math.random() * tiedTopics.length)];
+            console.log(`[Room] Tie in ${roomId} between [${tiedTopics.join(', ')}], randomly selected: ${selectedTopic}`);
         }
 
         const topicLabel = QUIZ_TOPICS.find(t => t.id === selectedTopic)?.label || selectedTopic;

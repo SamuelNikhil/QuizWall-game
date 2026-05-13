@@ -8,7 +8,7 @@ import { ORB_POSITIONS, QUIZ_TOPICS, TOPIC_SELECTION_TIMEOUT_MS } from '../share
 import type { PlayerSelectionPayload, RevealResultPayload, TutorialProgressPayload, TutorialPlayerStatus, TutorialStatusUpdatePayload, QuizTopicId, QuizDifficulty } from '../shared/types.ts';
 import { RoomManager, type Room } from '../domain/RoomManager.ts';
 import { PlayerManager } from '../domain/PlayerManager.ts';
-import { QuizEngine } from '../domain/QuizEngine.ts';
+import { QuizEngine, PHASE_DURATIONS } from '../domain/QuizEngine.ts';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type GeckosServer = any;
@@ -115,8 +115,12 @@ async function startGameAfterTopicSelection(roomId: string, topicId: QuizTopicId
                 for (const c of room.controllers) {
                     if (c.channel) c.channel.emit(EVENTS.PHASE_CHANGE, phasePayload);
                 }
-                if (phase === 'analysis' && timeLeft === 1 && questionNumber > 1) {
-                    const nextQ = quizEngine.getLastSelectedQuestion();
+                // Broadcast the pre-fetched next question at the very start of each
+                // analysis phase (timeLeft === PHASE_DURATIONS.analysis = 1s).
+                // The question was resolved during the preceding reveal window, so
+                // this emit is synchronous — no async gap, no visible delay.
+                if (phase === 'analysis' && timeLeft === PHASE_DURATIONS.analysis && questionNumber > 1) {
+                    const nextQ = quizEngine.getBufferedQuestion();
                     if (nextQ) {
                         room.screenChannel.emit(EVENTS.QUESTION, nextQ);
                         for (const c of room.controllers) {

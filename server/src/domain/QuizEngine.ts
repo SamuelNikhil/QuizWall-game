@@ -12,7 +12,7 @@ import type { ServerQuestion, ClientQuestion, QuestionPhase, PlayerSelectionPayl
 import type { GameEngine } from './GameEngine.ts';
 
 // Phase durations in seconds
-const PHASE_DURATIONS: Record<QuestionPhase, number> = {
+export const PHASE_DURATIONS: Record<QuestionPhase, number> = {
     analysis: 1,
     selection: 16,
     reveal: 3,
@@ -46,6 +46,13 @@ export class QuizEngine implements GameEngine {
     private playerSelections: Map<string, PlayerSelectionPayload> = new Map(); // controllerId -> selection
     private questionNumberForUI: number = 0; // 1-indexed question counter for UI
     private selectionPhaseStartTime: number = 0; // Timestamp when selection phase started (for bonus scoring)
+
+    /**
+     * Pre-fetched next question, resolved during the reveal phase so it is
+     * ready the instant the next analysis phase begins. Eliminates the async
+     * gap that caused visible delays between questions.
+     */
+    private nextQuestionBuffer: ClientQuestion | null = null;
 
     // Singleplayer time-based scoring
     private questionStartTime: number = 0; // Timestamp when current question started (for bonus scoring)
@@ -453,14 +460,31 @@ export class QuizEngine implements GameEngine {
             return;
         }
 
-        // After reveal, decide next action
-        // Always advance to next question regardless of correctness, until all 10 are done
-        setTimeout(async () => {
-            if (this.destroyed || this.isReset) return; // Guard against post-destroy execution
+        // All questions done — schedule game over after the reveal window
+        if (this.totalQuestionsAttempted >= this.sessionQuestionLimit) {
+            console.log(`[QuizEngine] All ${this.sessionQuestionLimit} questions attempted! (${this.questionsAnswered} correct)`);
+            this.allQuestionsCompleted = true;
+            this.lastGameOverReason = 'completed';
+            setTimeout(() => {
+                if (this.destroyed || this.isReset) return;
+                this.stopPhaseTimer();
+                this.onGameOver?.();
+            }, PHASE_DURATIONS.reveal * 1000);
+            return;
+        }
 
-            // Check if all questions have been attempted (correct or wrong)
-            if (this.totalQuestionsAttempted >= this.sessionQuestionLimit) {
-                console.log(`[QuizEngine] All ${this.sessionQuestionLimit} questions attempted! (${this.questionsAnswered} correct)`);
+        // Pre-fetch the next question NOW, during the reveal window, so it is
+        // ready synchronously when the next analysis phase begins. This eliminates
+        // the async gap that caused visible delays between questions.
+        this.questionNumberForUI++;
+        this.prefetchNextQuestion();
+
+        // After the reveal window, start the next question's analysis phase
+        setTimeout(() => {
+            if (this.destroyed || this.isReset) return;
+
+            if (!this.nextQuestionBuffer) {
+                console.log('[QuizEngine] No more questions available after reveal');
                 this.allQuestionsCompleted = true;
                 this.lastGameOverReason = 'completed';
                 this.stopPhaseTimer();
@@ -468,22 +492,94 @@ export class QuizEngine implements GameEngine {
                 return;
             }
 
-            // Advance to next question
-            this.questionNumberForUI++;
-            const nextQ = await this.nextQuestion();
-            if (this.isReset) return;
-            if (!nextQ) {
-                console.log('[QuizEngine] No more questions available');
-                this.allQuestionsCompleted = true;
-                this.lastGameOverReason = 'completed';
-                this.stopPhaseTimer();
-                if (!this.isReset) this.onGameOver?.();
-                return;
+            this.beginPhase('analysis');
+        }, PHASE_DURATIONS.reveal * 1000);
+    }
+
+    /**
+     * Pre-fetch the next question into the buffer during the reveal phase.
+     * Synchronous path: picks from the already-loaded question pool.
+     * Async path (low stock): refreshes from the session cache in the background
+     * and stores the result in the buffer once ready.
+     */
+    private prefetchNextQuestion(): void {
+        this.nextQuestionBuffer = null;
+
+        const available = this.questions.filter(
+            q => !this.usedQuestionTexts.has(q.text.trim().toLowerCase()),
+        );
+
+        if (available.length > 0) {
+            // Questions are in memory — pick one synchronously
+            this.nextQuestionBuffer = this.pickAndMarkQuestion(available);
+            console.log(`[QuizEngine] Next question pre-fetched synchronously (${available.length} available)`);
+
+            // Trigger a background top-up when stock is getting low so future
+            // rounds never hit the async path
+            if (available.length < 3) {
+                this.refreshQuestionsInBackground();
+            }
+            return;
+        }
+
+        // No questions left in memory — refresh from session cache asynchronously.
+        // The buffer will be populated before the reveal timeout fires (3 s window).
+        console.log('[QuizEngine] Question pool empty — refreshing from session cache...');
+        this.refreshQuestionsInBackground(/* andPick */ true);
+    }
+
+    /**
+     * Refresh the question pool from the session cache in the background.
+     * If `andPick` is true, also populate nextQuestionBuffer once the refresh
+     * completes (used when the pool was empty during prefetch).
+     */
+    private refreshQuestionsInBackground(andPick: boolean = false): void {
+        getSessionQuestions(
+            this.sessionId,
+            undefined,
+            this.selectedTopic ?? undefined,
+            this.selectedDifficulty,
+        ).then(updated => {
+            if (this.destroyed || this.isReset) return;
+
+            if (updated.length > this.questions.length) {
+                console.log(`[QuizEngine] Background refresh: ${this.questions.length} → ${updated.length} questions`);
+                this.questions = updated;
             }
 
-            // Start the analysis phase for the next question
-            this.beginPhase('analysis');
-        }, PHASE_DURATIONS.reveal * 1000); // Wait for reveal phase to finish
+            if (andPick && !this.nextQuestionBuffer) {
+                const available = this.questions.filter(
+                    q => !this.usedQuestionTexts.has(q.text.trim().toLowerCase()),
+                );
+                if (available.length > 0) {
+                    this.nextQuestionBuffer = this.pickAndMarkQuestion(available);
+                    console.log('[QuizEngine] Next question pre-fetched after async refresh');
+                }
+            }
+        }).catch(err => {
+            console.error('[QuizEngine] Background question refresh failed:', err);
+        });
+    }
+
+    /**
+     * Pick a random question from the supplied list, mark it as used, and
+     * return it as a ClientQuestion (correct answer stripped).
+     */
+    private pickAndMarkQuestion(available: ServerQuestion[]): ClientQuestion {
+        const idx = Math.floor(Math.random() * available.length);
+        const q = available[idx];
+        this.usedQuestionTexts.add(q.text.trim().toLowerCase());
+        console.log(`[QuizEngine] Selected question: "${q.text.substring(0, 50)}..." | Used: ${this.usedQuestionTexts.size}/${this.questions.length}`);
+        return { id: q.id, text: q.text, code: q.code, options: q.options };
+    }
+
+    /**
+     * Consume the pre-fetched next question buffer.
+     * Called by the transport layer at the start of each analysis phase to
+     * obtain the question to broadcast to clients.
+     */
+    getBufferedQuestion(): ClientQuestion | null {
+        return this.nextQuestionBuffer;
     }
 
     /** Find the current question (most recently used) */
@@ -528,6 +624,7 @@ export class QuizEngine implements GameEngine {
         // NOTE: sessionQuestionsAnswered is NOT reset - it accumulates across restarts
         this.allQuestionsCompleted = false; // Reset completion flag for new game
         this.usedQuestionTexts.clear(); // Clear used questions for new game
+        this.nextQuestionBuffer = null; // Discard any pre-fetched question from the previous game
         this.playerSelections.clear();
         this.questionNumberForUI = 0;
         this.currentPhase = 'analysis';
@@ -562,6 +659,7 @@ export class QuizEngine implements GameEngine {
         this.totalQuestionsAttempted = 0;
         this.allQuestionsCompleted = false;
         this.usedQuestionTexts.clear();
+        this.nextQuestionBuffer = null; // Discard any pre-fetched question from the previous game
         this.playerSelections.clear();
         this.questionNumberForUI = 0;
         this.currentPhase = 'analysis';
@@ -580,33 +678,20 @@ export class QuizEngine implements GameEngine {
         }
     }
 
-    /** Get current question for client (without correct answer) */
+    /** Get current question for client (without correct answer).
+     *  Used for the first question of a game and in singleplayer mode.
+     *  Multiplayer subsequent questions come from getBufferedQuestion(). */
     getCurrentQuestion(): ClientQuestion | null {
-        // Filter out used questions by TEXT (not ID, since AI might generate similar questions)
-        const availableQuestions = this.questions.filter(q => !this.usedQuestionTexts.has(q.text.trim().toLowerCase()));
+        const available = this.questions.filter(
+            q => !this.usedQuestionTexts.has(q.text.trim().toLowerCase()),
+        );
 
-        // If no available questions, we need to generate more or reset
-        if (availableQuestions.length === 0) {
+        if (available.length === 0) {
             console.log('[QuizEngine] All questions used! Triggering background generation...');
             return null;
         }
 
-        // Get the current question from available ones (pick randomly to ensure variety)
-        const randomIndex = Math.floor(Math.random() * availableQuestions.length);
-        const q = availableQuestions[randomIndex];
-        if (!q) return null;
-
-        // Mark as used by TEXT
-        this.usedQuestionTexts.add(q.text.trim().toLowerCase());
-        console.log(`[QuizEngine] Selected question: "${q.text.substring(0, 50)}..." | Used: ${this.usedQuestionTexts.size}/${this.questions.length}`);
-
-        // Strip the `correct` field — client never sees it
-        return {
-            id: q.id,
-            text: q.text,
-            code: q.code,
-            options: q.options,
-        };
+        return this.pickAndMarkQuestion(available);
     }
 
     /** Validate an answer (singleplayer). Returns { correct, points, baseScore, bonus } */
@@ -676,7 +761,7 @@ export class QuizEngine implements GameEngine {
         return { correct: isCorrect, points, baseScore, bonus };
     }
 
-    /** Advance to the next question. Returns the new question for client. */
+    /** Advance to the next question (singleplayer). Returns the new question for client. */
     async nextQuestion(): Promise<ClientQuestion | null> {
         if (this.isReset) return null;
         this.currentIndex++;
@@ -692,21 +777,13 @@ export class QuizEngine implements GameEngine {
             return null;
         }
 
-        // Check if we need more questions (less than 3 remaining)
-        const availableCount = this.questions.filter(q => !this.usedQuestionTexts.has(q.text.trim().toLowerCase())).length;
+        // Trigger a background top-up when stock is getting low, but don't block
+        const availableCount = this.questions.filter(
+            q => !this.usedQuestionTexts.has(q.text.trim().toLowerCase()),
+        ).length;
         if (availableCount < 3) {
-            console.log(`[QuizEngine] Running low on available questions (${availableCount} left), fetching more...`);
-
-            // Refresh questions from session cache to get any newly generated ones
-            try {
-                const updatedQuestions = await getSessionQuestions(this.sessionId, undefined, this.selectedTopic ?? undefined, this.selectedDifficulty);
-                if (updatedQuestions.length > this.questions.length) {
-                    console.log(`[QuizEngine] Refreshed questions: ${this.questions.length} -> ${updatedQuestions.length}`);
-                    this.questions = updatedQuestions;
-                }
-            } catch (error) {
-                console.error('[QuizEngine] Failed to refresh questions:', error);
-            }
+            console.log(`[QuizEngine] Running low on available questions (${availableCount} left), refreshing in background...`);
+            this.refreshQuestionsInBackground();
         }
 
         return this.getCurrentQuestion();
