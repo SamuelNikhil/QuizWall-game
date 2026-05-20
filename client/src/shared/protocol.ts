@@ -9,7 +9,6 @@ export const EVENTS = {
     ROOM_CREATED: 'roomCreated',
     JOIN_ROOM: 'joinRoom',
     JOINED_ROOM: 'joinedRoom',
-    RECONNECT: 'reconnect',
     RECONNECTED: 'reconnected',
     CONTROLLER_JOINED: 'controllerJoined',
     CONTROLLER_LEFT: 'controllerLeft',
@@ -18,15 +17,9 @@ export const EVENTS = {
 
     // --- Lobby ---
     LOBBY_UPDATE: 'lobbyUpdate',
-    PLAYER_READY: 'playerReady',
-    SET_PLAYER_NAME: 'setPlayerName',
     START_GAME: 'startGame',
     LOADING_START: 'loadingStart',
     LOADING_COUNTDOWN: 'loadingCountdown',
-    TUTORIAL_START: 'tutorialStart',
-    TUTORIAL_END: 'tutorialEnd',
-    TUTORIAL_PROGRESS: 'tutorialProgress',
-    TUTORIAL_STATUS_UPDATE: 'tutorialStatusUpdate',
     GAME_STARTED: 'gameStarted',
 
     // --- Game flow (server → clients) ---
@@ -37,7 +30,6 @@ export const EVENTS = {
     GAME_RESTARTED: 'gameRestarted',
 
     // --- Input (controller → server) ---
-    AIM: 'aim',
     CROSSHAIR: 'crosshair',
     START_AIMING: 'startAiming',
     CANCEL_AIMING: 'cancelAiming',
@@ -48,7 +40,6 @@ export const EVENTS = {
 
     // --- Feedback (server → controller/screen) ---
     HIT_RESULT: 'hitResult',
-    WRONG_CHOICES_UPDATE: 'wrongChoicesUpdate',
     PROJECTILE: 'projectile',
 
     // --- Phase-based multiplayer ---
@@ -61,9 +52,6 @@ export const EVENTS = {
     TOPIC_VOTE_UPDATE: 'topicVoteUpdate',
     TOPIC_SELECTED: 'topicSelected',
     SET_DIFFICULTY: 'setDifficulty',
-
-    // --- Leaderboard ---
-    LEADERBOARD: 'leaderboard',
 } as const;
 
 export type EventName = (typeof EVENTS)[keyof typeof EVENTS];

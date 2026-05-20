@@ -21,8 +21,6 @@ import type {
     PhaseChangePayload,
     PlayerSelectionPayload,
     RevealResultPayload,
-    TutorialProgressPayload,
-    TutorialStatusUpdatePayload,
     JoinedRoomPayload,
     TopicVoteUpdatePayload,
     TopicSelectedPayload,
@@ -255,7 +253,6 @@ export class GameClient {
 
     sendLeaveGame(): void { this.channel?.emit(EVENTS.LEAVE_GAME); }
     startGame(): void { this.channel?.emit(EVENTS.START_GAME); }
-    setPlayerName(name: string): void { this.channel?.emit(EVENTS.SET_PLAYER_NAME, { name }); }
 
     shoot(targetXPercent: number, targetYPercent: number, power: number): void {
         this.channel?.emit(EVENTS.SHOOT, { targetXPercent, targetYPercent, power });
@@ -363,24 +360,6 @@ export class GameClient {
 
     onTargeting(cb: (data: TargetingPayload) => void): void {
         this.channel?.on(EVENTS.TARGETING, cb);
-    }
-
-    // ---- Tutorial events ----
-
-    onTutorialStart(cb: (data: { duration: number }) => void): void {
-        this.channel?.on(EVENTS.TUTORIAL_START, cb);
-    }
-
-    onTutorialEnd(cb: () => void): void {
-        this.channel?.on(EVENTS.TUTORIAL_END, cb);
-    }
-
-    onTutorialStatusUpdate(cb: (data: TutorialStatusUpdatePayload) => void): void {
-        this.channel?.on(EVENTS.TUTORIAL_STATUS_UPDATE, cb);
-    }
-
-    sendTutorialProgress(data: TutorialProgressPayload): void {
-        this.channel?.emit(EVENTS.TUTORIAL_PROGRESS, data);
     }
 
     // ---- Phase-based multiplayer ----

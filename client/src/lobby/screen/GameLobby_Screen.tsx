@@ -11,12 +11,10 @@ export interface GameLobby_ScreenProps {
     joinToken: string | null;
     lobby: LobbyState | null;
     phase: 'qr-lobby' | 'team-lobby';
-    controllerCount: number;
     cardShuffleComplete: boolean;
     qrCardCollapsed: boolean;
     setCardShuffleComplete: (v: boolean) => void;
     setQrCardCollapsed: (v: boolean) => void;
-    onStartGame?: () => void;
 }
 
 const LIME_GREEN = '#C8F526';
@@ -26,12 +24,10 @@ export default function GameLobby_Screen({
     joinToken,
     lobby,
     phase,
-    controllerCount,
     cardShuffleComplete,
     qrCardCollapsed,
     setCardShuffleComplete,
     setQrCardCollapsed,
-    onStartGame,
 }: GameLobby_ScreenProps) {
     const videoRef = useRef<HTMLVideoElement>(null);
     const hasPlayedShuffleRef = useRef(false);

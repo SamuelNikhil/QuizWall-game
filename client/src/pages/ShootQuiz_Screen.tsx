@@ -1233,7 +1233,7 @@ export default function ShootQuiz_Screen() {
 
     // ---- Connecting ----
     if (phase === 'connecting') {
-        return <LandingPage connectionError={connectionError} />;
+        return <LandingPage connectionError={connectionError} roomId={roomId} joinToken={joinToken} lobby={lobby} />;
     }
 
     // ---- Game Lobby ----
@@ -1244,12 +1244,10 @@ export default function ShootQuiz_Screen() {
                 joinToken={joinToken}
                 lobby={lobby}
                 phase={phase}
-                controllerCount={controllerCount}
                 cardShuffleComplete={cardShuffleComplete}
                 qrCardCollapsed={qrCardCollapsed}
                 setCardShuffleComplete={setCardShuffleComplete}
                 setQrCardCollapsed={setQrCardCollapsed}
-                onStartGame={() => clientRef.current?.startGame()}
             />
         );
     }
@@ -1314,5 +1312,5 @@ export default function ShootQuiz_Screen() {
     }
 
     // ---- Fallback ----
-    return <LandingPage connectionError={null} />;
+    return <LandingPage connectionError={null} roomId={roomId} joinToken={joinToken} lobby={lobby} />;
 }
