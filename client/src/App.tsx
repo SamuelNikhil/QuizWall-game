@@ -1,17 +1,21 @@
 // ==========================================
 // App — Root Router
-// Code-split: Screen and Controller load independently
+// Plugin-based gamemode routing.
+// Screen: /                    → default game (ShootQuiz)
+// Screen: /game/:gameType      → specific game screen
+// Controller: /controller/:roomId/:token  → game controller
+//   (game type is resolved from the room on the server)
 // ==========================================
 
 import { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ErrorBoundary } from './shared/ErrorBoundary';
 
-// Lazy-load page components for smaller initial bundles
-const ShootQuiz_Screen = lazy(() => import('./pages/ShootQuiz_Screen'));
-const ShootQuiz_Controller = lazy(() => import('./pages/ShootQuiz_Controller'));
+// ---- Game screens (lazy-loaded per game) ----
+const ShootQuiz_Screen = lazy(() => import('./modes/ShootQuiz/ShootQuiz_Screen'));
+const ShootQuiz_Controller = lazy(() => import('./modes/ShootQuiz/ShootQuiz_Controller'));
 
-// Minimal loading fallback (matches app theme)
+// Minimal loading fallback
 const LoadingFallback = () => (
     <div style={{
         width: '100vw', height: '100vh',
@@ -37,9 +41,24 @@ export default function App() {
             <ErrorBoundary>
                 <Suspense fallback={<LoadingFallback />}>
                     <Routes>
+                        {/* ---- Screen routes ---- */}
+                        {/* Default screen → ShootQuiz (current only game) */}
                         <Route path="/" element={<ShootQuiz_Screen />} />
                         <Route path="/screen" element={<ShootQuiz_Screen />} />
+
+                        {/* Named game screen — add new games here as plugins */}
+                        <Route path="/game/shootquiz" element={<ShootQuiz_Screen />} />
+
+                        {/* ---- Controller route ---- */}
+                        {/*
+                         * The controller URL is game-agnostic: /controller/:roomId/:token
+                         * The server embeds the gameType in the room; the controller
+                         * component reads it from the JOINED_ROOM payload and renders
+                         * the correct game UI. For now ShootQuiz is the only game.
+                         */}
                         <Route path="/controller/:roomId/:token" element={<ShootQuiz_Controller />} />
+
+                        {/* Catch-all */}
                         <Route path="*" element={<Navigate to="/" replace />} />
                     </Routes>
                 </Suspense>

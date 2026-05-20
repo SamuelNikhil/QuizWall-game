@@ -1,0 +1,248 @@
+{
+    "roomId": "XVF9OK",
+    "topic": "world-history",
+    "difficulty": "easy",
+    "generatedAt": "2026-05-20T04:42:50.099Z",
+    "questions": [
+        {
+            "id": 11,
+            "text": "The ancient city of Mohenjo-Daro was located in which modern-day country?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "China"
+                },
+                {
+                    "id": "B",
+                    "text": "Pakistan"
+                },
+                {
+                    "id": "C",
+                    "text": "Egypt"
+                },
+                {
+                    "id": "D",
+                    "text": "India"
+                }
+            ],
+            "correct": "B",
+            "category": "World History"
+        },
+        {
+            "id": 12,
+            "text": "The first permanent English settlement in North America was established at which location in 1607?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Jamestown"
+                },
+                {
+                    "id": "B",
+                    "text": "Plymouth"
+                },
+                {
+                    "id": "C",
+                    "text": "Salem"
+                },
+                {
+                    "id": "D",
+                    "text": "New York"
+                }
+            ],
+            "correct": "A",
+            "category": "World History"
+        },
+        {
+            "id": 13,
+            "text": "The Rosetta Stone helped decipher which ancient language?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Latin"
+                },
+                {
+                    "id": "B",
+                    "text": "Greek"
+                },
+                {
+                    "id": "C",
+                    "text": "Egyptian hieroglyphs"
+                },
+                {
+                    "id": "D",
+                    "text": "Sumerian"
+                }
+            ],
+            "correct": "C",
+            "category": "World History"
+        },
+        {
+            "id": 14,
+            "text": "The Battle of Gaugamela took place in which year?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "333 BCE"
+                },
+                {
+                    "id": "B",
+                    "text": "332 BCE"
+                },
+                {
+                    "id": "C",
+                    "text": "331 BCE"
+                },
+                {
+                    "id": "D",
+                    "text": "330 BCE"
+                }
+            ],
+            "correct": "C",
+            "category": "World History"
+        },
+        {
+            "id": 15,
+            "text": "The ancient city of Persepolis was the capital of which empire?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Byzantine Empire"
+                },
+                {
+                    "id": "B",
+                    "text": "Persian Empire"
+                },
+                {
+                    "id": "C",
+                    "text": "Macedonian Empire"
+                },
+                {
+                    "id": "D",
+                    "text": "Roman Empire"
+                }
+            ],
+            "correct": "B",
+            "category": "World History"
+        },
+        {
+            "id": 16,
+            "text": "The Magna Carta was signed by which English king in 1215?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "King John"
+                },
+                {
+                    "id": "B",
+                    "text": "King Henry VIII"
+                },
+                {
+                    "id": "C",
+                    "text": "King George III"
+                },
+                {
+                    "id": "D",
+                    "text": "King Edward I"
+                }
+            ],
+            "correct": "A",
+            "category": "World History"
+        },
+        {
+            "id": 17,
+            "text": "The ancient trade route known as the Silk Road connected which two cities?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Venice and Samarkand"
+                },
+                {
+                    "id": "B",
+                    "text": "Baghdad and Xi'an"
+                },
+                {
+                    "id": "C",
+                    "text": "Rome and Beijing"
+                },
+                {
+                    "id": "D",
+                    "text": "Constantinople and Chang'an"
+                }
+            ],
+            "correct": "D",
+            "category": "World History"
+        },
+        {
+            "id": 18,
+            "text": "The Mayan city of Chichen Itza was located in which modern-day country?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Honduras"
+                },
+                {
+                    "id": "B",
+                    "text": "Belize"
+                },
+                {
+                    "id": "C",
+                    "text": "Guatemala"
+                },
+                {
+                    "id": "D",
+                    "text": "Mexico"
+                }
+            ],
+            "correct": "D",
+            "category": "World History"
+        },
+        {
+            "id": 19,
+            "text": "The ancient Greek historian Herodotus is often credited with being the first to write about which event?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "The Trojan War"
+                },
+                {
+                    "id": "B",
+                    "text": "The Persian Wars"
+                },
+                {
+                    "id": "C",
+                    "text": "The Peloponnesian War"
+                },
+                {
+                    "id": "D",
+                    "text": "The Battle of Marathon"
+                }
+            ],
+            "correct": "B",
+            "category": "World History"
+        },
+        {
+            "id": 20,
+            "text": "The ancient Chinese dynasty known for its Terracotta Army was which one?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Ming Dynasty"
+                },
+                {
+                    "id": "B",
+                    "text": "Han Dynasty"
+                },
+                {
+                    "id": "C",
+                    "text": "Qin Dynasty"
+                },
+                {
+                    "id": "D",
+                    "text": "Song Dynasty"
+                }
+            ],
+            "correct": "C",
+            "category": "World History"
+        }
+    ]
+}

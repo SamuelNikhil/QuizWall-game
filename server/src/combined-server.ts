@@ -15,7 +15,7 @@ import { CONFIG } from './infrastructure/config.ts';
 import { initDatabase } from './data/database.ts';
 import { RoomManager } from './domain/RoomManager.ts';
 import { registerEventHandlers } from './transport/eventHandlers.ts';
-import { initializeGroqService } from './services/GroqService.ts';
+import { initializeGroqService } from './modes/ShootQuiz/GroqService.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -65,7 +65,7 @@ async function main() {
     io.addServer(server);
 
     // 7. SPA fallback - serve index.html for all non-API routes
-    app.get('*', (req, res) => {
+    app.get('*', (_req, res) => {
         res.sendFile(path.join(clientDistPath, 'index.html'));
     });
 

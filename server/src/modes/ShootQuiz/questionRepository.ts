@@ -7,10 +7,10 @@
 import { readFileSync, existsSync, writeFileSync, unlinkSync, readdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { CONFIG } from '../infrastructure/config.ts';
-import type { ServerQuestion, QuizTopicId, QuizDifficulty } from '../shared/types.ts';
-import { DEFAULT_TOPIC, DEFAULT_DIFFICULTY } from '../shared/types.ts';
-import { getGroqService, isGroqEnabled } from '../services/GroqService.ts';
+import { CONFIG } from '../../infrastructure/config.ts';
+import type { ServerQuestion, QuizTopicId, QuizDifficulty } from '../../shared/types.ts';
+import { DEFAULT_TOPIC, DEFAULT_DIFFICULTY } from '../../shared/types.ts';
+import { getGroqService, isGroqEnabled } from './GroqService.ts';
 
 // Get current directory for file paths
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -457,21 +457,7 @@ export function getRandomStaticQuestions(count: number): ServerQuestion[] {
     return all.slice(0, Math.min(count, all.length)).map(q => normalizeQuestionFormat(q));
 }
 
-export function getRandomQuestions(count: number): ServerQuestion[] {
-    return getRandomStaticQuestions(count);
-}
 
-export function getCurrentTopic(): QuizTopicId {
-    return DEFAULT_TOPIC;
-}
-
-/**
- * Force regeneration for all sessions (e.g. on server restart or admin reset).
- * Deletes all Quizwall_*.json files and clears in-memory caches.
- */
-export function forceRegenerateAiQuestions(): void {
-    clearAllSessionQuestions();
-}
 
 // ==========================================
 // Format normalization

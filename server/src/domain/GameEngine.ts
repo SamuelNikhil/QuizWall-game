@@ -1,11 +1,11 @@
 // ==========================================
 // GameEngine Interface — Domain Layer
-// Base interface that all game engines must implement
-// Allows RoomManager to be game-agnostic
+// Base interface that all game engines must implement.
+// Allows RoomManager to be fully game-agnostic.
 // ==========================================
 
 export interface GameEngine {
-    /** Get the unique session ID for this game instance */
+    /** Unique session ID for this game instance */
     getSessionId(): string;
 
     /** Initialize the game (load questions, setup state, etc.) */
@@ -20,20 +20,22 @@ export interface GameEngine {
     /** Clean up resources and timers */
     destroy(): void;
 
-    /** Get the number of questions/rounds completed in current game */
+    /** Rounds/questions completed in the current game */
     getQuestionsAnswered(): number;
 
-    /** Get total questions/rounds completed across all restarts in this session */
+    /** Rounds/questions completed across all restarts in this session */
     getSessionQuestionsAnswered(): number;
 
     /**
      * Optional: return game-specific state needed to resync a reconnecting client.
-     * The returned object is passed through to the client as-is.
-     * Games that don't need resync can omit this.
+     * The returned object is spread into the RECONNECTED event payload.
      */
     getResyncState?(): Record<string, unknown> | undefined;
 }
 
+// ---- Game type registry ----
+
+/** Union of all registered game type identifiers. Add new games here. */
 export type GameType = 'shootquiz';
 
 export interface GameEngineConstructor {

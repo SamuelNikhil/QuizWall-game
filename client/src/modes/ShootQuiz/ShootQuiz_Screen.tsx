@@ -5,9 +5,9 @@
 // ==========================================
 
 import { useEffect, useState, useRef, useCallback, memo, useMemo } from 'react';
-import { GameClient } from '../transport/GameClient';
-import backgroundImg from '../assets/Background.svg';
-import { ORB_POSITIONS, CROSSHAIR_COLORS, PRE_CONFIG_NAMES, PRE_CONFIG_AVATARS } from '../shared/types';
+import { GameClient } from '../../transport/GameClient';
+import backgroundImg from '../../assets/Background.svg';
+import { ORB_POSITIONS, CROSSHAIR_COLORS, PRE_CONFIG_NAMES, PRE_CONFIG_AVATARS } from '../../shared/types';
 import type {
     ClientQuestion,
     HitResultPayload,
@@ -16,13 +16,14 @@ import type {
     PlayerSelectionPayload,
     PlayerScoreEntry,
     TopicSelectedPayload,
-} from '../shared/types';
-import '../animations.css';
-import WinnerScene from '../components/WinnerScene';
-import LandingPage from '../lobby/screen/LandingPage';
-import GameLobby_Screen from '../lobby/screen/GameLobby_Screen';
-import Loading_Screen from '../lobby/screen/Loading_Screen';
-import TopicSelection_Screen from './TopicSelection_Screen';
+    QuizDifficulty,
+} from '../../shared/types';
+import '../../animations.css';
+import WinnerScene from './WinnerScene';
+import LandingPage from '../../lobby/screen/LandingPage.tsx';
+import GameLobby_Screen from '../../lobby/screen/GameLobby_Screen.tsx';
+import Loading_Screen from '../../lobby/screen/Loading_Screen.tsx';
+import TopicSelection_Screen from './TopicSelection_Screen.tsx';
 
 type GamePhase = 'connecting' | 'qr-lobby' | 'team-lobby' | 'topic-selection' | 'loading' | 'playing' | 'game-over' | 'exit-scores';
 
@@ -586,7 +587,7 @@ export default function ShootQuiz_Screen() {
     const [phase, setPhase] = useState<GamePhase>('connecting');
     const [connectionError, setConnectionError] = useState<string | null>(null);
     const phaseRef = useRef<GamePhase>('connecting');
-    const setPhaseSync = (p: GamePhase) => { phaseRef.current = p; setPhase(p); };
+    const setPhaseSync = useCallback((p: GamePhase) => { phaseRef.current = p; setPhase(p); }, []);
     const [roomId, setRoomId] = useState<string | null>(null);
     const [joinToken, setJoinToken] = useState<string | null>(null);
     const [lobby, setLobby] = useState<LobbyState | null>(null);
@@ -601,6 +602,7 @@ export default function ShootQuiz_Screen() {
     const [ripples, setRipples] = useState<Ripple[]>([]);
     const [confetti, setConfetti] = useState<Confetti[]>([]);
     const [crosshairs, setCrosshairs] = useState<Map<string, { x: number; y: number }>>(new Map());
+    const crosshairsRef = useRef<Map<string, { x: number; y: number }>>(new Map());
     const [targetedOrbId, setTargetedOrbId] = useState<string | null>(null);
 
     const [isTransitioning, setIsTransitioning] = useState(false);
@@ -653,7 +655,8 @@ export default function ShootQuiz_Screen() {
     const [topicPlayerVotes, setTopicPlayerVotes] = useState<Record<string, string>>({});
     const [topicTotalVoters, setTopicTotalVoters] = useState(0);
     const [topicCrosshairs, setTopicCrosshairs] = useState<Map<string, { x: number; y: number }>>(new Map());
-    const [topicDifficulty, setTopicDifficulty] = useState<import('../shared/types').QuizDifficulty>('easy');
+    const topicCrosshairsRef = useRef<Map<string, { x: number; y: number }>>(new Map());
+    const [topicDifficulty, setTopicDifficulty] = useState<QuizDifficulty>('easy');
     const [selectedTopicLabel, setSelectedTopicLabel] = useState<string | null>(null);
     const topicCountdownStartedRef = useRef(false);
 
@@ -817,12 +820,9 @@ export default function ShootQuiz_Screen() {
             client.onControllerLeft((data) => {
                 setControllerCount((prev) => Math.max(0, prev - 1));
                 if (data.controllerId) {
-                    setCrosshairs((prev) => {
-                        if (!prev.has(data.controllerId!)) return prev;
-                        const next = new Map(prev);
-                        next.delete(data.controllerId!);
-                        return next;
-                    });
+                    crosshairsRef.current = new Map(crosshairsRef.current);
+                    crosshairsRef.current.delete(data.controllerId);
+                    setCrosshairs(crosshairsRef.current);
                 }
             });
 
@@ -982,42 +982,30 @@ export default function ShootQuiz_Screen() {
 
             client.onCrosshair((data) => {
                 if (phaseRef.current === 'topic-selection') {
-                    setTopicCrosshairs(prev => {
-                        const current = prev.get(data.controllerId);
-                        if (current && current.x === data.x && current.y === data.y) {
-                            return prev;
-                        }
-                        const next = new Map(prev);
-                        next.set(data.controllerId, { x: data.x, y: data.y });
-                        return next;
-                    });
+                    const prev = topicCrosshairsRef.current.get(data.controllerId);
+                    if (prev && prev.x === data.x && prev.y === data.y) return;
+                    topicCrosshairsRef.current = new Map(topicCrosshairsRef.current);
+                    topicCrosshairsRef.current.set(data.controllerId, { x: data.x, y: data.y });
+                    setTopicCrosshairs(topicCrosshairsRef.current);
                     return;
                 }
-                setCrosshairs(prev => {
-                    const current = prev.get(data.controllerId);
-                    if (current && current.x === data.x && current.y === data.y) {
-                        return prev;
-                    }
-                    const next = new Map(prev);
-                    next.set(data.controllerId, { x: data.x, y: data.y });
-                    return next;
-                });
+                const prev = crosshairsRef.current.get(data.controllerId);
+                if (prev && prev.x === data.x && prev.y === data.y) return;
+                crosshairsRef.current = new Map(crosshairsRef.current);
+                crosshairsRef.current.set(data.controllerId, { x: data.x, y: data.y });
+                setCrosshairs(crosshairsRef.current);
             });
 
             client.onStartAiming((data) => {
-                setCrosshairs(prev => {
-                    const next = new Map(prev);
-                    next.delete(data.controllerId);
-                    return next;
-                });
+                crosshairsRef.current = new Map(crosshairsRef.current);
+                crosshairsRef.current.delete(data.controllerId);
+                setCrosshairs(crosshairsRef.current);
             });
 
             client.onCancelAiming((data) => {
-                setCrosshairs(prev => {
-                    const next = new Map(prev);
-                    next.delete(data.controllerId);
-                    return next;
-                });
+                crosshairsRef.current = new Map(crosshairsRef.current);
+                crosshairsRef.current.delete(data.controllerId);
+                setCrosshairs(crosshairsRef.current);
                 setTargetedOrbId(null);
             });
 
@@ -1073,10 +1061,10 @@ export default function ShootQuiz_Screen() {
             });
 
             client.onTopicSelected((data: TopicSelectedPayload) => {
-
                 setSelectedTopicLabel(data.topicLabel);
                 setPhaseSync('loading');
-                setTopicCrosshairs(new Map());
+                topicCrosshairsRef.current = new Map();
+                setTopicCrosshairs(topicCrosshairsRef.current);
             });
 
             client.onGameRestarted(() => {
@@ -1092,7 +1080,8 @@ export default function ShootQuiz_Screen() {
                 setTopicVotedControllerIds([]);
                 setTopicPlayerVotes({});
                 setTopicTotalVoters(0);
-                setTopicCrosshairs(new Map());
+                topicCrosshairsRef.current = new Map();
+                setTopicCrosshairs(topicCrosshairsRef.current);
                 setTopicDifficulty('easy');
                 setSelectedTopicLabel(null);
                 // Cancel any pending game-over idle timer

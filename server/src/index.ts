@@ -10,9 +10,9 @@ import { CONFIG } from './infrastructure/config.ts';
 import { initDatabase } from './data/database.ts';
 import { RoomManager } from './domain/RoomManager.ts';
 import { registerEventHandlers } from './transport/eventHandlers.ts';
-import { getPlayerLeaderboard } from './data/playerRepository.ts';
-import { initializeGroqService, isGroqEnabled } from './services/GroqService.ts';
-import { clearAllSessionQuestions } from './data/questionRepository.ts';
+import { PlayerManager } from './domain/PlayerManager.ts';
+import { initializeGroqService, isGroqEnabled } from './modes/ShootQuiz/GroqService.ts';
+import { clearAllSessionQuestions } from './modes/ShootQuiz/questionRepository.ts';
 
 async function main() {
     // 0. Clean up any leftover Quizwall_*.json files from a previous server run
@@ -36,8 +36,8 @@ async function main() {
     console.log('[Boot] Initializing database...');
     await initDatabase();
 
-    // Debug: Log top players
-    const topPlayers = getPlayerLeaderboard(10);
+    // Debug: Log top players in DB at boot
+    const topPlayers = PlayerManager.getPlayerLeaderboard(10);
     console.log('[Boot] Top players in DB:', topPlayers.length);
 
     // 3. Create HTTP server (DO NOT listen yet - routes must be registered first)

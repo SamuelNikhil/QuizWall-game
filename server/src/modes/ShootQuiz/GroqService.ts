@@ -4,7 +4,7 @@
 // Per-topic generation with cache (30min TTL)
 // ==========================================
 
-import type { ServerQuestion, QuizTopicId, QuizDifficulty } from '../shared/types';
+import type { ServerQuestion, QuizTopicId, QuizDifficulty } from '../../shared/types';
 
 interface GroqConfig {
     apiKey: string;

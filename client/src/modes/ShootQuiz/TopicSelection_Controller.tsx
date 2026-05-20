@@ -1,9 +1,9 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { QUIZ_TOPICS, CROSSHAIR_COLORS, PRE_CONFIG_AVATARS, QUIZ_DIFFICULTIES } from '../shared/types';
-import type { QuizTopicId, QuizDifficulty, PlayerRole } from '../shared/types';
-import { hexToRgba } from '../utils/color';
-import '../index.css';
-import '../animations.css';
+import { QUIZ_TOPICS, CROSSHAIR_COLORS, PRE_CONFIG_AVATARS, QUIZ_DIFFICULTIES } from '../../shared/types';
+import type { QuizTopicId, QuizDifficulty, PlayerRole } from '../../shared/types';
+import { hexToRgba } from '../../utils/color';
+import '../../index.css';
+import '../../animations.css';
 import './controller-ui.css';
 
 interface TopicOrbData {
@@ -65,7 +65,6 @@ export default function TopicSelection_Controller({
     const [pullBack, setPullBack] = useState(0);
     const [power, setPower] = useState(0);
     const [aimAngle, setAimAngle] = useState(0);
-    const [startPos, setStartPos] = useState({ x: 0, y: 0 });
     const [targetXPercent, setTargetXPercent] = useState(50);
     const [targetYPercent, setTargetYPercent] = useState(50);
     const [hitTopicId, setHitTopicId] = useState<string | null>(null);
@@ -99,7 +98,6 @@ export default function TopicSelection_Controller({
 
         isDraggingRef.current = true;
         setIsDragging(true);
-        setStartPos({ x: rect.width / 2, y: rect.height / 2 });
         startPosRef.current = { x: rect.width / 2, y: rect.height / 2 };
         setPullBack(0);
         setPower(0);

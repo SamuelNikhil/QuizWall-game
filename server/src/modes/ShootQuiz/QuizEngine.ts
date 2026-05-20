@@ -6,10 +6,10 @@
 // Implements GameEngine interface
 // ==========================================
 
-import { getSessionQuestions, clearSessionQuestions, generateSessionQuestions, getAllQuestions } from '../data/questionRepository.ts';
-import { CONFIG } from '../infrastructure/config.ts';
-import type { ServerQuestion, ClientQuestion, QuestionPhase, PlayerSelectionPayload, RevealResultPayload, QuizTopicId, QuizDifficulty } from '../shared/types.ts';
-import type { GameEngine } from './GameEngine.ts';
+import { getSessionQuestions, clearSessionQuestions, generateSessionQuestions, getAllQuestions } from './questionRepository.ts';
+import { CONFIG } from '../../infrastructure/config.ts';
+import type { ServerQuestion, ClientQuestion, QuestionPhase, PlayerSelectionPayload, RevealResultPayload, QuizTopicId, QuizDifficulty } from '../../shared/types.ts';
+import type { GameEngine } from '../../domain/GameEngine.ts';
 
 // Phase durations in seconds
 export const PHASE_DURATIONS: Record<QuestionPhase, number> = {

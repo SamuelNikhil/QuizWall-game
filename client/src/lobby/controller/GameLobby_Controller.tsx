@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { LobbyState, PlayerRole } from '../../shared/types';
 import { CROSSHAIR_COLORS, PRE_CONFIG_NAMES, PRE_CONFIG_AVATARS } from '../../shared/types';
 import '../../index.css';
-import '../../pages/controller-ui.css';
+import '../../modes/ShootQuiz/controller-ui.css';
 
 interface GameLobbyControllerProps {
     role: PlayerRole;

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import type { PlayerRole, PlayerScoreEntry } from '../shared/types';
-import { CROSSHAIR_COLORS } from '../shared/types';
+import type { PlayerRole, PlayerScoreEntry } from '../../shared/types';
+import { CROSSHAIR_COLORS } from '../../shared/types';
 import './winner-ui.css';
 
 const CHARACTER_NAMES = ['Wulf', 'Talon', 'Ryker', 'Zark'] as const;

@@ -13,7 +13,7 @@ export const CONFIG = {
     DB_PATH: process.env.DB_PATH || resolve(PROJECT_ROOT, 'src', 'database', 'QuizzWall.sqlite'),
 
     /** Path to Questions JSON file (fallback) */
-    QUESTIONS_PATH: process.env.QUESTIONS_PATH || resolve(PROJECT_ROOT, 'src', 'data', 'questions.json'),
+    QUESTIONS_PATH: process.env.QUESTIONS_PATH || resolve(PROJECT_ROOT, 'src', 'modes', 'ShootQuiz', 'questions.json'),
 
     /** Game timer duration in seconds */
     TIMER_DURATION: 20,

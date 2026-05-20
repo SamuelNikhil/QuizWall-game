@@ -5,7 +5,7 @@
 // ==========================================
 
 import type { GameEngine, GameType, GameEngineConstructor } from './GameEngine.ts';
-import { QuizEngine } from './QuizEngine.ts';
+import { QuizEngine } from '../modes/ShootQuiz/QuizEngine.ts';
 
 const registry = new Map<GameType, GameEngineConstructor>();
 
@@ -39,9 +39,4 @@ export function createGameEngine(type: GameType, sessionId: string): GameEngine 
 /** Check if a game type is registered */
 export function isGameRegistered(type: string): type is GameType {
     return registry.has(type as GameType);
-}
-
-/** Get all registered game types */
-export function getRegisteredGames(): GameType[] {
-    return Array.from(registry.keys());
 }

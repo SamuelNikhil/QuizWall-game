@@ -4,19 +4,19 @@
 // keeps GamePlay and Winner inline
 // ==========================================
 
-import { useEffect, useState, useRef, useCallback, memo } from 'react';
+import { useEffect, useState, useRef, useCallback, memo, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
-import { GameClient } from '../transport/GameClient';
-import GameLobby_Controller from '../lobby/controller/GameLobby_Controller';
-import Loading_Controller from '../lobby/controller/Loading_Controller';
-import WinnerScene from '../components/WinnerScene';
-import type { LobbyState, PlayerRole, ScoreUpdate, QuestionPhase, PlayerSelectionPayload, RevealResultPayload, PlayerScoreEntry, QuizTopicId, QuizDifficulty, TopicVoteUpdatePayload, TopicSelectedPayload } from '../shared/types';
-import { CROSSHAIR_COLORS, QUIZ_TOPICS, PRE_CONFIG_AVATARS } from '../shared/types';
-import '../index.css';
-import '../animations.css';
+import { GameClient } from '../../transport/GameClient';
+import GameLobby_Controller from '../../lobby/controller/GameLobby_Controller';
+import Loading_Controller from '../../lobby/controller/Loading_Controller';
+import WinnerScene from './WinnerScene';
+import type { LobbyState, PlayerRole, ScoreUpdate, QuestionPhase, PlayerSelectionPayload, RevealResultPayload, PlayerScoreEntry, QuizTopicId, QuizDifficulty, TopicSelectedPayload } from '../../shared/types';
+import { CROSSHAIR_COLORS, PRE_CONFIG_AVATARS } from '../../shared/types';
+import '../../index.css';
+import '../../animations.css';
 import './controller-ui.css';
-import { soundManager } from '../utils/sound';
-import { hexToRgba } from '../utils/color';
+import { soundManager } from '../../utils/sound';
+import { hexToRgba } from '../../utils/color';
 import TopicSelection_Controller from './TopicSelection_Controller';
 
 type ControllerPhase = 'connecting' | 'reconnecting' | 'lobby' | 'topic-selection' | 'loading' | 'playing' | 'game-over';
@@ -41,10 +41,8 @@ const SUCCESS_PARTICLES = [
 
 interface GamePlay_ControllerProps {
     containerRef: React.RefObject<HTMLDivElement | null>;
-    isDragging: boolean;
-    aimAngle: number;
-    pullBack: number;
-    power: number;
+    crosshairRef: React.RefObject<HTMLDivElement | null>;
+    powerMeterRef: React.RefObject<HTMLDivElement | null>;
     characterAvatar: string;
     controllerAccent: string;
     currentScore: number;
@@ -64,10 +62,8 @@ interface GamePlay_ControllerProps {
 
 const GamePlay_Controller = memo(function GamePlay_Controller({
     containerRef,
-    isDragging,
-    aimAngle,
-    pullBack,
-    power,
+    crosshairRef,
+    powerMeterRef,
     characterAvatar,
     controllerAccent,
     currentScore,
@@ -84,18 +80,8 @@ const GamePlay_Controller = memo(function GamePlay_Controller({
     handleEnd,
     onLeaveGame,
 }: GamePlay_ControllerProps) {
-    const width = containerRef.current?.offsetWidth || 400;
-    const height = containerRef.current?.offsetHeight || 800;
-    const slingshotCenterX = width / 2;
-    const slingshotCenterY = height / 2;
-    const pullEndX = isDragging ? slingshotCenterX - Math.cos(aimAngle) * pullBack : slingshotCenterX;
-    const pullEndY = isDragging ? slingshotCenterY - Math.sin(aimAngle) * pullBack : slingshotCenterY;
-    const pullOffsetX = pullEndX - slingshotCenterX;
-    const pullOffsetY = pullEndY - slingshotCenterY;
-
     const showSuccessCelebration = Boolean(latestPopup);
-    const showAimHint = !isDragging && !isAnswerLocked && !isAnalysisPhase && !lastHit;
-    const showPowerMeter = isDragging && !lastHit;
+    const showAimHint = !isAnswerLocked && !isAnalysisPhase && !lastHit && !latestPopup;
     const showCorrectScore = showSuccessCelebration;
 
     const controllerTone =
@@ -103,9 +89,20 @@ const GamePlay_Controller = memo(function GamePlay_Controller({
             lastHit?.correct ? 'success' :
             lastHit ? 'danger' :
                 isAnswerLocked ? 'locked' :
-                    isDragging ? 'aiming' :
-                        isAnalysisPhase ? 'analysis' :
-                            'default';
+                    isAnalysisPhase ? 'analysis' :
+                        'default';
+
+    // Memoize CSS variable values — hexToRgba is pure, only recompute when accent changes
+    const accentVars = useMemo(() => ({
+        '--controller-accent': controllerAccent,
+        '--controller-accent-soft': hexToRgba(controllerAccent, 0.22),
+        '--controller-accent-glow': hexToRgba(controllerAccent, 0.16),
+        '--controller-accent-ambient': hexToRgba(controllerAccent, 0.08),
+        '--controller-accent-ambient-strong': hexToRgba(controllerAccent, 0.12),
+        '--controller-accent-core': hexToRgba(controllerAccent, 0.26),
+        '--controller-accent-border': hexToRgba(controllerAccent, 0.28),
+        '--controller-accent-copy': hexToRgba(controllerAccent, 0.72),
+    }), [controllerAccent]);
 
     return (
         <div
@@ -123,14 +120,7 @@ const GamePlay_Controller = memo(function GamePlay_Controller({
                 position: 'relative',
                 overflow: 'hidden',
                 touchAction: 'none',
-                '--controller-accent': controllerAccent,
-                '--controller-accent-soft': hexToRgba(controllerAccent, 0.22),
-                '--controller-accent-glow': hexToRgba(controllerAccent, 0.16),
-                '--controller-accent-ambient': hexToRgba(controllerAccent, 0.08),
-                '--controller-accent-ambient-strong': hexToRgba(controllerAccent, 0.12),
-                '--controller-accent-core': hexToRgba(controllerAccent, 0.26),
-                '--controller-accent-border': hexToRgba(controllerAccent, 0.28),
-                '--controller-accent-copy': hexToRgba(controllerAccent, 0.72),
+                ...accentVars,
             } as React.CSSProperties}
         >
             <div className="controller-playfield__background" />
@@ -182,11 +172,11 @@ const GamePlay_Controller = memo(function GamePlay_Controller({
             <div className="controller-shell__center">
                 <p className="controller-release-copy">Release to Shoot</p>
 
+                {/* crosshairRef is positioned via direct DOM writes in handleMove — no React state */}
                 <div
-                    className={`controller-crosshair ${isDragging ? 'is-active' : ''}`}
-                    style={{
-                        transform: `translate(calc(-50% + ${pullOffsetX}px), calc(-50% + ${pullOffsetY}px))`,
-                    }}
+                    ref={crosshairRef}
+                    className="controller-crosshair"
+                    style={{ transform: 'translate(-50%, -50%)' }}
                 >
                     <span className="controller-crosshair__line controller-crosshair__line--vertical" />
                     <span className="controller-crosshair__line controller-crosshair__line--horizontal" />
@@ -209,11 +199,8 @@ const GamePlay_Controller = memo(function GamePlay_Controller({
                     </div>
                 )}
 
-                {showPowerMeter && (
-                    <div className="controller-bottom-score controller-bottom-score--power">
-                        {Math.max(0, Math.round(power))}
-                    </div>
-                )}
+                {/* powerMeterRef text is written directly in handleMove */}
+                <div ref={powerMeterRef} className="controller-bottom-score controller-bottom-score--power" style={{ display: 'none' }} />
 
                 {isAnswerLocked && (
                     <div className="controller-lock-pill">
@@ -267,7 +254,7 @@ export default function ShootQuiz_Controller() {
     // ---- Connection ----
     const [phase, setPhase] = useState<ControllerPhase>('connecting');
     const phaseRef = useRef<ControllerPhase>('connecting');
-    const setPhaseSync = (p: ControllerPhase) => { phaseRef.current = p; setPhase(p); };
+    const setPhaseSync = useCallback((p: ControllerPhase) => { phaseRef.current = p; setPhase(p); }, []);
     const [role, setRole] = useState<PlayerRole>('member');
     const [colorIndex, setColorIndex] = useState<number>(0);
     const [lobby, setLobby] = useState<LobbyState | null>(null);
@@ -301,8 +288,8 @@ export default function ShootQuiz_Controller() {
     }, []);
 
     // ---- Game state (from server) ----
-    const [timeLeft, setTimeLeft] = useState(20);
     const [lastHit, setLastHit] = useState<{ correct: boolean } | null>(null);
+    const lastHitRef = useRef<{ correct: boolean } | null>(null);
     const [playerScores, setPlayerScores] = useState<PlayerScoreEntry[]>([]);
     const [scorePopups, setScorePopups] = useState<{ id: string; score: number; bonus: number; colorIndex: number }[]>([]);
 
@@ -332,25 +319,20 @@ export default function ShootQuiz_Controller() {
     const [countdownActive, setCountdownActive] = useState(false);
     const [countdownValue, setCountdownValue] = useState(3);
 
-    // ---- Slingshot state ----
-    const [isDragging, setIsDragging] = useState(false);
-    const [pullBack, setPullBack] = useState(0);
-    const [power, setPower] = useState(0);
-    const [targetXPercent, setTargetXPercent] = useState(50);
-    const [targetYPercent, setTargetYPercent] = useState(50);
-    const [aimAngle, setAimAngle] = useState(0);
-    const [startPos, setStartPos] = useState({ x: 0, y: 0 });
+    // ---- Slingshot — all drag values are refs, never state ----
+    // This keeps touch move handlers off the React render path entirely.
+    const isDraggingRef = useRef(false);
+    const pullBackRef = useRef(0);
+    const powerRef = useRef(0);
+    const aimAngleRef = useRef(0);
+    const targetXPercentRef = useRef(50);
+    const targetYPercentRef = useRef(50);
     const startPosRef = useRef({ x: 0, y: 0 });
     const lastCrosshairSendRef = useRef(0);
 
-    // ---- Dragging ref for real-time values ----
-    const isDraggingRef = useRef(false);
-
-    // Sync refs with state
-    useEffect(() => {
-        isDraggingRef.current = isDragging;
-        startPosRef.current = startPos;
-    }, [isDragging, startPos]);
+    // DOM refs for zero-React-render drag updates
+    const crosshairRef = useRef<HTMLDivElement>(null);
+    const powerMeterRef = useRef<HTMLDivElement>(null);
 
     const clientRef = useRef<GameClient | null>(null);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -371,6 +353,10 @@ export default function ShootQuiz_Controller() {
         pendingTimeoutsRef.current.forEach((timeoutId) => clearTimeout(timeoutId));
         pendingTimeoutsRef.current.clear();
     }, []);
+
+    useEffect(() => {
+        lastHitRef.current = lastHit;
+    }, [lastHit]);
 
     // ---- Connect and wire events ----
     useEffect(() => {
@@ -518,10 +504,6 @@ export default function ShootQuiz_Controller() {
                 }
             });
 
-            client.onTimerSync((data) => {
-                setTimeLeft(data.timeLeft);
-            });
-
             client.onScoreUpdate((data: ScoreUpdate) => {
                 setPlayerScores(data.playerScores || []);
             });
@@ -634,7 +616,6 @@ export default function ShootQuiz_Controller() {
                 setPhaseSync('lobby');
                 setIsSpectating(false);
                 setPlayerScores([]);
-                setTimeLeft(20);
                 setCurrentPhase(null);
                 currentPhaseRef.current = null;
                 setHasSelectedThisRound(false);
@@ -775,29 +756,31 @@ export default function ShootQuiz_Controller() {
 
     const handleStart = useCallback(() => {
         if (phase !== 'playing' && phase !== 'loading') return;
-        // In multiplayer, only allow slingshot during selection phase and if not already selected
         if (phase === 'playing' && isMultiplayer && (currentPhaseRef.current !== 'selection' || hasSelectedRef.current)) return;
 
         const rect = containerRef.current?.getBoundingClientRect();
         if (!rect) return;
 
-        setIsDragging(true);
-        // Fixed center start position
-        setStartPos({ x: rect.width / 2, y: rect.height / 2 });
-        setPullBack(0);
-        setPower(0);
+        isDraggingRef.current = true;
+        startPosRef.current = { x: rect.width / 2, y: rect.height / 2 };
+        pullBackRef.current = 0;
+        powerRef.current = 0;
 
-        // iOS/Android Audio Unlock — must happen on a user gesture
+        // Snap crosshair to center
+        if (crosshairRef.current) {
+            crosshairRef.current.style.transform = 'translate(-50%, -50%)';
+            crosshairRef.current.classList.add('is-active');
+        }
+        if (powerMeterRef.current) {
+            powerMeterRef.current.style.display = 'none';
+        }
+
         soundManager.unlock().catch(() => {});
-
-        // Light haptic feedback when starting to pull the sling
         soundManager.vibrate(15);
-
-        // Don't send startAiming - keep crosshair visible during aiming
     }, [phase, isMultiplayer]);
 
     const handleMove = useCallback((e: React.TouchEvent | React.MouseEvent) => {
-        if (!isDragging || (phase !== 'playing' && phase !== 'loading')) return;
+        if (!isDraggingRef.current || (phase !== 'playing' && phase !== 'loading')) return;
 
         const touch = 'touches' in e ? e.touches[0] : e;
         const rect = containerRef.current?.getBoundingClientRect();
@@ -809,61 +792,71 @@ export default function ShootQuiz_Controller() {
         const dx = startPosRef.current.x - x;
         const dy = startPosRef.current.y - y;
         const dist = Math.sqrt(dx * dx + dy * dy);
-        const maxPull = 100; // Match boundaryRadius
+        const maxPull = 100;
         const clampedDist = Math.min(dist, maxPull);
-        const angle = Math.atan2(dy, dx);
 
-        setPullBack(clampedDist);
-        setPower(Math.min(100, (clampedDist / maxPull) * 100));
-        setAimAngle(angle);
+        pullBackRef.current = clampedDist;
+        powerRef.current = Math.min(100, (clampedDist / maxPull) * 100);
+        aimAngleRef.current = Math.atan2(dy, dx);
 
-        // Map pull direction to screen target (x-axis inverted)
         const tX = Math.max(0, Math.min(100, 50 - (dx / maxPull) * 50));
         const tY = Math.max(0, Math.min(100, 50 - (dy / maxPull) * 50));
-        setTargetXPercent(tX);
-        setTargetYPercent(tY);
+        targetXPercentRef.current = tX;
+        targetYPercentRef.current = tY;
+
+        // ---- Direct DOM write — zero React renders ----
+        const offsetX = -Math.cos(aimAngleRef.current) * clampedDist;
+        const offsetY = -Math.sin(aimAngleRef.current) * clampedDist;
+        if (crosshairRef.current) {
+            crosshairRef.current.style.transform =
+                `translate(calc(-50% + ${offsetX}px), calc(-50% + ${offsetY}px))`;
+        }
+        if (powerMeterRef.current && !lastHitRef.current) {
+            const p = Math.max(0, Math.round(powerRef.current));
+            powerMeterRef.current.textContent = String(p);
+            powerMeterRef.current.style.display = p > 0 ? '' : 'none';
+        }
+
         if (phase === 'playing') {
-            // Throttle crosshair updates to ~20fps (50ms interval)
             const now = Date.now();
             if (now - lastCrosshairSendRef.current > 50) {
                 clientRef.current?.sendCrosshair(tX, tY);
                 lastCrosshairSendRef.current = now;
             }
         }
-    }, [isDragging, startPos, phase]);
+    }, [phase]);
 
     const handleEnd = useCallback(() => {
-        if (!isDragging) return;
+        if (!isDraggingRef.current) return;
 
-        // During topic-selection, the TopicSelection_Controller has its own touch handlers
-        if (phase === 'topic-selection') {
-            setIsDragging(false);
-            setPullBack(0);
-            setPower(0);
+        if (phase === 'topic-selection' || phase === 'loading') {
+            isDraggingRef.current = false;
+            if (crosshairRef.current) {
+                crosshairRef.current.style.transform = 'translate(-50%, -50%)';
+                crosshairRef.current.classList.remove('is-active');
+            }
+            if (powerMeterRef.current) powerMeterRef.current.style.display = 'none';
             return;
         }
 
-        // During loading, don't shoot, just release
-        if (phase === 'loading') {
-            setIsDragging(false);
-            setPullBack(0);
-            setPower(0);
-            return;
-        }
-
-        // Shoot first, then cancel crosshair
-        if (power > 10 && phase === 'playing') {
-            clientRef.current?.shoot(targetXPercent, targetYPercent, power / 100);
-            // Cancel crosshair after shooting
+        const p = powerRef.current;
+        if (p > 10 && phase === 'playing') {
+            clientRef.current?.shoot(targetXPercentRef.current, targetYPercentRef.current, p / 100);
             clientRef.current?.sendCancelAiming();
         } else {
             clientRef.current?.sendCancelAiming();
         }
 
-        setIsDragging(false);
-        setPullBack(0);
-        setPower(0);
-    }, [isDragging, power, targetXPercent, targetYPercent, phase]);
+        isDraggingRef.current = false;
+        pullBackRef.current = 0;
+        powerRef.current = 0;
+
+        if (crosshairRef.current) {
+            crosshairRef.current.style.transform = 'translate(-50%, -50%)';
+            crosshairRef.current.classList.remove('is-active');
+        }
+        if (powerMeterRef.current) powerMeterRef.current.style.display = 'none';
+    }, [phase]);
 
     // ==========================================
     // PHASE ROUTING
@@ -1019,10 +1012,8 @@ export default function ShootQuiz_Controller() {
     return (
         <GamePlay_Controller
             containerRef={containerRef}
-            isDragging={isDragging}
-            aimAngle={aimAngle}
-            pullBack={pullBack}
-            power={power}
+            crosshairRef={crosshairRef}
+            powerMeterRef={powerMeterRef}
             characterAvatar={characterAvatar}
             controllerAccent={controllerAccent}
             currentScore={currentScore}

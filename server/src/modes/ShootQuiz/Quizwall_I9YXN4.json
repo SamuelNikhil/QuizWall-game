@@ -1,0 +1,248 @@
+{
+    "roomId": "I9YXN4",
+    "topic": "world-history",
+    "difficulty": "easy",
+    "generatedAt": "2026-05-20T05:38:33.178Z",
+    "questions": [
+        {
+            "id": 1,
+            "text": "Which ancient civilization built the city of Machu Picchu?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Incas"
+                },
+                {
+                    "id": "B",
+                    "text": "Mayans"
+                },
+                {
+                    "id": "C",
+                    "text": "Aztecs"
+                },
+                {
+                    "id": "D",
+                    "text": "Toltecs"
+                }
+            ],
+            "correct": "A",
+            "category": "World History"
+        },
+        {
+            "id": 2,
+            "text": "The Rosetta Stone was discovered in which year?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "1800"
+                },
+                {
+                    "id": "B",
+                    "text": "1795"
+                },
+                {
+                    "id": "C",
+                    "text": "1798"
+                },
+                {
+                    "id": "D",
+                    "text": "1799"
+                }
+            ],
+            "correct": "D",
+            "category": "World History"
+        },
+        {
+            "id": 3,
+            "text": "The Great Wall of China was built to protect the Chinese Empire from which nomadic tribes?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Vikings and Celts"
+                },
+                {
+                    "id": "B",
+                    "text": "Huns and Goths"
+                },
+                {
+                    "id": "C",
+                    "text": "Xiongnu and Turks"
+                },
+                {
+                    "id": "D",
+                    "text": "Mongols and Manchus"
+                }
+            ],
+            "correct": "C",
+            "category": "World History"
+        },
+        {
+            "id": 4,
+            "text": "The Treaty of Versailles was signed in which year, marking the end of World War I?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "1919"
+                },
+                {
+                    "id": "B",
+                    "text": "1918"
+                },
+                {
+                    "id": "C",
+                    "text": "1917"
+                },
+                {
+                    "id": "D",
+                    "text": "1920"
+                }
+            ],
+            "correct": "A",
+            "category": "World History"
+        },
+        {
+            "id": 5,
+            "text": "The ancient city of Pompeii was destroyed by the eruption of which volcano in 79 AD?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Mount Vesuvius"
+                },
+                {
+                    "id": "B",
+                    "text": "Mount St. Helens"
+                },
+                {
+                    "id": "C",
+                    "text": "Mount Fuji"
+                },
+                {
+                    "id": "D",
+                    "text": "Mount Olympus"
+                }
+            ],
+            "correct": "A",
+            "category": "World History"
+        },
+        {
+            "id": 6,
+            "text": "The first Olympic Games were held in which ancient Greek city in 776 BC?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Sparta"
+                },
+                {
+                    "id": "B",
+                    "text": "Corinth"
+                },
+                {
+                    "id": "C",
+                    "text": "Athens"
+                },
+                {
+                    "id": "D",
+                    "text": "Olympia"
+                }
+            ],
+            "correct": "D",
+            "category": "World History"
+        },
+        {
+            "id": 7,
+            "text": "The Mongol Empire was founded by which leader in the early 13th century?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Kublai Khan"
+                },
+                {
+                    "id": "B",
+                    "text": "Genghis Khan"
+                },
+                {
+                    "id": "C",
+                    "text": "Attila the Hun"
+                },
+                {
+                    "id": "D",
+                    "text": "Tamerlane"
+                }
+            ],
+            "correct": "B",
+            "category": "World History"
+        },
+        {
+            "id": 8,
+            "text": "The Battle of Hastings took place in which year, marking the Norman Conquest of England?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "1066"
+                },
+                {
+                    "id": "B",
+                    "text": "1065"
+                },
+                {
+                    "id": "C",
+                    "text": "1075"
+                },
+                {
+                    "id": "D",
+                    "text": "1056"
+                }
+            ],
+            "correct": "A",
+            "category": "World History"
+        },
+        {
+            "id": 9,
+            "text": "The ancient city of Angkor Wat is located in which modern-day country?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Laos"
+                },
+                {
+                    "id": "B",
+                    "text": "Thailand"
+                },
+                {
+                    "id": "C",
+                    "text": "Vietnam"
+                },
+                {
+                    "id": "D",
+                    "text": "Cambodia"
+                }
+            ],
+            "correct": "D",
+            "category": "World History"
+        },
+        {
+            "id": 10,
+            "text": "The Chinese invention of the compass is attributed to which dynasty?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Ming Dynasty"
+                },
+                {
+                    "id": "B",
+                    "text": "Han Dynasty"
+                },
+                {
+                    "id": "C",
+                    "text": "Song Dynasty"
+                },
+                {
+                    "id": "D",
+                    "text": "Tang Dynasty"
+                }
+            ],
+            "correct": "C",
+            "category": "World History"
+        }
+    ]
+}

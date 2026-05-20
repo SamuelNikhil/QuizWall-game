@@ -56,12 +56,6 @@ export interface JoinedRoomPayload {
 
 // ---------- Game Events ----------
 
-export interface ShootPayload {
-    targetXPercent: number;
-    targetYPercent: number;
-    power: number;
-}
-
 export interface HitResultPayload {
     controllerId: string;
     correct: boolean;
@@ -161,41 +155,6 @@ export interface PlayerScoreResult {
     baseScore: number;       // Base score (50)
     bonus: number;           // Time bonus (0, 10, or 20)
     correct: boolean;        // Whether they answered correctly
-}
-
-// ---------- Interactive Tutorial ----------
-// Kept for backward compatibility with loading state
-
-export type TutorialStep = 'waiting' | 'sling' | 'tilt' | 'complete';
-
-/** Progress events sent from controller → server */
-export type TutorialProgressStep = 'sling' | 'tilt-left' | 'tilt-right' | 'tilt-up' | 'tilt-down';
-
-/** Sent from controller → server when a player completes a tutorial step */
-export interface TutorialProgressPayload {
-    step: TutorialProgressStep;
-    tiltX?: number;
-    tiltY?: number;
-}
-
-/** Broadcast from server → all clients with each player's tutorial status */
-export interface TutorialStatusUpdatePayload {
-    players: TutorialPlayerStatus[];
-    allComplete: boolean;
-}
-
-export interface TutorialPlayerStatus {
-    controllerId: string;
-    colorIndex: number;
-    name?: string;
-    currentStep: TutorialStep;
-    completedSling: boolean;
-    completedTiltLeft: boolean;
-    completedTiltRight: boolean;
-    completedTiltUp: boolean;
-    completedTiltDown: boolean;
-    tiltX: number;
-    tiltY: number;
 }
 
 // ---------- Topic Selection ----------

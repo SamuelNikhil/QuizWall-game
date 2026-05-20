@@ -1,6 +1,6 @@
-import { QUIZ_TOPICS, CROSSHAIR_COLORS, PRE_CONFIG_NAMES, PRE_CONFIG_AVATARS, QUIZ_DIFFICULTIES } from '../shared/types';
-import type { LobbyState, QuizTopicId, QuizDifficulty } from '../shared/types';
-import backgroundImg from '../assets/Background.svg';
+import { CROSSHAIR_COLORS, PRE_CONFIG_NAMES, PRE_CONFIG_AVATARS, QUIZ_DIFFICULTIES } from '../../shared/types';
+import type { LobbyState, QuizDifficulty } from '../../shared/types';
+import backgroundImg from '../../assets/Background.svg';
 
 interface TopicOrbData {
     id: string;
