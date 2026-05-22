@@ -45,7 +45,7 @@ export default defineConfig(({ mode }) => {
         },
         preview: {
             host: true,
-            allowedHosts: ['slingshot-game.onrender.com', 'localhost', 'slingshot-game-test.onrender.com']
+            allowedHosts: ['wonderloop.onrender.com', 'localhost', 'slingshot-game-test.onrender.com']
         }
     }
 })
