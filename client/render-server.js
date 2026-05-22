@@ -14,23 +14,21 @@ const app = express();
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // ---- Proxy /.wrtc/* to game server (HTTP + WebSocket) ----
-app.use(
-    '/.wrtc',
-    createProxyMiddleware({
-        target: BACKEND_URL,
-        changeOrigin: true,
-        ws: true,
-        on: {
-            error(err, _req, res) {
-                if (res && typeof res.writeHead === 'function') {
-                    res.writeHead(502, { 'Content-Type': 'application/json' });
-                    res.end(JSON.stringify({ error: 'Backend unreachable' }));
-                }
-                console.error('[Proxy] Error:', err.message);
-            },
+const wrtcProxy = createProxyMiddleware({
+    target: BACKEND_URL,
+    changeOrigin: true,
+    ws: true,
+    on: {
+        error(err, _req, res) {
+            if (res && typeof res.writeHead === 'function') {
+                res.writeHead(502, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Backend unreachable' }));
+            }
+            console.error('[Proxy] Error:', err.message);
         },
-    }),
-);
+    },
+});
+app.use('/.wrtc', wrtcProxy);
 
 // ---- Serve static Vite build ----
 app.use(express.static(join(__dirname, 'dist')));
@@ -46,10 +44,4 @@ const server = app.listen(PORT, () => {
 });
 
 // ---- Attach WebSocket upgrade handler to the HTTP server ----
-server.on('upgrade', (req, socket, head) => {
-    if (req.url.startsWith('/.wrtc')) {
-        app.handle(req, socket, head);
-    } else {
-        socket.destroy();
-    }
-});
+server.on('upgrade', wrtcProxy.upgrade);
