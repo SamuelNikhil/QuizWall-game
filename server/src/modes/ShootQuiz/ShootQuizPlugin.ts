@@ -11,6 +11,7 @@ import type { PlayerSelectionPayload, RevealResultPayload, QuizTopicId, QuizDiff
 import { RoomManager, type Room } from '../../domain/RoomManager.ts';
 import { PlayerManager } from '../../domain/PlayerManager.ts';
 import { QuizEngine, PHASE_DURATIONS } from './QuizEngine.ts';
+import * as teamRepo from '../../data/teamRepository.ts';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type GeckosServer = any;
@@ -26,6 +27,8 @@ interface QuizRoomState {
     topicSelectionStartedAt: number | null;
     selectedDifficulty: QuizDifficulty;
     topicCountdownInterval?: ReturnType<typeof setInterval>;
+    /** Persisted voter count available even after topicSelectionStarted is set to false */
+    finalVoteCount: number;
 }
 
 // ---- Crosshair throttle (shared across all rooms) ----
@@ -95,6 +98,7 @@ export class ShootQuizPlugin {
             topicSelectionStarted: false,
             topicSelectionStartedAt: null,
             selectedDifficulty: DEFAULT_DIFFICULTY,
+            finalVoteCount: 0,
         });
     }
 
@@ -199,6 +203,7 @@ export class ShootQuizPlugin {
         }
 
         const topicLabel = QUIZ_TOPICS.find(t => t.id === selectedTopic)?.label || selectedTopic;
+        state.finalVoteCount = state.topicVotes.size;
         state.topicSelectionStarted = false;
         state.topicSelectionTimer = null;
 
@@ -269,13 +274,17 @@ export class ShootQuizPlugin {
         const room = this.roomManager.getRoom(roomId);
         if (!room) return;
 
+        // Track live topic/difficulty for admin monitoring
+        room.currentTopic = topicId;
+        room.currentDifficulty = difficulty;
+
         const quizEngine = asQuizEngine(room);
         if (!quizEngine) {
             console.error(`[ShootQuiz] Room ${roomId} is not running a quiz game`);
             return;
         }
 
-        const playerCount = room.controllers.length;
+        const playerCount = room.controllers.filter(c => !c.disconnected).length;
 
         broadcastAll(room, EVENTS.LOADING_START, { playerCount });
 
@@ -328,6 +337,14 @@ export class ShootQuizPlugin {
                     const reason = quizEngine.getLastGameOverReason();
                     broadcastAll(room, EVENTS.GAME_OVER, { leaderboard, reason, questionsAnswered, playerScores });
                     this.roomManager.clearDisconnectedScores(roomId);
+                    // Mark that game-over has been broadcast — used by LEAVE_GAME
+                    // and disconnect to destroy the room when all players leave the winner screen.
+                    room.gameOverBroadcasted = true;
+                    // Record game session for analytics
+                    for (const ps of playerScores) {
+                        teamRepo.saveGameSession(roomId, 0, ps.score, questionsAnswered,
+                            quizEngine.getTopic() ?? '', quizEngine.getDifficulty());
+                    }
                 },
             );
 
@@ -350,6 +367,11 @@ export class ShootQuizPlugin {
                         playerScores,
                     });
                     this.roomManager.clearDisconnectedScores(roomId);
+                    room.gameOverBroadcasted = true;
+                    for (const ps of playerScores) {
+                        teamRepo.saveGameSession(roomId, 0, ps.score, questionsAnswered,
+                            quizEngine.getTopic() ?? '', quizEngine.getDifficulty());
+                    }
                 },
             );
 
@@ -562,8 +584,27 @@ export class ShootQuizPlugin {
                 room.screenChannel.emit(EVENTS.CONTROLLER_LEFT, { controllerId: clientId });
 
                 if (!this.roomManager.hasActivePlayers(roomId)) {
+                    // If game-over was already broadcast (winner screen), destroy the room
+                    // immediately instead of returning to lobby.
+                    if (room.gameOverBroadcasted) {
+                        console.log(`[ShootQuiz] No active players on winner screen in ${roomId} — destroying room`);
+                        room.screenChannel.emit(EVENTS.ROOM_EXPIRED, { reason: 'empty_lobby' });
+                        this.roomManager.deleteRoomById(roomId);
+                        return;
+                    }
                     console.log(`[ShootQuiz] No active players left in ${roomId}, returning to lobby`);
                     this.roomManager.forceEndGame(roomId);
+
+                    // After forceEndGame, if nobody is still connected, destroy the
+                    // room so the screen refreshes to a fresh landing page.
+                    const anyoneConnected = room.controllers.some(c => c.channel);
+                    if (!anyoneConnected) {
+                        console.log(`[ShootQuiz] No connected controllers after force-end in ${roomId} — destroying room`);
+                        try { room.screenChannel.emit(EVENTS.ROOM_EXPIRED, { reason: 'empty_lobby' }); } catch { /* ignore */ }
+                        this.roomManager.deleteRoomById(roomId);
+                        return;
+                    }
+
                     broadcastAll(room, EVENTS.GAME_RESTARTED, {});
                 } else {
                     const quizEngine = asQuizEngine(room);
@@ -587,6 +628,7 @@ export class ShootQuizPlugin {
 
                 room.engine.reset();
                 room.gameStarted = false;
+                room.gameOverBroadcasted = false;
                 room.lastActivity = Date.now();
                 this.roomManager.resetSpectatingStatus(roomId);
 

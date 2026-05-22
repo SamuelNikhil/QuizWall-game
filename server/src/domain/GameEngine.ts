@@ -26,6 +26,9 @@ export interface GameEngine {
     /** Rounds/questions completed across all restarts in this session */
     getSessionQuestionsAnswered(): number;
 
+    /** Total questions attempted (correct + wrong) across all restarts in this session */
+    getTotalQuestionsAttempted(): number;
+
     /**
      * Optional: return game-specific state needed to resync a reconnecting client.
      * The returned object is spread into the RECONNECTED event payload.

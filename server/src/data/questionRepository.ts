@@ -7,10 +7,10 @@
 import { readFileSync, existsSync, writeFileSync, unlinkSync, readdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { CONFIG } from '../../infrastructure/config.ts';
-import type { ServerQuestion, QuizTopicId, QuizDifficulty } from '../../shared/types.ts';
-import { DEFAULT_TOPIC, DEFAULT_DIFFICULTY } from '../../shared/types.ts';
-import { getGroqService, isGroqEnabled, recordApiCall, recordRound } from './GroqService.ts';
+import { CONFIG } from '../infrastructure/config.ts';
+import type { ServerQuestion, QuizTopicId, QuizDifficulty } from '../shared/types.ts';
+import { DEFAULT_TOPIC, DEFAULT_DIFFICULTY } from '../shared/types.ts';
+import { getGroqService, isGroqEnabled } from '../services/GroqService.ts';
 
 // Get current directory for file paths
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -182,7 +182,6 @@ export async function generateSessionQuestions(sessionId: string, topic?: QuizTo
     const currentTopic = topic || DEFAULT_TOPIC;
     const currentDifficulty = difficulty || DEFAULT_DIFFICULTY;
     const roomId = roomIdFromSessionId(sessionId);
-    recordRound(roomId);
 
     const cached = sessionQuestionsCache.get(sessionId);
     if (cached && cached.topic === currentTopic && cached.difficulty === currentDifficulty) {
@@ -217,7 +216,6 @@ export async function generateSessionQuestions(sessionId: string, topic?: QuizTo
                         true, // forceRefresh
                         currentDifficulty,
                     );
-                    recordApiCall(roomIdFromSessionId(sessionId));
 
                     if (!questions || questions.length === 0) {
                         throw new Error('Groq returned empty questions array');
@@ -300,14 +298,49 @@ export async function preGenerateForSession(sessionId: string, topic?: QuizTopic
 /**
  * Get questions for an active session.
  * Returns cached questions or generates new ones.
+ * Tops up with static buffer + background Groq generation when running low.
  */
 export async function getSessionQuestions(sessionId: string, additionalCount?: number, topic?: QuizTopicId, difficulty?: QuizDifficulty): Promise<ServerQuestion[]> {
     const currentTopic = topic || DEFAULT_TOPIC;
     const currentDifficulty = difficulty || DEFAULT_DIFFICULTY;
+    const roomId = roomIdFromSessionId(sessionId);
     const cached = sessionQuestionsCache.get(sessionId);
 
+    // Explicit top-up request
+    if (additionalCount && additionalCount > 0 && cached && cached.topic === currentTopic) {
+        const inFlightKey = `${sessionId}:${currentTopic}:${currentDifficulty}:more`;
+        if (isGroqEnabled() && !generatingPromises.has(inFlightKey)) {
+            const morePromise = generateMoreQuestionsForSession(sessionId, additionalCount, currentTopic);
+            generatingPromises.set(inFlightKey, morePromise.then(() => sessionQuestionsCache.get(sessionId)!.questions));
+            try {
+                await morePromise;
+            } finally {
+                generatingPromises.delete(inFlightKey);
+            }
+        }
+        return sessionQuestionsCache.get(sessionId)!.questions;
+    }
+
     if (cached && cached.topic === currentTopic && cached.difficulty === currentDifficulty) {
-        return cached.questions;
+        const questions = cached.questions;
+
+        // Running low — add static buffer immediately and trigger background generation
+        if (questions.length < 5) {
+            const staticBuffer = getRandomStaticQuestions(10);
+            const withBuffer = [...questions, ...staticBuffer];
+            sessionQuestionsCache.set(sessionId, { questions: withBuffer, topic: currentTopic, difficulty: currentDifficulty, roomId });
+
+            const inFlightKey = `${sessionId}:${currentTopic}:${currentDifficulty}:more`;
+            if (isGroqEnabled() && !generatingPromises.has(inFlightKey)) {
+                const bgPromise = generateMoreQuestionsForSession(sessionId, undefined, currentTopic);
+                generatingPromises.set(inFlightKey, bgPromise.then(() => []));
+                bgPromise.finally(() => generatingPromises.delete(inFlightKey));
+            }
+
+            return withBuffer;
+        }
+
+        return questions;
     }
 
     // Topic or difficulty changed — regenerate
@@ -317,6 +350,57 @@ export async function getSessionQuestions(sessionId: string, additionalCount?: n
     }
 
     return generateSessionQuestions(sessionId, currentTopic, currentDifficulty);
+}
+
+/**
+ * Background generation of additional questions for a session.
+ * Appends unique new questions to the in-memory cache and updates the room file.
+ */
+async function generateMoreQuestionsForSession(sessionId: string, count?: number, topic?: QuizTopicId): Promise<void> {
+    try {
+        const groqService = getGroqService()!;
+        const questionCount = count || (CONFIG.QUESTIONS_PER_SESSION || 10);
+        const cachedEntry = sessionQuestionsCache.get(sessionId);
+        const currentTopic = topic || cachedEntry?.topic || DEFAULT_TOPIC;
+        const currentDifficulty = cachedEntry?.difficulty || DEFAULT_DIFFICULTY;
+        const roomId = cachedEntry?.roomId || roomIdFromSessionId(sessionId);
+
+        const newQuestions = await groqService.generateQuestionsForTopicWithCount(
+            currentTopic,
+            questionCount,
+            getGlobalExclusionList(),
+            true, // forceRefresh
+            currentDifficulty,
+        );
+
+        if (!newQuestions || newQuestions.length === 0) return;
+
+        const normalizedNew = newQuestions.map(q => normalizeQuestionFormat(q));
+        const currentQuestions = sessionQuestionsCache.get(sessionId)?.questions || [];
+        const existingTexts = new Set(currentQuestions.map(q => q.text.trim().toLowerCase()));
+        const uniqueNew = normalizedNew.filter(q => !existingTexts.has(q.text.trim().toLowerCase()));
+
+        if (uniqueNew.length === 0) return;
+
+        const allQuestions = [...currentQuestions, ...uniqueNew];
+        sessionQuestionsCache.set(sessionId, { questions: allQuestions, topic: currentTopic, difficulty: currentDifficulty, roomId });
+
+        // Append unique questions to the room file
+        const existingFile = loadRoomFile(roomId, currentTopic, currentDifficulty);
+        if (existingFile) {
+            const fileTexts = new Set(existingFile.map(q => q.text.trim().toLowerCase()));
+            const uniqueForFile = uniqueNew.filter(q => !fileTexts.has(q.text.trim().toLowerCase()));
+            if (uniqueForFile.length > 0) {
+                saveRoomFile(roomId, [...existingFile, ...uniqueForFile], currentTopic, currentDifficulty);
+            }
+        } else {
+            saveRoomFile(roomId, uniqueNew, currentTopic, currentDifficulty);
+        }
+
+        console.log(`[QuestionRepo] Background top-up: +${uniqueNew.length} questions for room ${roomId}`);
+    } catch (error) {
+        console.error('[QuestionRepo] Background generation failed:', error);
+    }
 }
 
 // ==========================================
@@ -373,7 +457,21 @@ export function getRandomStaticQuestions(count: number): ServerQuestion[] {
     return all.slice(0, Math.min(count, all.length)).map(q => normalizeQuestionFormat(q));
 }
 
+export function getRandomQuestions(count: number): ServerQuestion[] {
+    return getRandomStaticQuestions(count);
+}
 
+export function getCurrentTopic(): QuizTopicId {
+    return DEFAULT_TOPIC;
+}
+
+/**
+ * Force regeneration for all sessions (e.g. on server restart or admin reset).
+ * Deletes all Quizwall_*.json files and clears in-memory caches.
+ */
+export function forceRegenerateAiQuestions(): void {
+    clearAllSessionQuestions();
+}
 
 // ==========================================
 // Format normalization

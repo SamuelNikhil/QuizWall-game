@@ -35,4 +35,4 @@ services:
     network_mode: host
 
 # Note: With network_mode: host, ports are not mapped.
-# The server runs directly on host ports 3000 (HTTP) and 9000-9100 (UDP)
+# The server runs directly on host ports 3000 (HTTP) and 9000-9500 (UDP)

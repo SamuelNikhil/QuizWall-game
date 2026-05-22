@@ -4,7 +4,7 @@
 // Per-topic generation with cache (30min TTL)
 // ==========================================
 
-import type { ServerQuestion, QuizTopicId, QuizDifficulty } from '../../shared/types';
+import type { ServerQuestion, QuizTopicId, QuizDifficulty } from '../shared/types';
 
 interface GroqConfig {
     apiKey: string;
@@ -314,25 +314,6 @@ Do NOT include:
 }
 
 let groqService: GroqService | null = null;
-
-/** Per-room AI API call tracking */
-const apiCallLog = new Map<string, { rounds: number; apiCalls: number }>();
-
-export function recordApiCall(roomId: string): void {
-    const entry = apiCallLog.get(roomId) || { rounds: 0, apiCalls: 0 };
-    entry.apiCalls += 1;
-    apiCallLog.set(roomId, entry);
-}
-
-export function recordRound(roomId: string): void {
-    const entry = apiCallLog.get(roomId) || { rounds: 0, apiCalls: 0 };
-    entry.rounds += 1;
-    apiCallLog.set(roomId, entry);
-}
-
-export function getApiCallLog(): Array<{ roomId: string; rounds: number; apiCalls: number }> {
-    return Array.from(apiCallLog.entries()).map(([roomId, { rounds, apiCalls }]) => ({ roomId, rounds, apiCalls }));
-}
 
 export function initializeGroqService(config: { apiKey: string; model: string; questionCount: number }): void {
     if (!config.apiKey) {

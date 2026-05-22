@@ -1,0 +1,270 @@
+[33mb140238[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mWonderLoop[m[33m)[m WonderLoop V0.1
+[33m4be151a[m WonderLoop V0.1
+[33mfa0f1dc[m WonderLoop V0.1
+[33m94a9759[m[33m ([m[1;31morigin/Test[m[33m, [m[1;32mTest[m[33m)[m Refactored script with decoupled gamemode plugin support
+[33m49532b5[m Client fIX
+[33m85f2cce[m bugFixes 5/13
+[33ma660ac8[m BugFixes
+[33m3234b42[m Updated : Questions cache system & animation changes
+[33m263c771[m Added : Difficulty System
+[33m90b1e90[m Gameplay improvements
+[33m057dfc7[m Auido bug fix 5/7/36
+[33m6258af2[m IMPROVEMENTS : Room+Session ID and multiple bug fixes 5/7/26
+[33m1c5a1b5[m Added :  Loading animation for Winner page Restart btn
+[33m281bbb4[m Double Groq API call fix
+[33me1c55f9[m Bugfixes 27-4
+[33m5f85919[m Bugfixes 27-4
+[33m2c4188b[m Removed Wonderloop temp logo
+[33mb8aa6b6[m Topic Screen UI/UX changes and bug fixes
+[33me59f96f[m[33m ([m[1;32mopencode/stellar-forest[m[33m, [m[1;32mopencode/quick-star[m[33m)[m Improved : UI/UX
+[33m2b9a388[m Adjusted the Landing and Lobby UI/UX
+[33mcf61207[m Replaced : Roux with Zark profile
+[33m11ebaf5[m Replaced : Roux with Zark profile and Gameplay Screen Background
+[33m8d7b3db[m Improved gameplay UI
+[33m1fce8a5[m Changed Idle reaper room clear logic little bit
+[33m5b56981[m shuffle sound
+[33m7fd30e0[m bug fixes
+[33m32cc230[m Updated : UI/UX a little bit and Hided Qr on Mobile devices
+[33m882b38e[m Removed : Sounds from Screen.tsx
+[33mad8112e[m Fix .gitignore encoding and add proper rules for .env files
+[33m80d68bc[m Updated : Gameplay and Winner UI/UX
+[33meefd935[m Revamped :  Controller lobby UI
+[33m5eaf735[m Increased : Lobby slot to 4
+[33m9b744b1[m Bugfix
+[33m465db11[m Bugfix : IOS / Safari haptic issue
+[33mc6e4f99[m Bugfix : IOS / Safari vibration & sound issue
+[33m27e97bc[m Bugfix
+[33m9e6bf1b[m Bugfix
+[33m843c259[m Bugfix
+[33m35183fb[m Bugfix
+[33m8ebb9cb[m Bugfix
+[33me2a7381[m Added : spectate feature when someone leave mid game
+[33m69760f8[m Improved : Visibility of options with text shadow
+[33m78124c8[m Various bugfixes client
+[33me66f05a[m Various bugfixes
+[33mf1dec08[m Various bugfixes
+[33m77658f0[m Added : Sound for answer reveal
+[33m100de43[m BugFix : Leaderboard fix
+[33m97aa25a[m Connection change : using API connection
+[33mf15ec5c[m Fix : major bug fixes
+[33m3fd1a7d[m Fix : multiplayer controller unique green/red display
+[33maaec3ca[m Replaced : Team Score system with indivitual score system
+[33me09ff60[m update : multiplayer score mechanics
+[33mdb7a642[m Fix : Shows Player(num) instead of name
+[33m400ef97[m Fix : Shows Player(num) instead of name
+[33mba4124a[m Fix : Shows Player(num) instead of name
+[33m6446d60[m fix : Player name mandatory & highlighted for visiblity
+[33m02cbd10[m Bug fix : color index replace & Leader promote
+[33m683046a[m fix : calibration screen fix for 3 players
+[33m4754966[m Minor bug fixes
+[33m191e561[m added : gyro calib skip for non gyro mode
+[33mdea1e9f[m Fixes : player score resets everygame, orb selection feedback
+[33m98557a6[m added : individual player scores
+[33m3215763[m fix : gyro calibration bug
+[33m48319cb[m fix : bug fixes on multiplayer times up screen
+[33m5570f38[m fix : bug fixes on multiplayer times up screen
+[33m257c713[m fix : bug fixes on multiplayer
+[33m1b84ada[m fix : Gyro Tutorial
+[33md06b84c[m fix : Gyro Tutorial
+[33mf2453b7[m Updated : Gyro Tutorial
+[33mfdd40c2[m fix : gameplay mechanics
+[33md6a899b[m Added : leave button on lobby
+[33m4f1a9bf[m fix : gameplay mechanics
+[33m55f3811[m fix : gameplay mechanics
+[33m5d182d2[m changes : singleplayer gameplay mechanics
+[33mbf8d2f2[m chore: remove server/node_modules from git tracking
+[33mfe3eea0[m fix: correct phase time check for sending next question in multiplayer
+[33m02efe00[m fix: downgrade ESLint to v9 for react-hooks plugin compatibility
+[33mbdc9a02[m fixed : client build
+[33m08e445c[m fixed : multiplayer gameplay mechanics
+[33m6694e30[m Removed : Node_modules
+[33m98f5c58[m Removed : Node_modules
+[33m15b72bb[m Removed : Unwanted server logs
+[33m689535c[m removed : node_modules
+[33m67fb744[m Changes : Multiplayer gameplay functionality
+[33mf875709[m test
+[33m1eb2e71[m Updated : DB save path outside of Docker container
+[33m60f61d9[m Revamped : Session Question Generation Logic
+[33m90cf3d2[m Test : Gyro calibration tutorial
+[33md73ada5[m Test : Gyro calibration tutorial
+[33m6bec50a[m Test : Gyro calibration tutorial
+[33m35fb5d5[m Test : Gyro calibration tutorial
+[33m3c2cb9d[m Test : IOS Gyro issues
+[33m65b1ee3[m Test : IOS Gyro issues
+[33m79fb9ad[m Test : IOS Gyro issues
+[33m6025a13[m Fix : IOS Gyro issues
+[33m1e32181[m Fix : IOS Gyro issues
+[33m4bad3da[m ec2 fix
+[33m23cae89[m changes
+[33m1b19496[m Add .env to gitignore
+[33m07552f4[m fix
+[33m8d5ecb6[m fix : Ai generated questions
+[33mafda3bc[m Add server folder from Test branch
+[33m2a71517[m fixes
+[33m6fe0b7c[m Fix : Ai for question generation
+[33mfde3b7b[m Added: AI for question generation (removed .env from tracking)
+[33m7ccc32b[m Update :  ReadME
+[33m0717281[m Update : Backend
+[33me52c62d[m fix : Database and orb hitbox
+[33m7bda892[m Add : Times Up close button
+[33m18fc58e[m gyro fix
+[33mbf1e8a5[m gyro fix
+[33m8198d62[m gyro fix
+[33m3cf8bd0[m Backend connection fix
+[33maaa838d[m Backend connection fix
+[33m27dfe96[m Backend connection fix
+[33m3e34bac[m proxy fix
+[33ma9485ec[m bugFix
+[33m9bbaa17[m v1.0
+[33m1022d33[m Add Dockerfile and deployment config
+[33mf6f453c[m v1.0
+[33m5f0c738[m v1.0
+[33m503e7ac[m v1.0
+[33me006de3[m UIFixes
+[33m37f46fc[m UIFixes
+[33m938dc1a[m UIFixes
+[33m4226761[m Ui6
+[33meac1cca[m Ui6
+[33mb0fe3af[m Ui6
+[33m4522f0a[m Ui6
+[33m9ad9218[m Ui6
+[33m4f4ccdc[m Ui6
+[33m3142179[m Ui6
+[33m76b93d8[m Ui6
+[33me870e0c[m Ui6
+[33m9c50f6c[m Ui6
+[33m7077559[m Ui6
+[33mff817e8[m Ui6
+[33m83cdd91[m Ui6
+[33mb398af5[m Ui6
+[33mcbec466[m test
+[33mbe8461b[m error
+[33m14e3308[m Ui6
+[33md5aa58f[m Ui6
+[33me8f6081[m Ui6
+[33m3dd4a6b[m Ui6
+[33m2507d0b[m Ui6
+[33m374b7b2[m Ui6
+[33m6122951[m Ui6
+[33mf352e68[m Ui6
+[33maf1b404[m Ui6
+[33me4d6725[m Ui6
+[33m5444d2f[m Ui6
+[33m7227432[m Ui6
+[33m13229a6[m Ui
+[33mab761ea[m Ui
+[33mf32e2ba[m ui
+[33m958162b[m ui
+[33mf6e6499[m Merge branch 'Test' of https://github.com/SamuelNikhil/SlingShot-game into Test
+[33m336fb29[m Update Screen.jsx
+[33m2d06dcf[m error
+[33mc86f2e7[m uiV3
+[33m32bd020[m uiV2
+[33m4360c87[m ui
+[33m15df96c[m ui
+[33m840a734[m ui
+[33m8033376[m ui
+[33m85b3cf6[m ui
+[33m0dcf33a[m error
+[33mdbd1137[m error
+[33mfa01443[m error
+[33m6a8861a[m Update Screen.jsx
+[33m715deda[m uiV3
+[33ma6d8d1d[m uiV2
+[33mfa15916[m ui
+[33mdc9e840[m ui
+[33m288be61[m ui
+[33mb6959bc[m ui
+[33mc1d5d1e[m ui
+[33mfa23f65[m Merge pull request #1 from SamuelNikhil/Test
+[33m7c2f631[m ui
+[33mc73228d[m ui
+[33m60e050d[m ui
+[33ma826ee3[m ui
+[33m2be4eea[m ui
+[33mf62d579[m ui
+[33mc310b34[m ui
+[33mf7d5176[m ui
+[33m4077017[m ui
+[33m49aa81b[m Merge branch 'main' of https://github.com/SamuelNikhil/SlingShot-game
+[33mb6df95d[m securityfix
+[33m34ab404[m Update README.md
+[33m0cfd670[m Update README.md
+[33me2177ef[m readme
+[33m5e9bf99[m readme
+[33md3069c0[m Update README.md
+[33md64d480[m Update README.md
+[33m660c0bf[m readme
+[33m6af36eb[m v6
+[33m2c62b35[m v6
+[33m4ca84dc[m bugfix-v5
+[33m9508c46[m bugfix-v5
+[33ma020b03[m bugfix-v5
+[33mb1b0b4d[m bugfix-v4
+[33m90b855b[m bugfix-v4
+[33mdab7110[m bugfix-v3
+[33m1ee674e[m bugfix-v3
+[33m7fda11f[m bugfix-v3
+[33m1fc5680[m bugfix-v3
+[33meccf7f1[m bugfix-v2
+[33m2dba2e4[m bugfix-v2
+[33m44136a9[m bugfix-v2
+[33m10ffe73[m latency-issue
+[33mee55e68[m latency-issue
+[33m10f3821[m latency-issue
+[33md9e4520[m aws
+[33m78227a8[m aws
+[33m9704aa5[m client
+[33m2a585c4[m client
+[33m8ac8110[m client
+[33m8f08059[m client
+[33me810043[m client
+[33m24ab326[m client
+[33m7f95535[m client
+[33m9c19752[m client
+[33m6d69ab6[m client
+[33m7cdbfeb[m client
+[33m30916cb[m client
+[33md2314bb[m client
+[33m895c9b5[m client
+[33m56a4e73[m client
+[33m64e3452[m awsfix
+[33m7815f3a[m awsfix
+[33m737a103[m awsfix
+[33mdb7b47d[m awsfix
+[33m05c2882[m awsfix
+[33m6ce7ac8[m newV
+[33md5b5083[m server
+[33m4ecfa73[m v4
+[33m73cf13b[m server
+[33m710256a[m fly
+[33m3a17203[m env-new
+[33m6e64756[m env-new
+[33mf380c6a[m env-new
+[33mc396b3c[m env-new
+[33m9145f09[m ec2
+[33m9c9442c[m fly
+[33m8a5f6bf[m v3
+[33m76dff45[m Fix Date.now() causing port conflicts
+[33m3376df0[m v3
+[33m8ecfecd[m v2
+[33m23b1a78[m v2
+[33mc5d9fd5[m v2
+[33mb1ed61f[m v2
+[33mb6a7e35[m v2
+[33m0c5664b[m v2
+[33m7bef2f2[m v2
+[33m93c5543[m v2
+[33ma6ffe95[m v2
+[33m89fe9eb[m v2
+[33m62fa1e6[m v2
+[33m4e353e2[m Merge remote changes
+[33m584db69[m Update .env.example
+[33m40c04d9[m Merge branch 'main' of https://github.com/SamuelNikhil/SlingShot-game
+[33m224292c[m Add postinstall script to rebuild native dependencies
+[33m2587bc8[m Update .env.example
+[33m03ea1b2[m Merge remote changes
+[33mbac3397[m v2
+[33m18bf8a6[m Update .env.example
+[33mab3dcbd[m v1
+[33m828a2fc[m Add files via upload

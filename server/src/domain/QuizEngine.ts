@@ -6,10 +6,10 @@
 // Implements GameEngine interface
 // ==========================================
 
-import { getSessionQuestions, clearSessionQuestions, generateSessionQuestions, getAllQuestions } from './questionRepository.ts';
-import { CONFIG } from '../../infrastructure/config.ts';
-import type { ServerQuestion, ClientQuestion, QuestionPhase, PlayerSelectionPayload, RevealResultPayload, QuizTopicId, QuizDifficulty } from '../../shared/types.ts';
-import type { GameEngine } from '../../domain/GameEngine.ts';
+import { getSessionQuestions, clearSessionQuestions, generateSessionQuestions, getAllQuestions } from '../data/questionRepository.ts';
+import { CONFIG } from '../infrastructure/config.ts';
+import type { ServerQuestion, ClientQuestion, QuestionPhase, PlayerSelectionPayload, RevealResultPayload, QuizTopicId, QuizDifficulty } from '../shared/types.ts';
+import type { GameEngine } from './GameEngine.ts';
 
 // Phase durations in seconds
 export const PHASE_DURATIONS: Record<QuestionPhase, number> = {
@@ -27,8 +27,7 @@ export class QuizEngine implements GameEngine {
     private questionsAnswered: number = 0;
     private sessionQuestionsAnswered: number = 0;
     private initialized: boolean = false;
-    private playerCount: number = 1; // Game mode: set once at start, never changes
-    private activePlayerCount: number = 1; // Runtime count for early-advance checks
+    private playerCount: number = 1;
     private usedQuestionTexts: Set<string> = new Set();
     private sessionQuestionLimit: number;
     private readonly MAX_QUESTIONS = 10;
@@ -174,7 +173,6 @@ export class QuizEngine implements GameEngine {
     setPlayerCount(count: number): boolean {
         const previousCount = this.playerCount;
         this.playerCount = Math.max(1, Math.min(4, count));
-        this.activePlayerCount = this.playerCount;
 
         const modeChanged = (previousCount >= 2) !== (this.playerCount >= 2);
 
@@ -194,11 +192,14 @@ export class QuizEngine implements GameEngine {
      */
     updateActivePlayerCount(count: number): void {
         const newCount = Math.max(1, count);
-        if (newCount === this.activePlayerCount) return;
-        this.activePlayerCount = newCount;
-        console.log(`[QuizEngine] Active player count updated to ${this.activePlayerCount}`);
-        if (this.currentPhase === 'selection' && this.playerSelections.size >= this.activePlayerCount) {
-            console.log(`[QuizEngine] All remaining ${this.activePlayerCount} active players already selected — advancing to reveal early`);
+        if (newCount === this.playerCount) return;
+        this.playerCount = newCount;
+        console.log(`[QuizEngine] Active player count updated to ${this.playerCount}`);
+
+        // If we're in the selection phase and everyone remaining has already selected,
+        // advance immediately rather than waiting for the timer.
+        if (this.currentPhase === 'selection' && this.playerSelections.size >= this.playerCount) {
+            console.log(`[QuizEngine] All remaining ${this.playerCount} active players already selected — advancing to reveal early`);
             this.stopPhaseTimer();
             this.advancePhase();
         }
@@ -379,8 +380,8 @@ export class QuizEngine implements GameEngine {
 
         // Early phase transition: if all active players have now selected, skip the
         // remaining selection timer and move straight to the reveal phase.
-        if (this.playerSelections.size >= this.activePlayerCount) {
-            console.log(`[QuizEngine] All ${this.activePlayerCount} active players selected — advancing to reveal early`);
+        if (this.playerSelections.size >= this.playerCount) {
+            console.log(`[QuizEngine] All ${this.playerCount} players selected — advancing to reveal early`);
             this.stopPhaseTimer();
             this.advancePhase();
         }
@@ -391,14 +392,6 @@ export class QuizEngine implements GameEngine {
     /** Check if a player already selected this round */
     hasSelected(controllerId: string): boolean {
         return this.playerSelections.has(controllerId);
-    }
-
-    /** Remove a player's selection from the current round (e.g. on reconnect).
-     *  This allows a reconnecting player to shoot again during the active selection phase. */
-    removeSelection(controllerId: string): void {
-        if (this.playerSelections.delete(controllerId)) {
-            console.log(`[QuizEngine] Cleared selection for reconnecting player ${controllerId.substring(0, 8)}...`);
-        }
     }
 
     /** Evaluate all selections during the Reveal phase */
@@ -505,8 +498,9 @@ export class QuizEngine implements GameEngine {
 
     /**
      * Pre-fetch the next question into the buffer during the reveal phase.
-     * Picks from the already-loaded question pool — no background top-up needed
-     * since all 10 questions are generated upfront at game start.
+     * Synchronous path: picks from the already-loaded question pool.
+     * Async path (low stock): refreshes from the session cache in the background
+     * and stores the result in the buffer once ready.
      */
     private prefetchNextQuestion(): void {
         this.nextQuestionBuffer = null;
@@ -516,9 +510,55 @@ export class QuizEngine implements GameEngine {
         );
 
         if (available.length > 0) {
+            // Questions are in memory — pick one synchronously
             this.nextQuestionBuffer = this.pickAndMarkQuestion(available);
-            console.log(`[QuizEngine] Next question pre-fetched (${available.length} available)`);
+            console.log(`[QuizEngine] Next question pre-fetched synchronously (${available.length} available)`);
+
+            // Trigger a background top-up when stock is getting low so future
+            // rounds never hit the async path
+            if (available.length < 3) {
+                this.refreshQuestionsInBackground();
+            }
+            return;
         }
+
+        // No questions left in memory — refresh from session cache asynchronously.
+        // The buffer will be populated before the reveal timeout fires (3 s window).
+        console.log('[QuizEngine] Question pool empty — refreshing from session cache...');
+        this.refreshQuestionsInBackground(/* andPick */ true);
+    }
+
+    /**
+     * Refresh the question pool from the session cache in the background.
+     * If `andPick` is true, also populate nextQuestionBuffer once the refresh
+     * completes (used when the pool was empty during prefetch).
+     */
+    private refreshQuestionsInBackground(andPick: boolean = false): void {
+        getSessionQuestions(
+            this.sessionId,
+            undefined,
+            this.selectedTopic ?? undefined,
+            this.selectedDifficulty,
+        ).then(updated => {
+            if (this.destroyed || this.isReset) return;
+
+            if (updated.length > this.questions.length) {
+                console.log(`[QuizEngine] Background refresh: ${this.questions.length} → ${updated.length} questions`);
+                this.questions = updated;
+            }
+
+            if (andPick && !this.nextQuestionBuffer) {
+                const available = this.questions.filter(
+                    q => !this.usedQuestionTexts.has(q.text.trim().toLowerCase()),
+                );
+                if (available.length > 0) {
+                    this.nextQuestionBuffer = this.pickAndMarkQuestion(available);
+                    console.log('[QuizEngine] Next question pre-fetched after async refresh');
+                }
+            }
+        }).catch(err => {
+            console.error('[QuizEngine] Background question refresh failed:', err);
+        });
     }
 
     /**
@@ -638,27 +678,20 @@ export class QuizEngine implements GameEngine {
         }
     }
 
-    /** Get current question for client (without correct answer) — DESTRUCTIVE, marks question as used.
-     *  Only use this when advancing to a new question. For resync/reconnection, use peekCurrentQuestion(). */
+    /** Get current question for client (without correct answer).
+     *  Used for the first question of a game and in singleplayer mode.
+     *  Multiplayer subsequent questions come from getBufferedQuestion(). */
     getCurrentQuestion(): ClientQuestion | null {
         const available = this.questions.filter(
             q => !this.usedQuestionTexts.has(q.text.trim().toLowerCase()),
         );
 
         if (available.length === 0) {
-            console.log('[QuizEngine] All questions used!');
+            console.log('[QuizEngine] All questions used! Triggering background generation...');
             return null;
         }
 
         return this.pickAndMarkQuestion(available);
-    }
-
-    /** Peek at the current question WITHOUT consuming it (non-destructive).
-     *  Used for resync state when a player reconnects mid-game. */
-    peekCurrentQuestion(): ClientQuestion | null {
-        const q = this.findCurrentQuestion();
-        if (!q) return null;
-        return { id: q.id, text: q.text, code: q.code, options: q.options };
     }
 
     /** Validate an answer (singleplayer). Returns { correct, points, baseScore, bonus } */
@@ -744,6 +777,15 @@ export class QuizEngine implements GameEngine {
             return null;
         }
 
+        // Trigger a background top-up when stock is getting low, but don't block
+        const availableCount = this.questions.filter(
+            q => !this.usedQuestionTexts.has(q.text.trim().toLowerCase()),
+        ).length;
+        if (availableCount < 3) {
+            console.log(`[QuizEngine] Running low on available questions (${availableCount} left), refreshing in background...`);
+            this.refreshQuestionsInBackground();
+        }
+
         return this.getCurrentQuestion();
     }
 
@@ -787,19 +829,12 @@ export class QuizEngine implements GameEngine {
         return this.questions.length;
     }
 
-    /** Get game-specific state for reconnecting clients (non-destructive) */
+    /** Get game-specific state for reconnecting clients */
     getResyncState(): Record<string, unknown> | undefined {
         if (!this.initialized) return undefined;
-        const currentQuestion = this.peekCurrentQuestion() ?? undefined;
+        const currentQuestion = this.getCurrentQuestion() ?? undefined;
         const phaseTimeLeft = this.getPhaseTimeLeft?.() ?? this.getTimeLeft?.() ?? undefined;
-        return {
-            currentQuestion,
-            phaseTimeLeft,
-            questionNumber: this.questionNumberForUI,
-            isMultiplayer: this.isMultiplayer(),
-            currentPhase: this.currentPhase,
-            playerSelections: this.isMultiplayer() ? Array.from(this.playerSelections.values()) : [],
-        };
+        return { currentQuestion, phaseTimeLeft };
     }
 
     /** Clean up and clear session questions */

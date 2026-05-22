@@ -10,7 +10,11 @@ import { createGameEngine } from './GameRegistry.ts';
 import type { GameEngine, GameType } from './GameEngine.ts';
 import { EVENTS } from '../shared/protocol.ts';
 import { CONFIG } from '../infrastructure/config.ts';
+import { QUIZ_TOPICS } from '../shared/types.ts';
 import type { PlayerRole, PlayerInfo, PlayerScoreEntry, LobbyState } from '../shared/types.ts';
+import * as playerRepo from '../data/playerRepository.ts';
+import * as teamRepo from '../data/teamRepository.ts';
+import { getApiCallLog } from '../modes/ShootQuiz/GroqService.ts';
 
 // ---- Public interfaces ----
 
@@ -56,6 +60,11 @@ export interface Room {
     screenGraceTimer?: NodeJS.Timeout;
     // Empty lobby deletion timer
     emptyLobbyTimer?: NodeJS.Timeout;
+    // Set when game-over is broadcast; used by LEAVE_GAME to destroy room
+    gameOverBroadcasted?: boolean;
+    // Live topic/difficulty tracking for admin monitoring
+    currentTopic?: string;
+    currentDifficulty?: string;
 }
 
 export const PRE_CONFIG_NAMES = ['Wulf', 'Talon', 'Ryker', 'Zark'];
@@ -63,13 +72,35 @@ export const PRE_CONFIG_NAMES = ['Wulf', 'Talon', 'Ryker', 'Zark'];
 export class RoomManager {
     private rooms: Map<string, Room> = new Map();
     private idleReaperInterval: ReturnType<typeof setInterval> | null = null;
-    private static readonly IDLE_TIMEOUT_MS = 2 * 60 * 1000;       // 2 minutes
-    private static readonly REAPER_INTERVAL_MS = 30 * 1000;         // check every 30s
-    private static readonly GRACE_MS = 60_000;                       // disconnect grace
-    private static readonly EMPTY_LOBBY_DELETE_MS = 500;
+    private static readonly IDLE_TIMEOUT_MS = 2 * 60 * 1000;
+    private static readonly REAPER_INTERVAL_MS = 30 * 1000;
+    private static readonly GRACE_MS = 60_000;
 
     private onEmptyLobbyDeleted: ((room: Room) => void) | null = null;
     private onRoomDeleted: ((roomId: string) => void) | null = null;
+
+    /** Reconnection event log (ring buffer, max 200 entries) */
+    private reconnectionLog: Array<{
+        roomId: string;
+        playerName: string;
+        success: boolean;
+        reason: string;
+        timestamp: number;
+    }> = [];
+    private static readonly MAX_RECONNECT_LOG = 200;
+
+    private logReconnect(roomId: string, playerName: string, success: boolean, reason: string): void {
+        this.reconnectionLog.push({
+            roomId,
+            playerName,
+            success,
+            reason,
+            timestamp: Date.now(),
+        });
+        while (this.reconnectionLog.length > RoomManager.MAX_RECONNECT_LOG) {
+            this.reconnectionLog.shift();
+        }
+    }
 
     setOnEmptyLobbyDeleted(cb: (room: Room) => void): void {
         this.onEmptyLobbyDeleted = cb;
@@ -163,7 +194,39 @@ export class RoomManager {
             return { success: false, error: 'Room is full (max 4 players)' };
         }
         if (room.gameStarted) {
-            return { success: false, error: 'Game already in progress' };
+            // Allow rejoining as spectator when game is in progress
+            // (grace period expired — they missed the reconnect window)
+            // Instead of hard-blocking, add them as a spectating controller
+            const usedColorIndices = new Set(room.controllers.map(c => c.colorIndex));
+            let colorIndex = 0;
+            while (usedColorIndices.has(colorIndex) && colorIndex < 4) colorIndex++;
+            const defaultName = PRE_CONFIG_NAMES[colorIndex] || `Player ${room.controllers.length + 1}`;
+
+            const controller: RoomController = {
+                id: channel.id,
+                clientId,
+                role: 'member',
+                isReady: true,
+                colorIndex,
+                name: defaultName,
+                score: 0,
+                isSpectating: true,
+                channel,
+            };
+
+            // Clean up any previous disconnected score entry
+            room.disconnectedPlayerScores.delete(clientId);
+
+            room.controllers.push(controller);
+            room.lastActivity = Date.now();
+
+            if (room.emptyLobbyTimer) {
+                clearTimeout(room.emptyLobbyTimer);
+                room.emptyLobbyTimer = undefined;
+            }
+
+            console.log(`[Room] ${clientId.substring(0, 8)}... joined room ${roomId} as spectator (game in progress)`);
+            return { success: true, role: 'member', colorIndex, playerName: defaultName };
         }
 
         const currentLeaders = room.controllers.filter(c => c.role === 'leader');
@@ -278,23 +341,36 @@ export class RoomManager {
 
             if (room.gameStarted) {
                 if (room.controllers.length === 1) {
+                    // Last player mid-game — force-end game, don't destroy room, caller handles
+                    leftController.isSpectating = true;
                     room.controllers.splice(idx, 1);
                     room.lastActivity = Date.now();
-                    console.log(`[Room] Last player ${leftController.name} disconnected during gameplay — scheduling room deletion`);
-                    if (!room.emptyLobbyTimer) {
-                        room.emptyLobbyTimer = setTimeout(() => {
-                            const deletedRoom = this.deleteRoomById(room.roomId);
-                            if (deletedRoom) {
-                                console.log(`[Room] Room ${room.roomId} deleted after last player left`);
-                                this.onEmptyLobbyDeleted?.(deletedRoom);
-                            }
-                        }, RoomManager.EMPTY_LOBBY_DELETE_MS);
-                    }
+                    console.log(`[Room] Last player ${leftController.name} disconnected mid-game — caller will force-end`);
+                    this.ensureSingleLeader(room);
                     return { room, wasLeader, promotedControllerId: undefined };
                 }
 
                 leftController.disconnected = true;
                 leftController.channel = null;
+                leftController.isSpectating = true;
+
+                // If every remaining player is now disconnected, no point in grace period.
+                // The caller's hasActivePlayers check will force-end the game to lobby.
+                const anyConnected = room.controllers.some(c => !c.disconnected);
+                if (!anyConnected) {
+                    console.log(`[Room] All players disconnected mid-game in ${room.roomId} — caller will force-end`);
+                    if (leftController.score > 0) {
+                        room.disconnectedPlayerScores.set(leftController.clientId, {
+                            clientId: leftController.clientId,
+                            name: leftController.name,
+                            colorIndex: leftController.colorIndex,
+                            score: leftController.score,
+                        });
+                    }
+                    room.lastActivity = Date.now();
+                    this.ensureSingleLeader(room);
+                    return { room, wasLeader, promotedControllerId: undefined };
+                }
 
                 if (leftController.score > 0) {
                     room.disconnectedPlayerScores.set(leftController.clientId, {
@@ -324,20 +400,17 @@ export class RoomManager {
             const remainingConnected = room.controllers.filter(c => !c.disconnected && c !== leftController).length;
 
             if (remainingConnected === 0) {
+                // Last player left the lobby — destroy the room immediately.
+                // No grace period, no 500ms timer. The screen will get ROOM_EXPIRED
+                // and create a fresh room.
                 room.controllers.splice(idx, 1);
                 room.lastActivity = Date.now();
-                console.log(`[Room] Last lobby player ${leftController.name} (colorIndex: ${leftColorIndex}) disconnected — scheduling room deletion`);
-                if (!room.emptyLobbyTimer) {
-                    room.emptyLobbyTimer = setTimeout(() => {
-                        const deletedRoom = this.deleteRoomById(room.roomId);
-                        if (deletedRoom) {
-                            console.log(`[Room] Empty lobby ${room.roomId} deleted`);
-                            this.onEmptyLobbyDeleted?.(deletedRoom);
-                        }
-                    }, RoomManager.EMPTY_LOBBY_DELETE_MS);
+                console.log(`[Room] Last lobby player ${leftController.name} (colorIndex: ${leftColorIndex}) disconnected — destroying room immediately`);
+                const deletedRoom = this.deleteRoomById(room.roomId);
+                if (deletedRoom) {
+                    this.onEmptyLobbyDeleted?.(deletedRoom);
                 }
-                const promotedControllerId = this.ensureSingleLeader(room);
-                return { room, wasLeader, promotedControllerId };
+                return { room, wasLeader, promotedControllerId: undefined };
             }
 
             const lobbyTimer = setTimeout(() => {
@@ -403,15 +476,10 @@ export class RoomManager {
 
         const connectedCount = room.controllers.filter(c => !c.disconnected).length;
         if (connectedCount === 0 && !room.gameStarted) {
-            if (!room.emptyLobbyTimer) {
-                console.log(`[Room] Lobby ${roomId} is empty — scheduling deletion`);
-                room.emptyLobbyTimer = setTimeout(() => {
-                    const deletedRoom = this.deleteRoomById(roomId);
-                    if (deletedRoom) {
-                        console.log(`[Room] Empty lobby ${roomId} deleted`);
-                        this.onEmptyLobbyDeleted?.(deletedRoom);
-                    }
-                }, RoomManager.EMPTY_LOBBY_DELETE_MS);
+            console.log(`[Room] Lobby ${roomId} empty after grace expired — destroying immediately`);
+            const deletedRoom = this.deleteRoomById(roomId);
+            if (deletedRoom) {
+                this.onEmptyLobbyDeleted?.(deletedRoom);
             }
         }
 
@@ -427,10 +495,16 @@ export class RoomManager {
         newChannel: any,
     ): { success: boolean; phase?: string; playerScores?: PlayerScoreEntry[]; resyncState?: Record<string, unknown>; error?: string } {
         const room = this.rooms.get(roomId);
-        if (!room) return { success: false, error: 'Room not found' };
+        if (!room) {
+            this.logReconnect(roomId, clientId, false, 'Room not found');
+            return { success: false, error: 'Room not found' };
+        }
 
         const controller = room.controllers.find(c => c.clientId === clientId && c.disconnected);
-        if (!controller) return { success: false, error: 'No disconnected controller found with that ID' };
+        if (!controller) {
+            this.logReconnect(roomId, clientId, false, 'No disconnected controller found with that ID');
+            return { success: false, error: 'No disconnected controller found with that ID' };
+        }
 
         const timer = room.disconnectGraceTimers.get(clientId);
         if (timer) {
@@ -439,6 +513,7 @@ export class RoomManager {
         }
 
         controller.disconnected = false;
+        controller.isSpectating = false;
         controller.id = newChannel.id;
         controller.channel = newChannel;
 
@@ -461,6 +536,7 @@ export class RoomManager {
         const resyncState = room.gameStarted ? room.engine.getResyncState?.() : undefined;
 
         console.log(`[Room] Controller ${controller.name} (${clientId}) reconnected — phase: ${phase}`);
+        this.logReconnect(roomId, controller.name, true, '');
         return { success: true, phase, playerScores: this.getPlayerScores(roomId), resyncState };
     }
 
@@ -591,9 +667,12 @@ export class RoomManager {
         const room = this.rooms.get(roomId);
         if (!room) return;
         room.gameStarted = false;
+        room.gameOverBroadcasted = false;
         room.engine.reset();
-        this.resetSpectatingStatus(roomId);
-        for (const c of room.controllers) c.isReady = true;
+        for (const c of room.controllers) {
+            c.isReady = true;
+            c.isSpectating = false;
+        }
         this.clearDisconnectedScores(roomId);
     }
 
@@ -706,5 +785,185 @@ export class RoomManager {
             clearInterval(this.idleReaperInterval);
             this.idleReaperInterval = null;
         }
+    }
+
+    /** Admin analytics: returns real data from the database */
+    getAdminAnalytics(getRoomTopics?: (roomId: string) => { topicVotes: Record<string, string>; totalVoters: number }): {
+        topicPopularity: Array<{ topicId: string; selectionCount: number; avgScore: number }>;
+        difficultyStats: Array<{ difficulty: string; gamesPlayed: number; avgCorrectPct: number; avgScore: number }>;
+        playerLeaderboard: Array<{ rank: number; playerName: string; totalScore: number; gamesPlayed: number }>;
+        reconnectionStats: { successRate: number; total: number; successful: number; failed: number; recent: Array<{ roomId: string; playerName: string; success: boolean; reason: string; timestamp: number }> };
+        apiCallLog: Array<{ roomId: string; rounds: number; apiCalls: number }>;
+        roomTopics: Array<{ roomId: string; topicId: string; topicLabel: string; voteCount: number; totalVoters: number; questionsAnswered: number; correctAnswers: number; wrongAnswers: number }>;
+        roomDifficulties: Array<{ roomId: string; difficulty: string; avgScore: number; avgCorrectPct: number }>;
+        recentActivity: Array<{ timestamp: string; activeRooms: number; activePlayers: number }>;
+    } {
+        const totalAttempts = this.reconnectionLog.length;
+        const successful = this.reconnectionLog.filter(r => r.success).length;
+        const failed = totalAttempts - successful;
+        const recentLog = this.reconnectionLog.slice(-50);
+        const roomTopics: Array<{ roomId: string; topicId: string; topicLabel: string; voteCount: number; totalVoters: number; questionsAnswered: number; correctAnswers: number; wrongAnswers: number }> = [];
+        const roomDifficulties: Array<{ roomId: string; difficulty: string; avgScore: number; avgCorrectPct: number }> = [];
+        for (const [, room] of this.rooms) {
+            const topicVoteData = getRoomTopics?.(room.roomId) ?? { topicVotes: {}, totalVoters: 0 };
+            const totalVoters = topicVoteData.totalVoters;
+            const correctAnswers = room.engine.getSessionQuestionsAnswered();
+            const totalAttempted = room.engine.getTotalQuestionsAttempted();
+            const wrongAnswers = totalAttempted > correctAnswers ? totalAttempted - correctAnswers : 0;
+            // Count votes per topic from the topicVotes map
+            const voteCounts: Record<string, number> = {};
+            for (const [, topicId] of Object.entries(topicVoteData.topicVotes)) {
+                voteCounts[topicId] = (voteCounts[topicId] || 0) + 1;
+            }
+            // If no votes recorded but topic is set, show the topic with 0 votes
+            if (Object.keys(voteCounts).length === 0 && room.currentTopic) {
+                voteCounts[room.currentTopic] = 0;
+            }
+            for (const [topicId, count] of Object.entries(voteCounts)) {
+                const topicLabel = QUIZ_TOPICS.find(t => t.id === topicId)?.label || topicId;
+                roomTopics.push({
+                    roomId: room.roomId,
+                    topicId,
+                    topicLabel,
+                    voteCount: count,
+                    totalVoters,
+                    questionsAnswered: totalAttempted,
+                    correctAnswers,
+                    wrongAnswers,
+                });
+            }
+            if (room.currentDifficulty) {
+                const playerScores = this.getPlayerScores(room.roomId);
+                const totalScore = playerScores.reduce((sum, p) => sum + p.score, 0);
+                const avgScore = playerScores.length > 0 ? totalScore / playerScores.length : 0;
+                roomDifficulties.push({
+                    roomId: room.roomId,
+                    difficulty: room.currentDifficulty,
+                    avgScore: Math.round(avgScore * 10) / 10,
+                    avgCorrectPct: 0,
+                });
+            }
+        }
+        return {
+            topicPopularity: teamRepo.getTopicPopularity(),
+            difficultyStats: teamRepo.getDifficultyStats(),
+            playerLeaderboard: playerRepo.getPlayerLeaderboard(10),
+            reconnectionStats: {
+                successRate: totalAttempts > 0 ? Math.round((successful / totalAttempts) * 100) : 0,
+                total: totalAttempts,
+                successful,
+                failed,
+                recent: recentLog,
+            },
+            apiCallLog: getApiCallLog(),
+            roomTopics,
+            roomDifficulties,
+            recentActivity: teamRepo.getRecentActivity(60),
+        };
+    }
+
+    /** Admin monitoring: returns a JSON snapshot of all rooms and players */
+    getAdminStatus(getTopicVotes?: (roomId: string) => { topicVotes: Record<string, string>; totalVoters: number }): {
+        totalRooms: number;
+        activeRooms: number;
+        totalPlayers: number;
+        connectedPlayers: number;
+        reconnectingPlayers: number;
+        rooms: Array<{
+            roomId: string;
+            gameType: string;
+            gameStarted: boolean;
+            lastActivity: number;
+            screenDisconnected: boolean;
+            currentTopic: string | null;
+            currentDifficulty: string | null;
+            topicVotes: Record<string, string>; // controllerId -> topicId
+            totalVoters: number;
+            players: Array<{
+                id: string;
+                clientId: string;
+                name: string;
+                role: string;
+                colorIndex: number;
+                score: number;
+                isSpectating: boolean;
+                disconnected: boolean;
+            }>;
+            leaderName: string | null;
+        }>;
+    } {
+        let totalPlayers = 0;
+        let connectedPlayers = 0;
+        let reconnectingPlayers = 0;
+        let activeRooms = 0;
+
+        const rooms: Array<{
+            roomId: string;
+            gameType: string;
+            gameStarted: boolean;
+            lastActivity: number;
+            screenDisconnected: boolean;
+            currentTopic: string | null;
+            currentDifficulty: string | null;
+            topicVotes: Record<string, string>;
+            totalVoters: number;
+            players: Array<{
+                id: string;
+                clientId: string;
+                name: string;
+                role: string;
+                colorIndex: number;
+                score: number;
+                isSpectating: boolean;
+                disconnected: boolean;
+            }>;
+            leaderName: string | null;
+        }> = [];
+
+        for (const [, room] of this.rooms) {
+            const playerList = room.controllers.map(c => ({
+                id: c.id,
+                clientId: c.clientId,
+                name: c.name,
+                role: c.role,
+                colorIndex: c.colorIndex,
+                score: c.score,
+                isSpectating: c.isSpectating,
+                disconnected: !!c.disconnected,
+            }));
+
+            const leader = room.controllers.find(c => c.role === 'leader' && !c.disconnected);
+
+            totalPlayers += room.controllers.length;
+            connectedPlayers += room.controllers.filter(c => !c.disconnected).length;
+            reconnectingPlayers += room.controllers.filter(c => !!c.disconnected).length;
+
+            if (room.gameStarted) activeRooms++;
+
+            const topicVoteData = getTopicVotes?.(room.roomId) ?? { topicVotes: {}, totalVoters: 0 };
+
+            rooms.push({
+                roomId: room.roomId,
+                gameType: room.gameType,
+                gameStarted: room.gameStarted,
+                lastActivity: room.lastActivity,
+                screenDisconnected: !!room.screenDisconnected,
+                currentTopic: room.currentTopic ?? null,
+                currentDifficulty: room.currentDifficulty ?? null,
+                topicVotes: topicVoteData.topicVotes,
+                totalVoters: topicVoteData.totalVoters,
+                players: playerList,
+                leaderName: leader?.name ?? null,
+            });
+        }
+
+        return {
+            totalRooms: this.rooms.size,
+            activeRooms,
+            totalPlayers,
+            connectedPlayers,
+            reconnectingPlayers,
+            rooms,
+        };
     }
 }

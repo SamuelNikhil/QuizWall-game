@@ -59,6 +59,7 @@ export interface JoinedRoomPayload {
     role?: PlayerRole;
     colorIndex?: number;
     playerName?: string;
+    gameInProgress?: boolean;
 }
 
 // ---------- Game Events ----------

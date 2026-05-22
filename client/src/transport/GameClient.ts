@@ -273,7 +273,7 @@ export class GameClient {
         this.channel?.on(EVENTS.ROOM_CREATED, cb);
     }
 
-    onJoinedRoom(cb: (data: JoinedRoomPayload) => void): void {
+    onJoinedRoom(cb: (data: JoinedRoomPayload & { gameInProgress?: boolean }) => void): void {
         this.channel?.on(EVENTS.JOINED_ROOM, cb);
     }
 
@@ -286,6 +286,11 @@ export class GameClient {
         role?: PlayerRole;
         currentQuestion?: ClientQuestion;
         phaseTimeLeft?: number;
+        questionNumber?: number;
+        isMultiplayer?: boolean;
+        currentPhase?: string;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        playerSelections?: any[];
     }) => void): void {
         this.channel?.on(EVENTS.RECONNECTED, cb);
     }

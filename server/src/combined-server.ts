@@ -41,15 +41,40 @@ async function main() {
     // 2. Create Express app for HTTP + static files
     const app = express();
     app.use(cors());
-    
+    app.use(express.json());
+
     // Serve static files from client/dist
     const clientDistPath = path.join(__dirname, '../client/dist');
     app.use(express.static(clientDistPath));
-    
-    // 3. Create HTTP server with Express
+
+    // 3. Create domain manager (needs to be accessible by both Geckos and Express)
+    const roomManager = new RoomManager();
+
+    // ── Admin monitoring API ──────────────────────────────────────────
+    const ADMIN_SECRET = process.env.ADMIN_SECRET || '';
+
+    app.get('/api/admin/status', (req, res) => {
+        if (ADMIN_SECRET && req.headers['authorization'] !== `Bearer ${ADMIN_SECRET}`) {
+            res.status(401).json({ code: 'unauthorized', message: 'Invalid or missing admin secret' });
+            return;
+        }
+        const status = roomManager.getAdminStatus();
+        res.json(status);
+    });
+
+    app.get('/api/admin/analytics', (req, res) => {
+        if (ADMIN_SECRET && req.headers['authorization'] !== `Bearer ${ADMIN_SECRET}`) {
+            res.status(401).json({ code: 'unauthorized', message: 'Invalid or missing admin secret' });
+            return;
+        }
+        const analytics = roomManager.getAdminAnalytics();
+        res.json(analytics);
+    });
+
+    // 4. Create HTTP server with Express
     const server = http.createServer(app);
 
-    // 4. Create Geckos.io server
+    // 5. Create Geckos.io server
     const io = geckos({
         iceServers: [...CONFIG.ICE_SERVERS],
         portRange: { min: CONFIG.UDP_PORT_MIN, max: CONFIG.UDP_PORT_MAX },
@@ -57,22 +82,22 @@ async function main() {
     });
     console.log(`[Boot] Geckos.io UDP port range: ${CONFIG.UDP_PORT_MIN}-${CONFIG.UDP_PORT_MAX}`);
 
-    // 5. Wire up domain layer
-    const roomManager = new RoomManager();
+    // 6. Wire up domain layer
     registerEventHandlers(io, roomManager);
 
-    // 6. Attach Geckos.io to HTTP server
+    // 7. Attach Geckos.io to HTTP server
     io.addServer(server);
 
-    // 7. SPA fallback - serve index.html for all non-API routes
+    // 8. SPA fallback - serve index.html for all non-API routes
     app.get('*', (_req, res) => {
         res.sendFile(path.join(clientDistPath, 'index.html'));
     });
 
-    // 8. Start server
+    // 9. Start server
     server.listen(CONFIG.PORT, '0.0.0.0', () => {
         console.log(`[Boot] Server listening on 0.0.0.0:${CONFIG.PORT}`);
         console.log(`[Boot] Static files: ${clientDistPath}`);
+        console.log(`[Boot] Admin status endpoint: GET /api/admin/status`);
     });
 }
 

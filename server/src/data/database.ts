@@ -65,10 +65,16 @@ export async function initDatabase(): Promise<Database> {
       team_id INTEGER NOT NULL,
       score INTEGER NOT NULL,
       questions_answered INTEGER NOT NULL,
+      topic TEXT NOT NULL DEFAULT '',
+      difficulty TEXT NOT NULL DEFAULT 'easy',
       created_at TEXT DEFAULT (datetime('now')),
       FOREIGN KEY (team_id) REFERENCES teams(id)
     );
   `);
+
+  // Migrate: add topic/difficulty columns if missing (existing dbs)
+  try { db.run('ALTER TABLE game_sessions ADD COLUMN topic TEXT NOT NULL DEFAULT ""'); } catch {}
+  try { db.run('ALTER TABLE game_sessions ADD COLUMN difficulty TEXT NOT NULL DEFAULT "easy"'); } catch {}
 
   // Create index for faster client_id lookups
   db.run(`
