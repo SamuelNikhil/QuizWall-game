@@ -1,9 +1,9 @@
-// Minimal server for Render web service deployment.
-// Serves the Vite build and proxies /.wrtc/* signaling to EC2.
-// This solves HTTPS (Render) → HTTP (EC2) mixed content for Geckos.io.
+// Render web service server.
+// Serves the Vite build and proxies /.wrtc/* signaling (HTTP + WebSocket) to EC2.
+// WebSocket upgrade support is required for Geckos.io signaling.
 
 import express from 'express';
-import { request as httpRequest } from 'http';
+import { createProxyMiddleware } from 'http-proxy-middleware';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
@@ -13,25 +13,24 @@ const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3000';
 const app = express();
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-// ---- Proxy /.wrtc/* to game server (SSL termination) ----
-app.all('/.wrtc/*', (req, res) => {
-    const target = new URL(req.url, BACKEND_URL);
-
-    const proxyReq = httpRequest(target, {
-        method: req.method,
-        headers: { ...req.headers, host: target.host },
-    }, (proxyRes) => {
-        res.writeHead(proxyRes.statusCode, proxyRes.headers);
-        proxyRes.pipe(res);
-    });
-
-    proxyReq.on('error', (err) => {
-        console.error('[Proxy] Error:', err.message);
-        res.status(502).json({ error: 'Backend unreachable' });
-    });
-
-    req.pipe(proxyReq);
-});
+// ---- Proxy /.wrtc/* to game server (HTTP + WebSocket) ----
+app.use(
+    '/.wrtc',
+    createProxyMiddleware({
+        target: BACKEND_URL,
+        changeOrigin: true,
+        ws: true,
+        on: {
+            error(err, _req, res) {
+                if (res && typeof res.writeHead === 'function') {
+                    res.writeHead(502, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: 'Backend unreachable' }));
+                }
+                console.error('[Proxy] Error:', err.message);
+            },
+        },
+    }),
+);
 
 // ---- Serve static Vite build ----
 app.use(express.static(join(__dirname, 'dist')));
@@ -41,7 +40,16 @@ app.get('*', (_req, res) => {
     res.sendFile(join(__dirname, 'dist', 'index.html'));
 });
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
     console.log(`[Render] Listening on :${PORT}`);
     console.log(`[Render] Proxying /.wrtc/* → ${BACKEND_URL}`);
+});
+
+// ---- Attach WebSocket upgrade handler to the HTTP server ----
+server.on('upgrade', (req, socket, head) => {
+    if (req.url.startsWith('/.wrtc')) {
+        app.handle(req, socket, head);
+    } else {
+        socket.destroy();
+    }
 });
