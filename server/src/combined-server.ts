@@ -16,6 +16,8 @@ import { initDatabase } from './data/database.ts';
 import { RoomManager } from './domain/RoomManager.ts';
 import { registerEventHandlers } from './transport/eventHandlers.ts';
 import { initializeGroqService } from './modes/ShootQuiz/GroqService.ts';
+import { clearAllSessionQuestions } from './modes/ShootQuiz/questionRepository.ts';
+import { ShootQuizPlugin } from './modes/ShootQuiz/ShootQuizPlugin.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -34,6 +36,10 @@ async function main() {
         console.log('[Boot] Groq AI not enabled - using static JSON questions');
     }
 
+    // 1.5 Clean up any leftover Quizwall_*.json files from a previous server run
+    clearAllSessionQuestions();
+    console.log('[Boot] Cleaned up leftover room question cache files');
+
     // 2. Initialize database
     console.log('[Boot] Initializing database...');
     await initDatabase();
@@ -49,16 +55,28 @@ async function main() {
 
     // 3. Create domain manager (needs to be accessible by both Geckos and Express)
     const roomManager = new RoomManager();
+    const shootQuizPlugin = new ShootQuizPlugin(roomManager);
 
     // ── Admin monitoring API ──────────────────────────────────────────
     const ADMIN_SECRET = process.env.ADMIN_SECRET || '';
+
+    const getRoomTopics = (roomId: string): { topicVotes: Record<string, string>; totalVoters: number } => {
+        const state = shootQuizPlugin.getState(roomId);
+        if (!state) return { topicVotes: {}, totalVoters: 0 };
+        const totalVoters = state.topicSelectionStarted ? state.topicVotes.size : state.finalVoteCount;
+        const playerVotes: Record<string, string> = {};
+        for (const [clientId, topicId] of state.topicVotes) {
+            playerVotes[clientId] = topicId;
+        }
+        return { topicVotes: playerVotes, totalVoters };
+    };
 
     app.get('/api/admin/status', (req, res) => {
         if (ADMIN_SECRET && req.headers['authorization'] !== `Bearer ${ADMIN_SECRET}`) {
             res.status(401).json({ code: 'unauthorized', message: 'Invalid or missing admin secret' });
             return;
         }
-        const status = roomManager.getAdminStatus();
+        const status = roomManager.getAdminStatus(getRoomTopics);
         res.json(status);
     });
 
@@ -67,7 +85,7 @@ async function main() {
             res.status(401).json({ code: 'unauthorized', message: 'Invalid or missing admin secret' });
             return;
         }
-        const analytics = roomManager.getAdminAnalytics();
+        const analytics = roomManager.getAdminAnalytics(getRoomTopics);
         res.json(analytics);
     });
 

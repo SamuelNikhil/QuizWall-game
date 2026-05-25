@@ -1,0 +1,248 @@
+{
+    "roomId": "ZZUUSD",
+    "topic": "literature-arts",
+    "difficulty": "easy",
+    "generatedAt": "2026-05-25T03:36:58.653Z",
+    "questions": [
+        {
+            "id": 1,
+            "text": "Which American author wrote the novel 'To Kill a Mockingbird'?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Edgar Allan Poe"
+                },
+                {
+                    "id": "B",
+                    "text": "Jane Austen"
+                },
+                {
+                    "id": "C",
+                    "text": "Harper Lee"
+                },
+                {
+                    "id": "D",
+                    "text": "F. Scott Fitzgerald"
+                }
+            ],
+            "correct": "C",
+            "category": "Literature & Arts"
+        },
+        {
+            "id": 2,
+            "text": "Who was the lead singer of the rock band Queen?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Elton John"
+                },
+                {
+                    "id": "B",
+                    "text": "Mick Jagger"
+                },
+                {
+                    "id": "C",
+                    "text": "David Bowie"
+                },
+                {
+                    "id": "D",
+                    "text": "Freddie Mercury"
+                }
+            ],
+            "correct": "D",
+            "category": "Literature & Arts"
+        },
+        {
+            "id": 3,
+            "text": "Which artist painted the famous painting 'The Starry Night'?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Claude Monet"
+                },
+                {
+                    "id": "B",
+                    "text": "Pablo Picasso"
+                },
+                {
+                    "id": "C",
+                    "text": "Vincent van Gogh"
+                },
+                {
+                    "id": "D",
+                    "text": "Leonardo da Vinci"
+                }
+            ],
+            "correct": "C",
+            "category": "Literature & Arts"
+        },
+        {
+            "id": 4,
+            "text": "What was the name of the famous novel by Jane Austen published in 1813?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Pride and Prejudice"
+                },
+                {
+                    "id": "B",
+                    "text": "Sense and Sensibility"
+                },
+                {
+                    "id": "C",
+                    "text": "Emma"
+                },
+                {
+                    "id": "D",
+                    "text": "Wuthering Heights"
+                }
+            ],
+            "correct": "A",
+            "category": "Literature & Arts"
+        },
+        {
+            "id": 5,
+            "text": "Who wrote the famous play 'Romeo and Juliet'?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "William Shakespeare"
+                },
+                {
+                    "id": "B",
+                    "text": "Christopher Marlowe"
+                },
+                {
+                    "id": "C",
+                    "text": "John Keats"
+                },
+                {
+                    "id": "D",
+                    "text": "Lord Byron"
+                }
+            ],
+            "correct": "A",
+            "category": "Literature & Arts"
+        },
+        {
+            "id": 6,
+            "text": "Which composer wrote the famous symphony 'Symphony No. 5'?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Wolfgang Amadeus Mozart"
+                },
+                {
+                    "id": "B",
+                    "text": "Ludwig van Beethoven"
+                },
+                {
+                    "id": "C",
+                    "text": "Pyotr Ilyich Tchaikovsky"
+                },
+                {
+                    "id": "D",
+                    "text": "Johann Sebastian Bach"
+                }
+            ],
+            "correct": "B",
+            "category": "Literature & Arts"
+        },
+        {
+            "id": 7,
+            "text": "Who was the author of the famous novel 'The Wizard of Oz'?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Dr. Seuss"
+                },
+                {
+                    "id": "B",
+                    "text": "C.S. Lewis"
+                },
+                {
+                    "id": "C",
+                    "text": "J.K. Rowling"
+                },
+                {
+                    "id": "D",
+                    "text": "L. Frank Baum"
+                }
+            ],
+            "correct": "D",
+            "category": "Literature & Arts"
+        },
+        {
+            "id": 8,
+            "text": "Which artist was known for his sculpture 'David'?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Michelangelo"
+                },
+                {
+                    "id": "B",
+                    "text": "Leonardo da Vinci"
+                },
+                {
+                    "id": "C",
+                    "text": "Raphael"
+                },
+                {
+                    "id": "D",
+                    "text": "Caravaggio"
+                }
+            ],
+            "correct": "A",
+            "category": "Literature & Arts"
+        },
+        {
+            "id": 9,
+            "text": "Who wrote the famous poem 'The Road Not Taken'?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "Robert Frost"
+                },
+                {
+                    "id": "B",
+                    "text": "Emily Dickinson"
+                },
+                {
+                    "id": "C",
+                    "text": "Edgar Allan Poe"
+                },
+                {
+                    "id": "D",
+                    "text": "Walt Whitman"
+                }
+            ],
+            "correct": "A",
+            "category": "Literature & Arts"
+        },
+        {
+            "id": 10,
+            "text": "Which author wrote the famous novel 'The Great Gatsby'?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "F. Scott Fitzgerald"
+                },
+                {
+                    "id": "B",
+                    "text": "Mark Twain"
+                },
+                {
+                    "id": "C",
+                    "text": "Theodore Dreiser"
+                },
+                {
+                    "id": "D",
+                    "text": "Ernest Hemingway"
+                }
+            ],
+            "correct": "A",
+            "category": "Literature & Arts"
+        }
+    ]
+}
