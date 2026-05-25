@@ -1,2 +1,6 @@
-# SPA fallback (only used for local preview, not Render)
+# SPA fallback
 /*  /index.html  200
+
+# WebRTC signaling proxy (for Render Static Site deployments)
+# Uncomment and set your backend URL if using a Static Site instead of a Web Service:
+# /.wrtc/*  https://your-backend.onrender.com  200
