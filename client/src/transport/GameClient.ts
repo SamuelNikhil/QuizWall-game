@@ -46,7 +46,7 @@ function getServerConfig() {
 
     if (useProxy) {
         return {
-            geckosUrl: window.location.origin,
+            geckosUrl: `${window.location.protocol}//${window.location.hostname}`,
             geckosPort: parseInt(window.location.port, 10) || (window.location.protocol === 'https:' ? 443 : 80),
             geckosPath: signalingPath,
         };
@@ -95,11 +95,16 @@ export class GameClient {
     private clientRole: 'screen' | 'controller' | null = null;
     /** roomId stored for screen reconnect */
     private screenRoomId: string | null = null;
+    /** Guards against concurrent CREATE_ROOM emissions (race between _reJoin and onRoomExpired) */
+    private createRoomInProgress = false;
 
     // Callbacks
     private onDisconnectCallback: (() => void) | null = null;
     private onReconnectingCallback: ((attempt: number, maxAttempts: number) => void) | null = null;
     private onReconnectFailedCallback: (() => void) | null = null;
+    /** Stored listeners that are re-attached after reconnection */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    private callbackMap = new Map<string, (...args: any[]) => void>();
 
     // ---- Connection ----
 
@@ -147,6 +152,22 @@ export class GameClient {
         });
     }
 
+    // ---- Listener management ----
+
+    /** Store a callback and register it on the current channel */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    private _register(event: string, fn: (...args: any[]) => void): void {
+        this.callbackMap.set(event, fn);
+        this.channel?.on(event, fn);
+    }
+
+    /** Re-attach all stored callbacks to the current channel (used after reconnect) */
+    private _reattachListeners(): void {
+        for (const [event, fn] of this.callbackMap) {
+            this.channel?.on(event, fn);
+        }
+    }
+
     // ---- Auto-reconnect ----
 
     private _scheduleReconnect(): void {
@@ -168,13 +189,25 @@ export class GameClient {
             if (this.aborted) return;
             try {
                 await this.connect();
-                // Re-register all listeners on the new channel by re-emitting the join event
+                // Re-attach stored listeners to the new channel, then re-join the room
+                this._reattachListeners();
                 this._reJoin();
             } catch (e) {
                 console.warn('[GameClient] Reconnect attempt failed:', e);
                 this._scheduleReconnect();
             }
         }, delay);
+    }
+
+    /** Emit CREATE_ROOM with dedup guard — prevents multiple rooms per session */
+    private _emitCreateRoom(data?: { roomId?: string }): void {
+        if (this.createRoomInProgress) {
+            console.log('[GameClient] CREATE_ROOM already in flight, ignoring duplicate');
+            return;
+        }
+        this.createRoomInProgress = true;
+        this.channel?.emit(EVENTS.CREATE_ROOM, data);
+        setTimeout(() => { this.createRoomInProgress = false; }, 3000);
     }
 
     private _reJoin(): void {
@@ -184,7 +217,7 @@ export class GameClient {
             this.channel?.emit(EVENTS.JOIN_ROOM, { roomId, token, clientId });
         } else if (this.clientRole === 'screen' && this.screenRoomId) {
             console.log(`[GameClient] Re-joining room ${this.screenRoomId} as screen`);
-            this.channel?.emit(EVENTS.CREATE_ROOM, { roomId: this.screenRoomId });
+            this._emitCreateRoom({ roomId: this.screenRoomId });
         }
     }
 
@@ -237,7 +270,7 @@ export class GameClient {
     createRoom(roomId?: string): void {
         this.clientRole = 'screen';
         if (roomId) this.screenRoomId = roomId;
-        this.channel?.emit(EVENTS.CREATE_ROOM, roomId ? { roomId } : undefined);
+        this._emitCreateRoom(roomId ? { roomId } : undefined);
     }
 
     joinRoom(roomId: string, token: string, clientId?: string): void {
@@ -270,11 +303,15 @@ export class GameClient {
     // ---- Event subscriptions ----
 
     onRoomCreated(cb: (data: { roomId: string; joinToken: string; leaderboard?: LeaderboardEntry[]; reconnected?: boolean }) => void): void {
-        this.channel?.on(EVENTS.ROOM_CREATED, cb);
+        const wrapped = (data: { roomId: string; joinToken: string; leaderboard?: LeaderboardEntry[]; reconnected?: boolean }) => {
+            this.createRoomInProgress = false;
+            cb(data);
+        };
+        this._register(EVENTS.ROOM_CREATED, wrapped);
     }
 
     onJoinedRoom(cb: (data: JoinedRoomPayload & { gameInProgress?: boolean }) => void): void {
-        this.channel?.on(EVENTS.JOINED_ROOM, cb);
+        this._register(EVENTS.JOINED_ROOM, cb);
     }
 
     onReconnected(cb: (data: {
@@ -292,97 +329,97 @@ export class GameClient {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         playerSelections?: any[];
     }) => void): void {
-        this.channel?.on(EVENTS.RECONNECTED, cb);
+        this._register(EVENTS.RECONNECTED, cb);
     }
 
     onControllerJoined(cb: (data: { controllerId: string; role: PlayerRole; colorIndex?: number }) => void): void {
-        this.channel?.on(EVENTS.CONTROLLER_JOINED, cb);
+        this._register(EVENTS.CONTROLLER_JOINED, cb);
     }
 
     onControllerLeft(cb: (data: { controllerId?: string; wasLeader?: boolean; screenDisconnected?: boolean }) => void): void {
-        this.channel?.on(EVENTS.CONTROLLER_LEFT, cb);
+        this._register(EVENTS.CONTROLLER_LEFT, cb);
     }
 
     onRolePromoted(cb: (data: { role: PlayerRole }) => void): void {
-        this.channel?.on(EVENTS.ROLE_PROMOTED, cb);
+        this._register(EVENTS.ROLE_PROMOTED, cb);
     }
 
     onLobbyUpdate(cb: (data: LobbyState) => void): void {
-        this.channel?.on(EVENTS.LOBBY_UPDATE, cb);
+        this._register(EVENTS.LOBBY_UPDATE, cb);
     }
 
     onLoadingStart(cb: (data: { playerCount: number }) => void): void {
-        this.channel?.on(EVENTS.LOADING_START, (data: { playerCount: number }) => cb(data));
+        this._register(EVENTS.LOADING_START, (data: { playerCount: number }) => cb(data));
     }
 
     onLoadingCountdown(cb: (data: { duration: number }) => void): void {
-        this.channel?.on(EVENTS.LOADING_COUNTDOWN, (data: { duration: number }) => cb(data));
+        this._register(EVENTS.LOADING_COUNTDOWN, (data: { duration: number }) => cb(data));
     }
 
     onGameStarted(cb: (data: { question: ClientQuestion; timeLeft: number }) => void): void {
-        this.channel?.on(EVENTS.GAME_STARTED, cb);
+        this._register(EVENTS.GAME_STARTED, cb);
     }
 
     onQuestion(cb: (data: ClientQuestion) => void): void {
-        this.channel?.on(EVENTS.QUESTION, cb);
+        this._register(EVENTS.QUESTION, cb);
     }
 
     onTimerSync(cb: (data: TimerSync) => void): void {
-        this.channel?.on(EVENTS.TIMER_SYNC, cb);
+        this._register(EVENTS.TIMER_SYNC, cb);
     }
 
     onScoreUpdate(cb: (data: ScoreUpdate) => void): void {
-        this.channel?.on(EVENTS.SCORE_UPDATE, cb);
+        this._register(EVENTS.SCORE_UPDATE, cb);
     }
 
     onHitResult(cb: (data: HitResultPayload) => void): void {
-        this.channel?.on(EVENTS.HIT_RESULT, cb);
+        this._register(EVENTS.HIT_RESULT, cb);
     }
 
     onProjectile(cb: (data: { controllerId: string; targetXPercent: number; targetYPercent: number }) => void): void {
-        this.channel?.on(EVENTS.PROJECTILE, cb);
+        this._register(EVENTS.PROJECTILE, cb);
     }
 
     onGameOver(cb: (data: GameOverPayload) => void): void {
-        this.channel?.on(EVENTS.GAME_OVER, cb);
+        this._register(EVENTS.GAME_OVER, cb);
     }
 
     onGameRestarted(cb: () => void): void {
-        this.channel?.on(EVENTS.GAME_RESTARTED, cb);
+        this._register(EVENTS.GAME_RESTARTED, cb);
     }
 
     onCrosshair(cb: (data: CrosshairPayload) => void): void {
-        this.channel?.on(EVENTS.CROSSHAIR, cb);
+        this._register(EVENTS.CROSSHAIR, cb);
     }
 
     onStartAiming(cb: (data: StartAimingPayload) => void): void {
-        this.channel?.on(EVENTS.START_AIMING, cb);
+        this._register(EVENTS.START_AIMING, cb);
     }
 
     onCancelAiming(cb: (data: { controllerId: string }) => void): void {
-        this.channel?.on(EVENTS.CANCEL_AIMING, cb);
+        this._register(EVENTS.CANCEL_AIMING, cb);
     }
 
     onTargeting(cb: (data: TargetingPayload) => void): void {
-        this.channel?.on(EVENTS.TARGETING, cb);
+        this._register(EVENTS.TARGETING, cb);
     }
 
     // ---- Phase-based multiplayer ----
 
     onPhaseChange(cb: (data: PhaseChangePayload) => void): void {
-        this.channel?.on(EVENTS.PHASE_CHANGE, cb);
+        this._register(EVENTS.PHASE_CHANGE, cb);
     }
 
     onPlayerSelection(cb: (data: PlayerSelectionPayload) => void): void {
-        this.channel?.on(EVENTS.PLAYER_SELECTION, cb);
+        this._register(EVENTS.PLAYER_SELECTION, cb);
     }
 
     onRevealResult(cb: (data: RevealResultPayload) => void): void {
-        this.channel?.on(EVENTS.REVEAL_RESULT, cb);
+        this._register(EVENTS.REVEAL_RESULT, cb);
     }
 
     onRoomExpired(cb: (data: { reason: string }) => void): void {
-        this.channel?.on(EVENTS.ROOM_EXPIRED, cb);
+        this._register(EVENTS.ROOM_EXPIRED, cb);
     }
 
     // ---- Topic Selection ----
@@ -396,10 +433,10 @@ export class GameClient {
     }
 
     onTopicVoteUpdate(cb: (data: TopicVoteUpdatePayload & { topics?: Array<{ id: string; label: string; emoji: string; x: number; y: number }> }) => void): void {
-        this.channel?.on(EVENTS.TOPIC_VOTE_UPDATE, cb);
+        this._register(EVENTS.TOPIC_VOTE_UPDATE, cb);
     }
 
     onTopicSelected(cb: (data: TopicSelectedPayload) => void): void {
-        this.channel?.on(EVENTS.TOPIC_SELECTED, cb);
+        this._register(EVENTS.TOPIC_SELECTED, cb);
     }
 }

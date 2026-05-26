@@ -65,6 +65,19 @@ export interface Room {
     // Live topic/difficulty tracking for admin monitoring
     currentTopic?: string;
     currentDifficulty?: string;
+    // Human-readable screen identifier for admin status
+    screenLabel?: string;
+}
+
+export interface ConnectionEvent {
+    roomId: string;
+    clientLabel: string;
+    eventType: 'screen_connect' | 'screen_disconnect' | 'screen_reconnect'
+        | 'controller_connect' | 'controller_disconnect'
+        | 'controller_reconnect' | 'controller_reconnect_failed'
+        | 'controller_grace_expired';
+    details: string;
+    timestamp: number;
 }
 
 export const PRE_CONFIG_NAMES = ['Wulf', 'Talon', 'Ryker', 'Zark'];
@@ -79,26 +92,14 @@ export class RoomManager {
     private onEmptyLobbyDeleted: ((room: Room) => void) | null = null;
     private onRoomDeleted: ((roomId: string) => void) | null = null;
 
-    /** Reconnection event log (ring buffer, max 200 entries) */
-    private reconnectionLog: Array<{
-        roomId: string;
-        playerName: string;
-        success: boolean;
-        reason: string;
-        timestamp: number;
-    }> = [];
-    private static readonly MAX_RECONNECT_LOG = 200;
+    /** Connection event log (ring buffer, max 500 entries) */
+    private connectionLog: ConnectionEvent[] = [];
+    private static readonly MAX_CONNECTION_LOG = 500;
 
-    private logReconnect(roomId: string, playerName: string, success: boolean, reason: string): void {
-        this.reconnectionLog.push({
-            roomId,
-            playerName,
-            success,
-            reason,
-            timestamp: Date.now(),
-        });
-        while (this.reconnectionLog.length > RoomManager.MAX_RECONNECT_LOG) {
-            this.reconnectionLog.shift();
+    private logConnectionEvent(event: ConnectionEvent): void {
+        this.connectionLog.push(event);
+        while (this.connectionLog.length > RoomManager.MAX_CONNECTION_LOG) {
+            this.connectionLog.shift();
         }
     }
 
@@ -146,9 +147,17 @@ export class RoomManager {
             lastActivity: Date.now(),
             disconnectedPlayerScores: new Map(),
             disconnectGraceTimers: new Map(),
+            screenLabel: `Screen_${roomId}`,
         };
 
         this.rooms.set(roomId, room);
+        this.logConnectionEvent({
+            roomId,
+            clientLabel: `Screen_${roomId}`,
+            eventType: 'screen_connect',
+            details: `Screen created room ${roomId} (session: ${sessionId})`,
+            timestamp: Date.now(),
+        });
         console.log(`[Room] Created: ${roomId} (game: ${gameType}, session: ${sessionId})`);
         return { roomId, joinToken };
     }
@@ -161,24 +170,62 @@ export class RoomManager {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         channel: any,
         clientId: string,
-    ): { success: boolean; error?: string; role?: PlayerRole; colorIndex?: number; playerName?: string } {
+    ): { success: boolean; error?: string; role?: PlayerRole; colorIndex?: number; playerName?: string; reconnected?: boolean; phase?: string; playerScores?: PlayerScoreEntry[]; resyncState?: Record<string, unknown> } {
         const room = this.rooms.get(roomId);
         if (!room) return { success: false, error: 'Room not found' };
         if (room.joinToken !== token) return { success: false, error: 'Invalid token' };
 
-        // Already in room (reconnecting via joinRoom path)
+        // Already in room (reconnecting via joinRoom path — race where JOIN_ROOM
+        // arrived before onDisconnect, so the controller isn't marked disconnected yet)
         const existingIdx = room.controllers.findIndex(c => c.clientId === clientId);
         if (existingIdx !== -1) {
             const existing = room.controllers[existingIdx];
+
+            // Cancel any pending grace timer so fullyRemoveController won't fire later
+            const timer = room.disconnectGraceTimers.get(clientId);
+            if (timer) {
+                clearTimeout(timer);
+                room.disconnectGraceTimers.delete(clientId);
+            }
+
             existing.id = channel.id;
             existing.channel = channel;
             existing.disconnected = false;
+            existing.isSpectating = false;
+
+            if (room.emptyLobbyTimer) {
+                clearTimeout(room.emptyLobbyTimer);
+                room.emptyLobbyTimer = undefined;
+            }
+            room.lastActivity = Date.now();
+            room.disconnectedPlayerScores.delete(clientId);
+
             const otherLeader = room.controllers.find(
                 c => c.clientId !== clientId && c.role === 'leader' && !c.disconnected,
             );
             if (otherLeader) existing.role = 'member';
             this.ensureSingleLeader(room);
-            return { success: true, role: existing.role, colorIndex: existing.colorIndex, playerName: existing.name };
+
+            const phase = room.gameStarted ? 'playing' : 'lobby';
+            const resyncState = room.gameStarted ? room.engine.getResyncState?.() : undefined;
+
+            this.logConnectionEvent({
+                roomId,
+                clientLabel: existing.name,
+                eventType: 'controller_reconnect',
+                details: `Controller ${existing.name} reconnected (fallback path) — phase: ${phase}`,
+                timestamp: Date.now(),
+            });
+            return {
+                success: true,
+                reconnected: true,
+                phase,
+                role: existing.role,
+                colorIndex: existing.colorIndex,
+                playerName: existing.name,
+                playerScores: this.getPlayerScores(roomId),
+                resyncState,
+            };
         }
 
         const previousScore = room.disconnectedPlayerScores.get(clientId);
@@ -225,6 +272,13 @@ export class RoomManager {
                 room.emptyLobbyTimer = undefined;
             }
 
+            this.logConnectionEvent({
+                roomId,
+                clientLabel: defaultName,
+                eventType: 'controller_connect',
+                details: `Controller ${defaultName} joined as spectator (game in progress)`,
+                timestamp: Date.now(),
+            });
             console.log(`[Room] ${clientId.substring(0, 8)}... joined room ${roomId} as spectator (game in progress)`);
             return { success: true, role: 'member', colorIndex, playerName: defaultName };
         }
@@ -263,6 +317,13 @@ export class RoomManager {
             console.log(`[Room] Empty-lobby timer cancelled — new controller joined ${roomId}`);
         }
 
+        this.logConnectionEvent({
+            roomId,
+            clientLabel: defaultName,
+            eventType: 'controller_connect',
+            details: `Controller ${defaultName} (${role}) joined room ${roomId}`,
+            timestamp: Date.now(),
+        });
         console.log(`[Room] ${role.toUpperCase()} joined ${roomId} (clientId: ${clientId.substring(0, 8)}...)`);
         return { success: true, role, colorIndex, playerName: undefined };
     }
@@ -342,6 +403,13 @@ export class RoomManager {
             if (room.gameStarted) {
                 if (room.controllers.length === 1) {
                     // Last player mid-game — force-end game, don't destroy room, caller handles
+                    this.logConnectionEvent({
+                        roomId: room.roomId,
+                        clientLabel: leftController.name,
+                        eventType: 'controller_disconnect',
+                        details: `Last player ${leftController.name} disconnected mid-game — will force-end`,
+                        timestamp: Date.now(),
+                    });
                     leftController.isSpectating = true;
                     room.controllers.splice(idx, 1);
                     room.lastActivity = Date.now();
@@ -358,6 +426,13 @@ export class RoomManager {
                 // The caller's hasActivePlayers check will force-end the game to lobby.
                 const anyConnected = room.controllers.some(c => !c.disconnected);
                 if (!anyConnected) {
+                    this.logConnectionEvent({
+                        roomId: room.roomId,
+                        clientLabel: leftController.name,
+                        eventType: 'controller_disconnect',
+                        details: `All players disconnected mid-game in ${room.roomId} — will force-end`,
+                        timestamp: Date.now(),
+                    });
                     console.log(`[Room] All players disconnected mid-game in ${room.roomId} — caller will force-end`);
                     if (leftController.score > 0) {
                         room.disconnectedPlayerScores.set(leftController.clientId, {
@@ -387,6 +462,13 @@ export class RoomManager {
                 }, RoomManager.GRACE_MS);
                 room.disconnectGraceTimers.set(clientId, timer);
 
+                this.logConnectionEvent({
+                    roomId: room.roomId,
+                    clientLabel: leftController.name,
+                    eventType: 'controller_disconnect',
+                    details: `Controller ${leftController.name} disconnected during gameplay — ${RoomManager.GRACE_MS / 1000}s grace`,
+                    timestamp: Date.now(),
+                });
                 console.log(`[Room] Controller ${leftController.name} (${clientId}) disconnected during gameplay — ${RoomManager.GRACE_MS / 1000}s grace`);
                 const promotedControllerId = this.ensureSingleLeader(room);
                 return { room, wasLeader, promotedControllerId };
@@ -403,6 +485,13 @@ export class RoomManager {
                 // Last player left the lobby — destroy the room immediately.
                 // No grace period, no 500ms timer. The screen will get ROOM_EXPIRED
                 // and create a fresh room.
+                this.logConnectionEvent({
+                    roomId: room.roomId,
+                    clientLabel: leftController.name,
+                    eventType: 'controller_disconnect',
+                    details: `Last lobby player ${leftController.name} disconnected — destroying room`,
+                    timestamp: Date.now(),
+                });
                 room.controllers.splice(idx, 1);
                 room.lastActivity = Date.now();
                 console.log(`[Room] Last lobby player ${leftController.name} (colorIndex: ${leftColorIndex}) disconnected — destroying room immediately`);
@@ -418,6 +507,13 @@ export class RoomManager {
             }, RoomManager.GRACE_MS);
             room.disconnectGraceTimers.set(clientId, lobbyTimer);
 
+            this.logConnectionEvent({
+                roomId: room.roomId,
+                clientLabel: leftController.name,
+                eventType: 'controller_disconnect',
+                details: `Controller ${leftController.name} disconnected in lobby — ${RoomManager.GRACE_MS / 1000}s grace`,
+                timestamp: Date.now(),
+            });
             room.lastActivity = Date.now();
             const promotedControllerId = this.ensureSingleLeader(room);
             console.log(`[Room] Controller ${leftController.name} (colorIndex: ${leftColorIndex}) disconnected in lobby — ${RoomManager.GRACE_MS / 1000}s grace`);
@@ -472,6 +568,13 @@ export class RoomManager {
         room.disconnectGraceTimers.delete(clientId);
         room.lastActivity = Date.now();
 
+        this.logConnectionEvent({
+            roomId,
+            clientLabel: controller.name,
+            eventType: 'controller_grace_expired',
+            details: `Grace expired — fully removed ${controller.name} (${clientId})`,
+            timestamp: Date.now(),
+        });
         console.log(`[Room] Grace expired — fully removed ${controller.name} (${clientId})`);
 
         const connectedCount = room.controllers.filter(c => !c.disconnected).length;
@@ -496,13 +599,25 @@ export class RoomManager {
     ): { success: boolean; phase?: string; playerScores?: PlayerScoreEntry[]; resyncState?: Record<string, unknown>; error?: string } {
         const room = this.rooms.get(roomId);
         if (!room) {
-            this.logReconnect(roomId, clientId, false, 'Room not found');
+            this.logConnectionEvent({
+                roomId,
+                clientLabel: clientId,
+                eventType: 'controller_reconnect_failed',
+                details: 'Room not found',
+                timestamp: Date.now(),
+            });
             return { success: false, error: 'Room not found' };
         }
 
         const controller = room.controllers.find(c => c.clientId === clientId && c.disconnected);
         if (!controller) {
-            this.logReconnect(roomId, clientId, false, 'No disconnected controller found with that ID');
+            this.logConnectionEvent({
+                roomId,
+                clientLabel: clientId,
+                eventType: 'controller_reconnect_failed',
+                details: 'No disconnected controller found with that ID',
+                timestamp: Date.now(),
+            });
             return { success: false, error: 'No disconnected controller found with that ID' };
         }
 
@@ -535,8 +650,14 @@ export class RoomManager {
         const phase = room.gameStarted ? 'playing' : 'lobby';
         const resyncState = room.gameStarted ? room.engine.getResyncState?.() : undefined;
 
+        this.logConnectionEvent({
+            roomId,
+            clientLabel: controller.name,
+            eventType: 'controller_reconnect',
+            details: `Controller ${controller.name} reconnected — phase: ${phase}`,
+            timestamp: Date.now(),
+        });
         console.log(`[Room] Controller ${controller.name} (${clientId}) reconnected — phase: ${phase}`);
-        this.logReconnect(roomId, controller.name, true, '');
         return { success: true, phase, playerScores: this.getPlayerScores(roomId), resyncState };
     }
 
@@ -556,6 +677,13 @@ export class RoomManager {
 
             room.screenDisconnected = true;
             room.lastActivity = Date.now();
+            this.logConnectionEvent({
+                roomId: room.roomId,
+                clientLabel: room.screenLabel || 'Screen',
+                eventType: 'screen_disconnect',
+                details: `Screen disconnected from ${room.roomId} — ${RoomManager.GRACE_MS / 1000}s grace`,
+                timestamp: Date.now(),
+            });
             console.log(`[Room] Screen disconnected from ${room.roomId} — ${RoomManager.GRACE_MS / 1000}s grace`);
 
             room.screenGraceTimer = setTimeout(() => {
@@ -587,6 +715,15 @@ export class RoomManager {
         room.screenDisconnected = false;
         room.lastActivity = Date.now();
 
+        if (wasDisconnected) {
+            this.logConnectionEvent({
+                roomId,
+                clientLabel: room.screenLabel || 'Screen',
+                eventType: 'screen_reconnect',
+                details: `Screen reconnected to ${roomId}`,
+                timestamp: Date.now(),
+            });
+        }
         console.log(`[Room] Screen took over channel for ${roomId} (was disconnected: ${wasDisconnected})`);
         return { success: true };
     }
@@ -792,16 +929,13 @@ export class RoomManager {
         topicPopularity: Array<{ topicId: string; selectionCount: number; avgScore: number }>;
         difficultyStats: Array<{ difficulty: string; gamesPlayed: number; avgCorrectPct: number; avgScore: number }>;
         playerLeaderboard: Array<{ rank: number; playerName: string; totalScore: number; gamesPlayed: number }>;
-        reconnectionStats: { successRate: number; total: number; successful: number; failed: number; recent: Array<{ roomId: string; playerName: string; success: boolean; reason: string; timestamp: number }> };
+        connectionStats: { total: number; recent: ConnectionEvent[] };
         apiCallLog: Array<{ roomId: string; rounds: number; apiCalls: number }>;
         roomTopics: Array<{ roomId: string; topicId: string; topicLabel: string; voteCount: number; totalVoters: number; questionsAnswered: number; correctAnswers: number; wrongAnswers: number }>;
         roomDifficulties: Array<{ roomId: string; difficulty: string; avgScore: number; avgCorrectPct: number }>;
         recentActivity: Array<{ timestamp: string; activeRooms: number; activePlayers: number }>;
     } {
-        const totalAttempts = this.reconnectionLog.length;
-        const successful = this.reconnectionLog.filter(r => r.success).length;
-        const failed = totalAttempts - successful;
-        const recentLog = this.reconnectionLog.slice(-50);
+        const recentLog = this.connectionLog.slice(-50);
         const roomTopics: Array<{ roomId: string; topicId: string; topicLabel: string; voteCount: number; totalVoters: number; questionsAnswered: number; correctAnswers: number; wrongAnswers: number }> = [];
         const roomDifficulties: Array<{ roomId: string; difficulty: string; avgScore: number; avgCorrectPct: number }> = [];
         for (const [, room] of this.rooms) {
@@ -848,11 +982,8 @@ export class RoomManager {
             topicPopularity: teamRepo.getTopicPopularity(),
             difficultyStats: teamRepo.getDifficultyStats(),
             playerLeaderboard: playerRepo.getPlayerLeaderboard(10),
-            reconnectionStats: {
-                successRate: totalAttempts > 0 ? Math.round((successful / totalAttempts) * 100) : 0,
-                total: totalAttempts,
-                successful,
-                failed,
+            connectionStats: {
+                total: this.connectionLog.length,
                 recent: recentLog,
             },
             apiCallLog: getApiCallLog(),
@@ -875,6 +1006,7 @@ export class RoomManager {
             gameStarted: boolean;
             lastActivity: number;
             screenDisconnected: boolean;
+            screenLabel: string | null;
             currentTopic: string | null;
             currentDifficulty: string | null;
             topicVotes: Record<string, string>; // controllerId -> topicId
@@ -903,6 +1035,7 @@ export class RoomManager {
             gameStarted: boolean;
             lastActivity: number;
             screenDisconnected: boolean;
+            screenLabel: string | null;
             currentTopic: string | null;
             currentDifficulty: string | null;
             topicVotes: Record<string, string>;
@@ -948,6 +1081,7 @@ export class RoomManager {
                 gameStarted: room.gameStarted,
                 lastActivity: room.lastActivity,
                 screenDisconnected: !!room.screenDisconnected,
+                screenLabel: room.screenLabel ?? null,
                 currentTopic: room.currentTopic ?? null,
                 currentDifficulty: room.currentDifficulty ?? null,
                 topicVotes: topicVoteData.topicVotes,

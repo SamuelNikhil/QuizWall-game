@@ -237,6 +237,77 @@ export function registerEventHandlers(io: GeckosServer, roomManager: RoomManager
             }
 
             channel.userData = { role: 'controller', roomId, clientId };
+
+            // Check if this was a reconnect (controller already existed in the room
+            // but wasn't marked disconnected — race condition between JOIN_ROOM and
+            // onDisconnect). In that case send RECONNECTED to restore game state.
+            if (result.reconnected) {
+                const room = roomManager.getRoom(roomId);
+                channel.emit(EVENTS.RECONNECTED, {
+                    success: true,
+                    phase: result.phase ?? 'lobby',
+                    playerScores: result.playerScores,
+                    colorIndex: result.colorIndex ?? 0,
+                    role: result.role ?? 'member',
+                    ...result.resyncState,
+                });
+                console.log(`[Transport] Controller ${clientId} reconnected via fallback to room ${roomId}, phase: ${result.phase}`);
+
+                if (room?.gameStarted) {
+                    const quizEngine = room.engine as QuizEngine;
+                    if (quizEngine) {
+                        quizEngine.removeSelection(clientId);
+                    }
+                    if (quizEngine?.isMultiplayer !== undefined) {
+                        const activePlayers = room.controllers.filter(
+                            c => !c.isSpectating && !c.disconnected,
+                        );
+                        quizEngine.updateActivePlayerCount(activePlayers.length);
+                    }
+
+                    // Resend current game state
+                    const resyncState = result.resyncState;
+                    if (resyncState?.currentQuestion) {
+                        channel.emit(EVENTS.QUESTION, resyncState.currentQuestion);
+                    }
+                    if (quizEngine?.isMultiplayer() && resyncState) {
+                        channel.emit(EVENTS.PHASE_CHANGE, {
+                            phase: resyncState.currentPhase,
+                            timeLeft: resyncState.phaseTimeLeft,
+                            questionNumber: resyncState.questionNumber,
+                        });
+                        if (Array.isArray(resyncState.playerSelections)) {
+                            for (const sel of resyncState.playerSelections) {
+                                channel.emit(EVENTS.PLAYER_SELECTION, sel);
+                            }
+                        }
+                    }
+
+                    // Resend topic selection state if in progress
+                    const topicState = shootQuizPlugin.getState(roomId);
+                    if (topicState?.topicSelectionStarted) {
+                        const topicUpdate = shootQuizPlugin.getTopicVoteUpdate(roomId);
+                        if (topicUpdate) {
+                            const topicOrbs = QUIZ_TOPICS.map((t, i) => ({
+                                id: t.id, label: t.label, emoji: t.emoji, x: 10 + i * 20, y: 50,
+                            }));
+                            channel.emit(EVENTS.TOPIC_VOTE_UPDATE, { ...topicUpdate, topics: topicOrbs });
+                        }
+                    }
+                }
+
+                // Confirm leader role to the current leader (in case of demotion)
+                const currentLeader = room?.controllers.find(
+                    c => c.role === 'leader' && c.clientId !== clientId && !c.disconnected,
+                );
+                if (currentLeader?.channel) {
+                    currentLeader.channel.emit(EVENTS.ROLE_PROMOTED, { role: 'leader' });
+                }
+
+                roomManager.broadcastLobbyUpdate(roomId);
+                return;
+            }
+
             channel.emit(EVENTS.JOINED_ROOM, {
                 roomId,
                 success: true,
